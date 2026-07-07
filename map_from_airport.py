@@ -87,6 +87,7 @@ def slug_for(iata, name):
 def main(
     origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
     resolution=config.H3_RESOLUTION, galton=False,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP,
 ):
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
@@ -111,6 +112,7 @@ def main(
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
         origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs, galton=galton,
+        band_hours=band_hours, cmap_name=cmap_name,
     )
 
 
@@ -126,6 +128,14 @@ if __name__ == "__main__":
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
     )
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
+    parser.add_argument(
+        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
+        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
+    )
+    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap")
     args = parser.parse_args()
 
-    main(args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton)
+    main(
+        args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton,
+        band_hours=args.band_hours, cmap_name=args.cmap,
+    )

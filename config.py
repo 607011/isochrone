@@ -22,14 +22,19 @@ MAP_DPI = 150
 # Flughafen-/Hafen-Punkte standardmäßig einblenden?
 SHOW_HUBS = True
 
-# --- "--galton"-Modus: diskrete Farbbänder statt stufenloser Skala ---
+# --- "--galton"-Modus: geglättete, diskrete Farbbänder statt Kachel-Mosaik ---
 # Bandbreite in Stunden (0-4, 4-8, 8-12, ...).
 GALTON_BAND_HOURS = 4
 
-# Glättungsradius in H3-Ringen (1 = Kachel + direkte Nachbarn) vor dem
-# Einteilen in Bänder. Nur der reine Rendering-Schritt glättet - die
-# zugrunde liegenden CSVs bleiben unangetastet, siehe MEMO.md.
-GALTON_SMOOTHING_RINGS = 1
+# Nachbarschafts-Mittelung auf dem H3-Gitter selbst (1 Ring) glättet zu
+# schwach, um Galtons handgezeichnete, glatte Bänder nachzubilden - das
+# Bandmuster folgt sonst weiter dem kleinräumigen Rauschen der Rohdaten
+# (Sahara/Amazonas: fleckig statt konzentrischer Ringe). Deshalb werden
+# die Werte stattdessen auf ein reguläres Lat/Lon-Raster interpoliert und
+# dort mit einem echten Gauß-Filter geglättet, bevor `contourf` daraus
+# zusammenhängende Bänder zeichnet - siehe MEMO.md.
+GALTON_GRID_DEG = 0.25       # Auflösung des Zwischenrasters
+GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
 # die Skala linear bis zum tatsächlichen Maximum zu strecken - wie bei

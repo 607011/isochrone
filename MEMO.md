@@ -488,6 +488,65 @@ erwartet: sichtbare 4h-Farbstufen, Sahara/Amazonas bleiben fleckig statt
 zu glatten Ringen zu werden - die Vorhersage aus der Diskussion hat
 gestimmt.
 
+## Phase 14b: --galton sah trotzdem schlechter aus als ohne - contourf statt Kachel-Glättung
+
+Nutzer-Feedback nach Phase 14: Sieht schlechter aus als ohne `--galton`,
+keine echten Bänder wie 1881. Ursache im Nachhinein klar: 1-Ring-H3-
+Nachbarschaftsmittel (~7 Kacheln) glättet viel zu lokal - die
+Bandgrenzen folgten weiterhin fast demselben Rauschen wie die Rohdaten,
+nur in Kachelschritten statt stufenlos. Galtons Bänder sind aber glatte,
+zusammenhängende, von Hand generalisierte Flächen - ein grundlegend
+anderes Darstellungsprinzip als "viele kleine Polygone einfärben".
+
+Vorher gemeinsam durchdacht (nicht direkt implementiert): Diagnose plus
+Lösungsvorschlag, dann Bestätigung durch den Nutzer, dann Umsetzung -
+diesmal ausdrücklich in der Reihenfolge angefragt ("noch nichts
+implementieren").
+
+Neuer Ansatz in `plot_h3_map.py`:
+
+1. `_build_galton_grid()`: Kachelwerte per Nearest-Neighbor (`BallTree`)
+   auf ein reguläres Lat/Lon-Raster übertragen (`GALTON_GRID_DEG`,
+   Default 0,25°).
+2. Land und Wasser GETRENNT mit `scipy.ndimage.gaussian_filter`
+   glätten (`GALTON_SIGMA_DEG`, Default 3°) - sonst verschmiert die
+   Küstenlinie. `_nan_gaussian_filter()` dafür: fehlende Werte durch 0
+   ersetzen, Werte UND eine 0/1-Gültigkeitsmaske glätten, dann
+   durcheinander teilen - der Standard-Trick, damit NaN-Bereiche das
+   Ergebnis nicht verwässern statt einfach aus dem gewichteten Mittel
+   herauszufallen.
+3. `ax.contourf()` mit festen Stundenstufen zeichnet daraus echte,
+   glatte Konturflächen (Marching Squares) statt einzelne Kachelkanten
+   einzufärben.
+
+`GALTON_SMOOTHING_RINGS` (Kachel-Nachbarschaft) ersetzt durch
+`GALTON_GRID_DEG`/`GALTON_SIGMA_DEG` (Rasterauflösung/Gauß-Radius).
+
+Ergebnis: 39s statt 91s Renderzeit (kleines Raster + vektorisierter
+Gauß-Filter schlägt die Python-Schleife über 288k Kacheln deutlich) UND
+sichtbar bessere Bänder - echte konzentrische Ringe, Sahara/Amazonas
+jetzt als kleine, aber saubere lokale Vertiefungen statt Flecken-Rauschen.
+
+## Phase 14c: Bandbreite und Colormap wählbar
+
+Zwei weitere Regler auf Nutzerwunsch, direkt im Anschluss an Phase 14b:
+
+- Bandbreite (bisher fest 4h) über `--band-hours` einstellbar. Namensfrage
+  kurz besprochen: Nutzer schlug `--steps` vor, stattdessen `--band-hours`
+  gewählt, weil es eine Breite in Stunden ist, kein Zähler - der Name soll
+  keine Mehrdeutigkeit über die Einheit offenlassen. Spiegelt außerdem
+  `config.GALTON_BAND_HOURS` direkt.
+- Farbskala (bisher fest `viridis_r`) über `--cmap` einstellbar - jeder
+  gültige `matplotlib`-Colormap-Name, keine feste Auswahlliste. Andere
+  perzeptuell gleichmäßige Optionen besprochen (`plasma_r`, `inferno_r`,
+  `magma_r`, `cividis_r`) - `plasma_r` kommt Galtons warmer Gelb-zu-Dunkel-
+  Palette optisch am nächsten.
+
+Beide Parameter durch `plot_h3_map()` und alle drei Wrapper-Skripte
+(`map_from_airport.py`, `friction_surface_map.py`,
+`friction_map_from_airport.py`) durchgereicht. Getestet mit
+`--cmap plasma_r --band-hours 8`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

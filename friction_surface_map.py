@@ -25,7 +25,10 @@ OUTPUT_CSV = "h3_travel_times_london_friction_surface.csv"
 OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 
 
-def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False):
+def main(
+    resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP,
+):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
     finite = np.isfinite(minutes)
@@ -57,7 +60,7 @@ def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.S
     ports_csv_in = _output_path_for(config.OUTPUT_PORTS_CSV, resolution)
     plot_h3_map(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
-        dpi=dpi, show_hubs=show_hubs, galton=galton,
+        dpi=dpi, show_hubs=show_hubs, galton=galton, band_hours=band_hours, cmap_name=cmap_name,
     )
 
 
@@ -72,6 +75,14 @@ if __name__ == "__main__":
         "--galton", action="store_true",
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
     )
+    parser.add_argument(
+        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
+        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
+    )
+    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap")
     args = parser.parse_args()
 
-    main(resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton)
+    main(
+        resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
+        band_hours=args.band_hours, cmap_name=args.cmap,
+    )

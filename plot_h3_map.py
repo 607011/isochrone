@@ -15,11 +15,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
+from matplotlib.colors import Normalize
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import numpy as np
 import pandas as pd
+from global_land_mask import globe
+from scipy.ndimage import gaussian_filter
+from sklearn.neighbors import BallTree
 
 import config
 
@@ -43,25 +46,60 @@ def _cell_polygon_lonlat(h3_index):
     return list(zip(lons, lats))
 
 
-def _smooth_values(h3_indices, values, rings=config.GALTON_SMOOTHING_RINGS):
-    """Mittelt jeden Wert über seine H3-Nachbarn (inkl. sich selbst).
+def _nan_gaussian_filter(grid, sigma_px):
+    """Gauß-Filter, der NaN-Bereiche ignoriert statt sie einzumischen.
 
-    Reiner Rendering-Effekt für den --galton-Look, angelehnt daran, dass
-    Galtons Original von Hand generalisiert war statt Rohdaten roh
-    darzustellen - siehe MEMO.md für die Abwägung (zerfranste Ränder bei
-    Amazonas/Sahara ohne Glättung).
+    Standard-Trick: fehlende Werte durch 0 ersetzen, sowohl die Werte
+    als auch eine 0/1-Gültigkeitsmaske glätten, dann durcheinander
+    teilen - so verwässern NaN-Zellen (z.B. See beim Land-Durchlauf)
+    das Ergebnis nicht, sie fallen einfach aus dem gewichteten Mittel.
+    mode=("nearest", "wrap"): an den Polen nicht über den Rand hinaus
+    spiegeln, aber am Datumsgrenze nahtlos um die Welt herum glätten.
     """
-    lookup = dict(zip(h3_indices, values))
-    smoothed = np.empty(len(values))
-    for i, cell in enumerate(h3_indices):
-        neighbor_values = [lookup[n] for n in h3.grid_disk(cell, rings) if n in lookup]
-        smoothed[i] = np.mean(neighbor_values) if neighbor_values else values[i]
-    return smoothed
+    valid = ~np.isnan(grid)
+    filled = np.where(valid, grid, 0.0)
+    smoothed_values = gaussian_filter(filled, sigma_px, mode=("nearest", "wrap"))
+    smoothed_weight = gaussian_filter(valid.astype(float), sigma_px, mode=("nearest", "wrap"))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        result = smoothed_values / smoothed_weight
+    result[smoothed_weight < 1e-6] = np.nan
+    return result
+
+
+def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=config.GALTON_SIGMA_DEG):
+    """Reguläres, weichgezeichnetes Lat/Lon-Raster für contourf statt Kacheln.
+
+    Nachbarschafts-Mittelung auf dem H3-Gitter selbst glättet zu lokal,
+    um Galtons handgezeichnete, glatte Bänder nachzubilden (siehe
+    config.py). Stattdessen: Kachelwerte per Nearest-Neighbor auf ein
+    reguläres Raster übertragen, Land und Wasser GETRENNT mit einem
+    echten Gauß-Filter glätten (sonst verschmiert die Küstenlinie), dann
+    wieder zusammensetzen.
+    """
+    lon = np.arange(-180, 180, grid_deg)
+    lat = np.arange(-90, 90, grid_deg)
+    lon_grid, lat_grid = np.meshgrid(lon, lat)
+
+    tree = BallTree(np.radians(covered_df[["lat", "lon"]].to_numpy()), metric="haversine")
+    _, idx = tree.query(np.radians(np.column_stack([lat_grid.ravel(), lon_grid.ravel()])), k=1)
+    nearest_values = covered_df["reisezeit_stunden"].to_numpy()[idx.ravel()].reshape(lon_grid.shape)
+
+    is_land_grid = globe.is_land(lat_grid, lon_grid)
+    sigma_px = sigma_deg / grid_deg
+
+    land_grid = np.where(is_land_grid, nearest_values, np.nan)
+    sea_grid = np.where(is_land_grid, np.nan, nearest_values)
+    land_smoothed = _nan_gaussian_filter(land_grid, sigma_px)
+    sea_smoothed = _nan_gaussian_filter(sea_grid, sigma_px)
+
+    values = np.where(is_land_grid, land_smoothed, sea_smoothed)
+    return lon_grid, lat_grid, values
 
 
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -81,32 +119,35 @@ def plot_h3_map(
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     ax.coastlines(linewidth=0.5, color="#888888", zorder=2)
 
-    polygons = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
-    keep = [p is not None for p in polygons]
-    verts = [p for p in polygons if p is not None]
-    values = covered["reisezeit_stunden"].to_numpy()[keep]
-    n_dropped = len(polygons) - len(verts)
+    # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
+    # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
+    # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
+    cmap = matplotlib.colormaps[cmap_name].copy()
 
     if galton:
-        values = _smooth_values(covered["h3_index"].to_numpy()[keep], values)
-        # Diskrete Bänder statt stufenloser Skala - wie Galtons Original.
-        boundaries = np.arange(0, config.COLOR_CAP_HOURS + config.GALTON_BAND_HOURS, config.GALTON_BAND_HOURS)
-        base_cmap = matplotlib.colormaps[config.COLORMAP]
-        cmap = ListedColormap(base_cmap(np.linspace(0, 1, len(boundaries) - 1)))
-        cmap.set_over(base_cmap(1.0))
-        norm = BoundaryNorm(boundaries, cmap.N)
+        # contourf statt Kachel-Mosaik: siehe _build_galton_grid für die
+        # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
+        # Galtons handgezeichnete Bänder nachzubilden).
+        lon_grid, lat_grid, galton_values = _build_galton_grid(covered)
+        boundaries = np.arange(0, config.COLOR_CAP_HOURS + band_hours, band_hours)
+        mappable = ax.contourf(
+            lon_grid, lat_grid, galton_values, levels=boundaries, cmap=cmap, extend="max",
+            transform=ccrs.PlateCarree(), zorder=1,
+        )
+        n_dropped = 0
     else:
-        # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
-        # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
-        # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-        cmap = matplotlib.colormaps[config.COLORMAP].copy()
-        norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
+        polygons = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
+        keep = [p is not None for p in polygons]
+        verts = [p for p in polygons if p is not None]
+        values = covered["reisezeit_stunden"].to_numpy()[keep]
+        n_dropped = len(polygons) - len(verts)
 
-    coll = PolyCollection(
-        verts, array=values, cmap=cmap, norm=norm,
-        edgecolors="none", antialiased=False, transform=ccrs.PlateCarree(), zorder=1,
-    )
-    ax.add_collection(coll)
+        norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
+        mappable = PolyCollection(
+            verts, array=values, cmap=cmap, norm=norm,
+            edgecolors="none", antialiased=False, transform=ccrs.PlateCarree(), zorder=1,
+        )
+        ax.add_collection(mappable)
 
     if show_hubs:
         ax.scatter(
@@ -122,16 +163,15 @@ def plot_h3_map(
         transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
     )
 
-    cbar = fig.colorbar(coll, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
+    cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
     cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
 
     resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
-    galton_suffix = f", {config.GALTON_BAND_HOURS}h-Bänder geglättet" if galton else ""
-    ax.set_title(
-        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, "
-        f"Land+See ({len(covered)}/{len(df)} Kacheln abgedeckt, "
-        f"{n_dropped} Pol-Kacheln nicht darstellbar{galton_suffix})"
-    )
+    if galton:
+        detail = f"{band_hours}h-Bänder, geglättet (Gauß-σ {config.GALTON_SIGMA_DEG}°)"
+    else:
+        detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
+    ax.set_title(f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})")
     ax.legend(loc="lower left", markerscale=2)
 
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
@@ -148,10 +188,16 @@ if __name__ == "__main__":
         "--galton", action="store_true",
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
     )
+    parser.add_argument(
+        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
+        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
+    )
+    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap")
     args = parser.parse_args()
 
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
+        band_hours=args.band_hours, cmap_name=args.cmap,
     )
