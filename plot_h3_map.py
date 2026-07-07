@@ -71,7 +71,7 @@ def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, or
 
     coll = PolyCollection(
         verts, array=values, cmap=cmap, norm=norm,
-        edgecolors="none", transform=ccrs.PlateCarree(), zorder=1,
+        edgecolors="none", antialiased=False, transform=ccrs.PlateCarree(), zorder=1,
     )
     ax.add_collection(coll)
 

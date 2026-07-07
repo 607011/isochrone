@@ -399,6 +399,23 @@ Friction-Graph-Knoten zurück (Datensatz endet bei 60°S) - ähnlich
 unschön wie das frühere Ground-Speed-Modell dort, aber eine
 akzeptierte, dokumentierte Lücke.
 
+## Phase 10b: Moiré-Muster in den H3-Karten
+
+Nutzer bemerkte ein Moiré-Muster in allen H3-Kachel-Karten (feine,
+gitterartige Interferenzlinien). Ursache: `matplotlib` glättet
+(antialiased) standardmäßig auch bei `edgecolors="none"` die Ränder
+jedes einzelnen Polygons im `PolyCollection` - bei hunderttausenden
+dicht aneinandergrenzenden Sechsecken erzeugt das sichtbare, sich
+überlagernde Kantenartefakte.
+
+Nutzervorschlag ("Hexagone vollflächig ohne Rand füllen", sprich leicht
+überlappen lassen) getestet und funktioniert - aber ein Vergleich mit
+der einfacheren Alternative `antialiased=False` auf dem `PolyCollection`
+zeigte: beide beheben das Problem gleich gut, `antialiased=False` ohne
+jede Geometrie-Verzerrung. Umgesetzt in `plot_h3_map.py` und
+`friction_surface_demo.py`, alle betroffenen Karten neu gerendert (reine
+Render-Schritte, keine Neuberechnung nötig).
+
 ## Phase 11 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

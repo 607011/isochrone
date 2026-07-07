@@ -165,7 +165,7 @@ def main():
         verts = [[(lon, lat) for lat, lon in v] for v in verts]
         coll = PolyCollection(
             verts, array=grid_df[col].to_numpy(), cmap=cmap, norm=norm,
-            edgecolors="none", transform=ccrs.PlateCarree(), zorder=1,
+            edgecolors="none", antialiased=False, transform=ccrs.PlateCarree(), zorder=1,
         )
         ax.add_collection(coll)
 
