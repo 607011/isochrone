@@ -222,7 +222,7 @@ def plot_h3_map(
     if grid:
         ax.gridlines(
             xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-90, 91, GRID_STEP_DEG),
-            linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-", zorder=2,
+            linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-", alpha=0.8, zorder=2,
         )
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
