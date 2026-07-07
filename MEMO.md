@@ -659,6 +659,28 @@ Ergebnis: sichtbar gedämpftere, dem Original näherstehende Papierton-
 Farbgebung; Kontinent-Beschriftung jetzt klar von Stadtnamen
 unterscheidbar (fett vs. kursiv).
 
+## Phase 14i: Mercator als Standardprojektion
+
+Nutzerfrage, ob Mercator wie im Original 1881 machbar wäre - ja, Cartopy
+hat `ccrs.Mercator()` fertig. Ein Nebeneffekt vorher erklärt: Mercator
+kann die Pole nicht darstellen (Distanz wird unendlich), Karte muss auf
+z.B. ±85° Breite begrenzt werden statt `ax.set_global()` - erklärt auch,
+warum Grönland/Spitzbergen auf Galtons Original so übergroß wirken
+(echte Mercator-Verzerrung, kein Fehler).
+
+Nutzer-Entscheidung: Mercator wird Standard, bisheriges Robinson über
+neuen `--robinson`-Schalter weiter wählbar (umgekehrtes Muster zu den
+bisherigen Schaltern, wo das Neue optional war).
+
+Stolperstein beim ersten Testlauf: `ax.set_extent([-180, 180, -85, 85])`
+lässt Cartopys Mercator-Randberechnung bei exakt ±180° Länge auf NaN
+laufen (`ValueError: Axis limits cannot be NaN or Inf`). Behoben mit
+einem winzigen Inset (±179.9°) statt der exakten Grenze.
+
+Durchgereicht durch alle drei Wrapper-Skripte, PNG-Dateiname bekommt
+`_robinson`-Suffix nur noch, wenn die alte Projektion gewählt wird
+(Mercator als neuer Standard bekommt keinen Suffix mehr).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

@@ -179,7 +179,7 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
-    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -193,8 +193,19 @@ def plot_h3_map(
     ports_df = pd.read_csv(ports_csv_path)
 
     fig = plt.figure(figsize=(16, 9))
-    ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
-    ax.set_global()
+    if robinson:
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
+        ax.set_global()
+    else:
+        # Wie Galtons Original (1881) - Mercator kann die Pole nicht
+        # darstellen (Distanz zum Pol wird unendlich), deshalb auf
+        # +-85 Grad Breite begrenzen statt ax.set_global(). Erklärt auch
+        # den Original-Effekt, dass Grönland/Spitzbergen überproportional
+        # groß wirken - eine bekannte Mercator-Verzerrung, kein Fehler.
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
+        # -180/180 exakt lässt Cartopys Mercator-Randberechnung auf NaN
+        # laufen, daher ein winziges Inset.
+        ax.set_extent([-179.9, 179.9, -85, 85], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     ax.coastlines(linewidth=0.7, color=ANTHRACITE, zorder=2)
@@ -286,11 +297,15 @@ if __name__ == "__main__":
         "--labels", action="store_true",
         help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
     )
+    parser.add_argument(
+        "--robinson", action="store_true",
+        help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
-        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels,
+        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
     )

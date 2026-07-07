@@ -40,7 +40,7 @@ def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path
 def main(
     origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
     resolution=config.H3_RESOLUTION, galton=False,
-    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
 ):
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
@@ -51,6 +51,7 @@ def main(
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
     galton_suffix = "_galton" if galton else ""
     labels_suffix = "_labels" if labels else ""
+    proj_suffix = "_robinson" if robinson else ""
 
     graph, node_lat, node_lon = friction.load_graph()
     land_result = build_friction_land(
@@ -64,7 +65,7 @@ def main(
     travel_times_csv = f"travel_times_from_{slug}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -73,7 +74,7 @@ def main(
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
         origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs, galton=galton,
-        band_hours=band_hours, cmap_name=cmap_name, labels=labels,
+        band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson,
     )
 
 
@@ -98,9 +99,13 @@ if __name__ == "__main__":
         "--labels", action="store_true",
         help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
     )
+    parser.add_argument(
+        "--robinson", action="store_true",
+        help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
+    )
     args = parser.parse_args()
 
     main(
         args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton,
-        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels,
+        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
     )
