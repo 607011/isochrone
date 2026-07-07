@@ -640,6 +640,25 @@ Umsetzung in `plot_h3_map.py`: `TITLE_FONT` (Playfair Display Bold) für
 `ax.set_title()`, `LABEL_FONT` (Baskerville, `style="italic"`) für
 Kontinent- und Stadtnamen in `_draw_labels()`.
 
+## Phase 14h: Kontinente fett statt kursiv, echte Originalfarben
+
+Zwei Korrekturen vom Nutzer nach Phase 14g:
+
+1. Kontinente sollten fett sein, nicht kursiv (Städte bleiben kursiv).
+   `LABEL_FONT` in zwei Schriften aufgeteilt: `CONTINENT_FONT`
+   (Baskerville fett) und `CITY_FONT` (Baskerville kursiv).
+2. Nutzer hat zehn RGB-Werte direkt von der Originalkarte abgelesen -
+   je ein dunkler und ein heller Ton pro Farbe (Grün/Gelb/Rosa/Blau/
+   Braun), keine Schätzung per Augenmaß mehr wie in Phase 14d.
+   `GALTON_COLORS` von 5 auf 10 Ankerfarben erweitert (dunkel vor hell
+   je Farbe, folgt weiter der Legenden-Reihenfolge nah→fern).
+   `LinearSegmentedColormap` interpoliert automatisch über beliebig
+   viele Bänder, keine Codeänderung an der Farblogik nötig.
+
+Ergebnis: sichtbar gedämpftere, dem Original näherstehende Papierton-
+Farbgebung; Kontinent-Beschriftung jetzt klar von Stadtnamen
+unterscheidbar (fett vs. kursiv).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

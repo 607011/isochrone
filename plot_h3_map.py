@@ -42,24 +42,32 @@ ANTHRACITE = "#2b2e33"
 # Typografie im Stil alter Kartendrucke: Playfair Display für die
 # Hauptüberschrift (Google Font, OFL-Lizenz, als statische Bold-Instanz
 # aus der Variable-Font-Datei erzeugt - matplotlib kann keine
-# Font-Achsen ansteuern), kursive Baskerville (macOS-Systemschrift) für
-# Orts-/Kontinentnamen.
+# Font-Achsen ansteuern), Baskerville (macOS-Systemschrift) für
+# Orts-/Kontinentnamen - Kontinente fett, Städte kursiv.
 PLAYFAIR_BOLD = "fonts/PlayfairDisplay-Bold.ttf"
 if os.path.exists(PLAYFAIR_BOLD):
     fm.fontManager.addfont(PLAYFAIR_BOLD)
     TITLE_FONT = fm.FontProperties(fname=PLAYFAIR_BOLD)
 else:
     TITLE_FONT = fm.FontProperties(family="serif", weight="bold")
-LABEL_FONT = fm.FontProperties(family="Baskerville", style="italic")
+CONTINENT_FONT = fm.FontProperties(family="Baskerville", weight="bold")
+CITY_FONT = fm.FontProperties(family="Baskerville", style="italic")
 
-# Nachempfunden der Legende von Galtons "Isochronic Passage Chart for
-# Travellers" (1881): Grün (<10 Tage) - Gelb (10-20) - Rosa (20-30) -
-# Blau (30-40) - Braun (>40 Tage), per Augenmaß von einem Scan
-# abgelesen, keine pixelgenaue Farbextraktion. Nur die Farbstimmung ist
-# nachgebildet, nicht die 10-Tage-Bandbreite selbst - die wäre für
-# unsere Daten sinnlos, da schon die "<10 Tage"-Kategorie bei uns die
-# gesamte Welt abdeckt (unser Maximum liegt bei 48h = 2 Tagen).
-GALTON_COLORS = ["#7f9779", "#f5efb6", "#eccbc9", "#a3c4d7", "#c9a878"]
+# Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
+# je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
+# Reihenfolge folgt der Legende: Grün (<10 Tage) - Gelb (10-20) -
+# Rosa (20-30) - Blau (30-40) - Braun (>40 Tage), dunkel vor hell je
+# Farbe. Nur die Farbstimmung ist nachgebildet, nicht die 10-Tage-
+# Bandbreite selbst - die wäre für unsere Daten sinnlos, da schon die
+# "<10 Tage"-Kategorie bei uns die gesamte Welt abdeckt (unser Maximum
+# liegt bei 48h = 2 Tagen).
+GALTON_COLORS = [
+    "#697f75", "#d7d4bf",  # Grün dunkel/hell
+    "#d1c498", "#dcd4b7",  # Gelb dunkel/hell
+    "#ba9ca7", "#dfc6c0",  # Pink dunkel/hell
+    "#8b98a9", "#aeb5be",  # Blau dunkel/hell
+    "#a48d81", "#d2bea4",  # Braun dunkel/hell
+]
 
 # Grobe Kontinent-Beschriftungspositionen für --labels - ändern sich nie,
 # deshalb fest hinterlegt statt aus einem Datensatz abgeleitet.
@@ -93,7 +101,7 @@ def _draw_labels(ax):
     for name, lon, lat in CONTINENT_LABELS:
         ax.text(
             lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=14, color=ANTHRACITE, ha="center", va="center", fontproperties=LABEL_FONT,
+            fontsize=14, color=ANTHRACITE, ha="center", va="center", fontproperties=CONTINENT_FONT,
         )
     for name, lon, lat in _load_city_labels():
         ax.plot(
@@ -102,7 +110,7 @@ def _draw_labels(ax):
         )
         ax.text(
             lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=7.5, color=ANTHRACITE, ha="left", va="center", fontproperties=LABEL_FONT,
+            fontsize=7.5, color=ANTHRACITE, ha="left", va="center", fontproperties=CITY_FONT,
         )
 
 
