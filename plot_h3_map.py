@@ -261,11 +261,11 @@ def plot_h3_map(
     if show_hubs:
         ax.scatter(
             airports_df["lon"], airports_df["lat"], c="#ff9d00", marker="o", s=4,
-            linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
+            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
         )
         ax.scatter(
             ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
-            linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
+            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
         )
     ax.scatter(
         origins["lon"], origins["lat"], c="red", marker="*", s=200,
