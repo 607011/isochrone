@@ -614,6 +614,32 @@ bisherige Grau (`#888888` Küstenlinien, `#333333`/`#222222` Beschriftung)
 überall, `patheffects.withStroke`-Weißkontur bei den Labels entfernt,
 Küstenlinien-Strichstärke leicht erhöht (0,5→0,7) für mehr Druckschärfe.
 
+## Phase 14g: Typografie - Playfair Display + kursive Baskerville
+
+Nutzerwunsch: Hauptüberschrift in Playfair Display, Orts-/Kontinentnamen
+in kursiver Garamond oder Baskerville, wie beim Original.
+
+Erst geprüft statt angenommen: Baskerville liegt als macOS-Systemschrift
+bereits vor (inkl. Kursiv-Schnitt, von matplotlib direkt auffindbar) -
+Garamond nicht. Playfair Display ist kein Systemfont, aber ein offener
+Google Font (OFL-Lizenz) - als Variable Font heruntergeladen
+(`fonts/PlayfairDisplay-Variable.ttf`, nicht committet). matplotlib kann
+keine Variable-Font-Achsen ansteuern (würde nur die Default-Instanz,
+meist Regular, rendern) - deshalb mit `fonttools varLib.instancer
+wght=700` eine echte statische Bold-Instanz erzeugt
+(`fonts/PlayfairDisplay-Bold.ttf`, committet, ~195 KB) und die per
+`matplotlib.font_manager.fontManager.addfont()` registriert.
+
+Kleiner Bug beim ersten Rendern: Playfair Display hat kein griechisches
+Sigma (`σ`) im Zeichensatz - im Titel ("Gauß-σ...") erschien es als
+Tofu-Box statt als Fehler. matplotlib macht kein automatisches
+Font-Fallback pro Zeichen wie ein Browser. Behoben, indem der Titeltext
+das Sigma-Symbol durch Klartext ("Gauß-Radius") ersetzt.
+
+Umsetzung in `plot_h3_map.py`: `TITLE_FONT` (Playfair Display Bold) für
+`ax.set_title()`, `LABEL_FONT` (Baskerville, `style="italic"`) für
+Kontinent- und Stadtnamen in `_draw_labels()`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

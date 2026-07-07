@@ -5,3 +5,4 @@ __pycache__/
 cache/
 osm_data/*.osm.pbf
 friction_data/*.geotiff
+fonts/PlayfairDisplay-Variable.ttf

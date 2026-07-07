@@ -14,6 +14,7 @@ import h3
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 import cartopy.crs as ccrs
@@ -37,6 +38,19 @@ POLE_DEGENERACY_THRESHOLD_DEG = 300
 # Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
 # am scharfen, gestochenen Druckbild von Galtons Original.
 ANTHRACITE = "#2b2e33"
+
+# Typografie im Stil alter Kartendrucke: Playfair Display für die
+# Hauptüberschrift (Google Font, OFL-Lizenz, als statische Bold-Instanz
+# aus der Variable-Font-Datei erzeugt - matplotlib kann keine
+# Font-Achsen ansteuern), kursive Baskerville (macOS-Systemschrift) für
+# Orts-/Kontinentnamen.
+PLAYFAIR_BOLD = "fonts/PlayfairDisplay-Bold.ttf"
+if os.path.exists(PLAYFAIR_BOLD):
+    fm.fontManager.addfont(PLAYFAIR_BOLD)
+    TITLE_FONT = fm.FontProperties(fname=PLAYFAIR_BOLD)
+else:
+    TITLE_FONT = fm.FontProperties(family="serif", weight="bold")
+LABEL_FONT = fm.FontProperties(family="Baskerville", style="italic")
 
 # Nachempfunden der Legende von Galtons "Isochronic Passage Chart for
 # Travellers" (1881): Grün (<10 Tage) - Gelb (10-20) - Rosa (20-30) -
@@ -79,7 +93,7 @@ def _draw_labels(ax):
     for name, lon, lat in CONTINENT_LABELS:
         ax.text(
             lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=13, fontweight="bold", color=ANTHRACITE, ha="center", va="center",
+            fontsize=14, color=ANTHRACITE, ha="center", va="center", fontproperties=LABEL_FONT,
         )
     for name, lon, lat in _load_city_labels():
         ax.plot(
@@ -88,7 +102,7 @@ def _draw_labels(ax):
         )
         ax.text(
             lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=6.5, color=ANTHRACITE, ha="left", va="center",
+            fontsize=7.5, color=ANTHRACITE, ha="left", va="center", fontproperties=LABEL_FONT,
         )
 
 
@@ -229,10 +243,13 @@ def plot_h3_map(
 
     resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
     if galton:
-        detail = f"{band_hours}h-Bänder, geglättet (Gauß-σ {config.GALTON_SIGMA_DEG}°)"
+        detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
     else:
         detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
-    ax.set_title(f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})")
+    ax.set_title(
+        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
+        fontproperties=TITLE_FONT, fontsize=18, color=ANTHRACITE,
+    )
     ax.legend(loc="lower left", markerscale=2)
 
     if labels:
