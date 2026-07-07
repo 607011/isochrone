@@ -198,14 +198,18 @@ def plot_h3_map(
         ax.set_global()
     else:
         # Wie Galtons Original (1881) - Mercator kann die Pole nicht
-        # darstellen (Distanz zum Pol wird unendlich), deshalb auf
-        # +-85 Grad Breite begrenzen statt ax.set_global(). Erklärt auch
+        # darstellen (Distanz zum Pol wird unendlich), deshalb auf einen
+        # Breitenbereich begrenzen statt ax.set_global(). Erklärt auch
         # den Original-Effekt, dass Grönland/Spitzbergen überproportional
         # groß wirken - eine bekannte Mercator-Verzerrung, kein Fehler.
+        # Im --galton-Modus exakt Galtons eigener Zuschnitt (80°N/60°S,
+        # asymmetrisch - die Karte reichte nach Norden weiter als nach
+        # Süden), sonst ein symmetrischer Standardwert.
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
+        lat_max, lat_min = (80, -60) if galton else (85, -85)
         # -180/180 exakt lässt Cartopys Mercator-Randberechnung auf NaN
         # laufen, daher ein winziges Inset.
-        ax.set_extent([-179.9, 179.9, -85, 85], crs=ccrs.PlateCarree())
+        ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     ax.coastlines(linewidth=0.7, color=ANTHRACITE, zorder=2)

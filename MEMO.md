@@ -681,6 +681,16 @@ Durchgereicht durch alle drei Wrapper-Skripte, PNG-Dateiname bekommt
 `_robinson`-Suffix nur noch, wenn die alte Projektion gewählt wird
 (Mercator als neuer Standard bekommt keinen Suffix mehr).
 
+## Phase 14j: Originaler Mercator-Zuschnitt (80°N/60°S) im --galton-Modus
+
+Direkte Nachbesserung zu Phase 14i: Nutzer wollte den exakten,
+asymmetrischen Zuschnitt des Originals (80°N/60°S) statt des generischen
+symmetrischen ±85°-Werts - aber nur, wenn `--galton` aktiv ist; der
+normale Mercator-Modus (ohne `--galton`) bleibt beim symmetrischen Wert.
+Ein Zweizeiler in `plot_h3_map.py` (`lat_max, lat_min = (80, -60) if
+galton else (85, -85)`), keine neuen Parameter nötig, da `galton` schon
+als Argument vorhanden war.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
