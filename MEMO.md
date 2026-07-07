@@ -453,7 +453,42 @@ korrekt als kaum erreichbar (>48h, gekappte Farbe), nur der schmale
 Küstenstreifen um Thule bleibt hell - anders als vorher, wo das ganze
 Eisschild wie leicht befahrbares Gelände aussah.
 
-## Phase 13 (geplant): Isochronen-Konturlinien
+## Phase 14: --galton-Modus (diskrete Farbbänder statt stufenloser Skala)
+
+Nutzeridee: ein `--galton`-Schalter, der die Karte optisch näher an
+Galtons Original bringt (diskrete Isochronen-Bänder statt fließendem
+Farbverlauf). Vorher gemeinsam durchdacht, bevor implementiert wurde:
+
+- Frage vorab: Wie sehen "zerfranste" Gebiete wie Sahara/Amazonas mit
+  Bändern aus? Antwort: schlechter als bei Galton, nicht besser - die
+  Friction-Daten rauschen dort schon roh sehr kleinräumig (Flüsse,
+  Dünen), harte Bandgrenzen zwischen Nachbarkacheln würden das eher
+  betonen als kaschieren. Galtons glatte Ringe kamen von Hand-
+  Generalisierung, nicht von den Rohdaten.
+- Nutzer-Entscheidung: Glättung und Bänderung an denselben Schalter
+  koppeln - ohne `--galton` bleibt alles wie bisher (roh, stufenlos),
+  mit `--galton` beides zusammen (Retro-Look).
+
+Umsetzung in `plot_h3_map.py`, durchgereicht durch `map_from_airport.py`,
+`friction_surface_map.py`, `friction_map_from_airport.py`:
+
+- `_smooth_values()`: jede Kachel wird über ihre H3-Nachbarn gemittelt
+  (`h3.grid_disk(cell, GALTON_SMOOTHING_RINGS)`, Default 1 Ring). Reiner
+  Rendering-Schritt - die CSVs bleiben unangetastet, nur das PNG glättet.
+- Statt `Normalize` (stufenlose Skala) wird `BoundaryNorm` mit fester
+  Bandbreite (`GALTON_BAND_HOURS`, Default 4h) auf eine diskrete
+  `ListedColormap` angewandt; der `COLOR_CAP_HOURS`-Deckel bleibt als
+  letztes offenes Band (`extend='max'`) erhalten.
+- PNG-Dateiname bekommt `_galton`-Suffix, damit nichts überschrieben wird.
+
+Getestet an der London-Friction-Surface-Karte (Res. 4, 288k Kacheln):
+~1,5 Minuten Renderzeit (Glättung in einer Python-Schleife über alle
+Kacheln ist der Flaschenhals bei dieser Kachelzahl). Ergebnis wie
+erwartet: sichtbare 4h-Farbstufen, Sahara/Amazonas bleiben fleckig statt
+zu glatten Ringen zu werden - die Vorhersage aus der Diskussion hat
+gestimmt.
+
+## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
 Isolinien zeichnen. Noch nicht umgesetzt.

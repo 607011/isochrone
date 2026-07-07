@@ -84,7 +84,10 @@ def slug_for(iata, name):
     return iata.lower() + "_" + "".join(c if c.isalnum() else "_" for c in name.lower())
 
 
-def main(origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, resolution=config.H3_RESOLUTION):
+def main(
+    origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
+    resolution=config.H3_RESOLUTION, galton=False,
+):
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
         raise ValueError(f"{origin_iata} ist im Flugnetz nicht erreichbar/vorhanden.")
@@ -92,13 +95,14 @@ def main(origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, resolution
     origin_row = travel_times_df[travel_times_df["iata_code"] == origin_iata].iloc[0]
     slug = slug_for(origin_iata, origin_row["name"])
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
+    galton_suffix = "_galton" if galton else ""
 
     h3_df, ports_df = build_h3(travel_times_df, resolution)
 
     travel_times_csv = f"travel_times_from_{slug}.csv"
     h3_csv = f"h3_travel_times_from_{slug}{res_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}{res_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}{res_suffix}{galton_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -106,7 +110,7 @@ def main(origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, resolution
 
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
-        origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs,
+        origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs, galton=galton,
     )
 
 
@@ -117,7 +121,11 @@ if __name__ == "__main__":
     parser.add_argument("iata", nargs="?", default="THU", help="IATA-Code des Start-Flughafens")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument(
+        "--galton", action="store_true",
+        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+    )
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     args = parser.parse_args()
 
-    main(args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution)
+    main(args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton)

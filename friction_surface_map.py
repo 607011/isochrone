@@ -25,7 +25,7 @@ OUTPUT_CSV = "h3_travel_times_london_friction_surface.csv"
 OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 
 
-def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS):
+def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
     finite = np.isfinite(minutes)
@@ -45,8 +45,9 @@ def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.S
     combined = pd.concat([land_df[["h3_index", "lat", "lon", "reisezeit_stunden"]], sea_df], ignore_index=True)
 
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
+    galton_suffix = "_galton" if galton else ""
     output_csv = OUTPUT_CSV.replace(".csv", f"{res_suffix}.csv")
-    output_png = OUTPUT_PNG.replace(".png", f"{res_suffix}.png")
+    output_png = OUTPUT_PNG.replace(".png", f"{res_suffix}{galton_suffix}.png")
     combined.to_csv(output_csv, index=False)
 
     covered = combined["reisezeit_stunden"].notna().sum()
@@ -54,7 +55,10 @@ def main(resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.S
           f"(Land via Friction Surface: {land_df['reisezeit_stunden'].notna().sum()}/{len(land_df)}).")
 
     ports_csv_in = _output_path_for(config.OUTPUT_PORTS_CSV, resolution)
-    plot_h3_map(output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS, dpi=dpi, show_hubs=show_hubs)
+    plot_h3_map(
+        output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
+        dpi=dpi, show_hubs=show_hubs, galton=galton,
+    )
 
 
 if __name__ == "__main__":
@@ -64,6 +68,10 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument(
+        "--galton", action="store_true",
+        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+    )
     args = parser.parse_args()
 
-    main(resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs)
+    main(resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton)

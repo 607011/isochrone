@@ -22,6 +22,15 @@ MAP_DPI = 150
 # Flughafen-/Hafen-Punkte standardmäßig einblenden?
 SHOW_HUBS = True
 
+# --- "--galton"-Modus: diskrete Farbbänder statt stufenloser Skala ---
+# Bandbreite in Stunden (0-4, 4-8, 8-12, ...).
+GALTON_BAND_HOURS = 4
+
+# Glättungsradius in H3-Ringen (1 = Kachel + direkte Nachbarn) vor dem
+# Einteilen in Bänder. Nur der reine Rendering-Schritt glättet - die
+# zugrunde liegenden CSVs bleiben unangetastet, siehe MEMO.md.
+GALTON_SMOOTHING_RINGS = 1
+
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
 # die Skala linear bis zum tatsächlichen Maximum zu strecken - wie bei
 # Galtons Original mit diskreten Farbbändern und einer letzten

@@ -15,9 +15,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import Normalize
+from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import numpy as np
 import pandas as pd
 
 import config
@@ -42,9 +43,25 @@ def _cell_polygon_lonlat(h3_index):
     return list(zip(lons, lats))
 
 
+def _smooth_values(h3_indices, values, rings=config.GALTON_SMOOTHING_RINGS):
+    """Mittelt jeden Wert über seine H3-Nachbarn (inkl. sich selbst).
+
+    Reiner Rendering-Effekt für den --galton-Look, angelehnt daran, dass
+    Galtons Original von Hand generalisiert war statt Rohdaten roh
+    darzustellen - siehe MEMO.md für die Abwägung (zerfranste Ränder bei
+    Amazonas/Sahara ohne Glättung).
+    """
+    lookup = dict(zip(h3_indices, values))
+    smoothed = np.empty(len(values))
+    for i, cell in enumerate(h3_indices):
+        neighbor_values = [lookup[n] for n in h3.grid_disk(cell, rings) if n in lookup]
+        smoothed[i] = np.mean(neighbor_values) if neighbor_values else values[i]
+    return smoothed
+
+
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
-    origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
+    origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -70,11 +87,20 @@ def plot_h3_map(
     values = covered["reisezeit_stunden"].to_numpy()[keep]
     n_dropped = len(polygons) - len(verts)
 
-    # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
-    # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
-    # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-    cmap = matplotlib.colormaps[config.COLORMAP].copy()
-    norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
+    if galton:
+        values = _smooth_values(covered["h3_index"].to_numpy()[keep], values)
+        # Diskrete Bänder statt stufenloser Skala - wie Galtons Original.
+        boundaries = np.arange(0, config.COLOR_CAP_HOURS + config.GALTON_BAND_HOURS, config.GALTON_BAND_HOURS)
+        base_cmap = matplotlib.colormaps[config.COLORMAP]
+        cmap = ListedColormap(base_cmap(np.linspace(0, 1, len(boundaries) - 1)))
+        cmap.set_over(base_cmap(1.0))
+        norm = BoundaryNorm(boundaries, cmap.N)
+    else:
+        # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
+        # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
+        # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
+        cmap = matplotlib.colormaps[config.COLORMAP].copy()
+        norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
 
     coll = PolyCollection(
         verts, array=values, cmap=cmap, norm=norm,
@@ -100,10 +126,11 @@ def plot_h3_map(
     cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
 
     resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
+    galton_suffix = f", {config.GALTON_BAND_HOURS}h-Bänder geglättet" if galton else ""
     ax.set_title(
         f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, "
         f"Land+See ({len(covered)}/{len(df)} Kacheln abgedeckt, "
-        f"{n_dropped} Pol-Kacheln nicht darstellbar)"
+        f"{n_dropped} Pol-Kacheln nicht darstellbar{galton_suffix})"
     )
     ax.legend(loc="lower left", markerscale=2)
 
@@ -117,10 +144,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument(
+        "--galton", action="store_true",
+        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
-        dpi=args.dpi, show_hubs=not args.no_hubs,
+        dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
     )
