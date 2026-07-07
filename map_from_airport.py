@@ -132,7 +132,7 @@ if __name__ == "__main__":
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
         help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
     )
-    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap")
+    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap, oder 'galton' fuer eine an das Original angelehnte Palette")
     args = parser.parse_args()
 
     main(

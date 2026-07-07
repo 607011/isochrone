@@ -547,6 +547,32 @@ Beide Parameter durch `plot_h3_map()` und alle drei Wrapper-Skripte
 `friction_map_from_airport.py`) durchgereicht. Getestet mit
 `--cmap plasma_r --band-hours 8`.
 
+## Phase 14d: --cmap galton - Originalfarben statt nur Originalstruktur
+
+Nutzeridee: `--cmap galton` als Sonderwert, der Galtons echtes Farbschema
+nachbildet statt nur seine Bänder-Struktur. Nutzer hat dafür einen Scan
+von Galtons "Isochronic Passage Chart for Travellers" (1881) samt
+Legende gepostet: Grün (<10 Tage) - Gelb (10-20) - Rosa (20-30) -
+Blau (30-40) - Braun (>40 Tage).
+
+Wichtige Klarstellung vorab (bevor Farben übernommen wurden): die
+10-Tage-Bandbreite selbst NICHT mit übernehmen, nur die Farbstimmung.
+Grund: unsere Reisezeiten liegen maximal bei 48h (2 Tage) - Galtons
+"<10 Tage"-Kategorie würde bei uns die gesamte Welt in eine einzige
+Farbe packen. Bandbreite bleibt weiter unabhängig über `--band-hours`
+steuerbar.
+
+Umsetzung: `GALTON_COLORS` in `plot_h3_map.py`, fünf Hex-Werte grün→gelb→
+rosa→blau→braun, per Augenmaß vom Scan abgelesen (keine pixelgenaue
+Farbextraktion, dafür bräuchte man das Originalbild als Datei statt nur
+im Chat gepostet). `cmap_name == "galton"` baut daraus eine
+`LinearSegmentedColormap` statt eines matplotlib-Namens nachzuschlagen -
+`contourf` diskretisiert die wie jede andere Colormap automatisch in die
+per `--band-hours` gewählte Bandzahl.
+
+Getestet mit `--cmap galton --band-hours 8`: gedämpfte Grün-Gelb-Rosa-
+Blau-Braun-Abfolge, optisch klar an das Original angelehnt.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

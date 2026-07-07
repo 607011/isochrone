@@ -15,7 +15,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import Normalize
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import numpy as np
@@ -32,6 +32,15 @@ import config
 # für echte Antimeridian-Fälle würde solche Kacheln zu einem absurd
 # breiten Riesenpolygon aufblähen, das große Teile der Karte verdeckt.
 POLE_DEGENERACY_THRESHOLD_DEG = 300
+
+# Nachempfunden der Legende von Galtons "Isochronic Passage Chart for
+# Travellers" (1881): Grün (<10 Tage) - Gelb (10-20) - Rosa (20-30) -
+# Blau (30-40) - Braun (>40 Tage), per Augenmaß von einem Scan
+# abgelesen, keine pixelgenaue Farbextraktion. Nur die Farbstimmung ist
+# nachgebildet, nicht die 10-Tage-Bandbreite selbst - die wäre für
+# unsere Daten sinnlos, da schon die "<10 Tage"-Kategorie bei uns die
+# gesamte Welt abdeckt (unser Maximum liegt bei 48h = 2 Tagen).
+GALTON_COLORS = ["#7f9779", "#f5efb6", "#eccbc9", "#a3c4d7", "#c9a878"]
 
 
 def _cell_polygon_lonlat(h3_index):
@@ -122,7 +131,10 @@ def plot_h3_map(
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
     # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-    cmap = matplotlib.colormaps[cmap_name].copy()
+    if cmap_name == "galton":
+        cmap = LinearSegmentedColormap.from_list("galton", GALTON_COLORS)
+    else:
+        cmap = matplotlib.colormaps[cmap_name].copy()
 
     if galton:
         # contourf statt Kachel-Mosaik: siehe _build_galton_grid für die
@@ -192,7 +204,7 @@ if __name__ == "__main__":
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
         help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
     )
-    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap")
+    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap, oder 'galton' fuer eine an das Original angelehnte Palette")
     args = parser.parse_args()
 
     plot_h3_map(
