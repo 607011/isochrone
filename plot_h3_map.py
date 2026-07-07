@@ -95,8 +95,9 @@ def plot_h3_map(
     cbar = fig.colorbar(coll, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
     cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
 
+    resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
     ax.set_title(
-        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {config.H3_RESOLUTION}, "
+        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, "
         f"Land+See ({len(covered)}/{len(df)} Kacheln abgedeckt, "
         f"{n_dropped} Pol-Kacheln nicht darstellbar)"
     )

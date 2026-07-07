@@ -17,13 +17,13 @@ from nearest_hub import assign_travel_times, nearest_value
 from ports_loading import load_ports
 
 
-def main():
+def main(resolution=config.H3_RESOLUTION, output_csv=config.OUTPUT_H3_CSV, output_ports_csv=config.OUTPUT_PORTS_CSV):
     airports_df = pd.read_csv(config.OUTPUT_CSV)
     ports_df = load_ports(config.PORTS_CSV)
     print(f"{len(ports_df)} Häfen mit gültigen Koordinaten geladen.")
 
-    grid_df = build_grid(config.H3_RESOLUTION)
-    print(f"{len(grid_df)} H3-Kacheln bei Auflösung {config.H3_RESOLUTION} erzeugt.")
+    grid_df = build_grid(resolution)
+    print(f"{len(grid_df)} H3-Kacheln bei Auflösung {resolution} erzeugt.")
 
     on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
     land_df = grid_df[on_land].reset_index(drop=True)
@@ -37,7 +37,7 @@ def main():
     land_result["hub_type"] = "airport"
 
     ports_df["reisezeit_stunden"] = nearest_value(ports_df, land_result, "reisezeit_stunden")
-    ports_df.to_csv(config.OUTPUT_PORTS_CSV, index=False)
+    ports_df.to_csv(output_ports_csv, index=False)
     covered_ports = ports_df["reisezeit_stunden"].notna().sum()
     print(f"{covered_ports} von {len(ports_df)} Häfen haben eine Reisezeit über die nächste Landkachel erhalten.")
 
@@ -55,9 +55,26 @@ def main():
           f"{land_result['reisezeit_stunden'].notna().sum()}/{len(land_result)}, "
           f"Wasser: {sea_result['reisezeit_stunden'].notna().sum()}/{len(sea_result)}.")
 
-    result_df.to_csv(config.OUTPUT_H3_CSV, index=False)
-    print(f"Ergebnis geschrieben nach {config.OUTPUT_H3_CSV}")
+    result_df.to_csv(output_csv, index=False)
+    print(f"Ergebnis geschrieben nach {output_csv}")
+
+
+def _output_path_for(base_path, resolution):
+    """Hängt bei nicht-Standard-Auflösung ein _resN an den Dateinamen an."""
+    if resolution == config.H3_RESOLUTION:
+        return base_path
+    return base_path.with_name(f"{base_path.stem}_res{resolution}{base_path.suffix}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
+    args = parser.parse_args()
+
+    main(
+        args.resolution,
+        output_csv=_output_path_for(config.OUTPUT_H3_CSV, args.resolution),
+        output_ports_csv=_output_path_for(config.OUTPUT_PORTS_CSV, args.resolution),
+    )
