@@ -10,8 +10,6 @@ gelaufen sein) - nur der virtuelle Superknoten bekommt neue Gewichte
 läuft erneut (unter einer Sekunde).
 """
 
-import sys
-
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
@@ -39,7 +37,7 @@ def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path
     return land_df
 
 
-def main(origin_iata):
+def main(origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS):
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
         raise ValueError(f"{origin_iata} ist im Flugnetz nicht erreichbar/vorhanden.")
@@ -64,8 +62,19 @@ def main(origin_iata):
     h3_df.to_csv(h3_csv, index=False)
     ports_df.to_csv(ports_csv, index=False)
 
-    plot_h3_map(h3_csv, travel_times_csv, ports_csv, png, [origin_iata], origin_label=origin_row["name"])
+    plot_h3_map(
+        h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
+        origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs,
+    )
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "THU")
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("iata", nargs="?", default="THU", help="IATA-Code des Start-Flughafens")
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    args = parser.parse_args()
+
+    main(args.iata, dpi=args.dpi, show_hubs=not args.no_hubs)
