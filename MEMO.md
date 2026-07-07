@@ -605,6 +605,15 @@ Auto-Decluttering (z.B. `adjustText`) eingebaut, nur der
 `SCALERANK`-Schwellenwert begrenzt die Dichte. Als bekannte
 Einschränkung akzeptiert, kein Blocker.
 
+## Phase 14f: Anthrazit statt Grau/Weiß-Kontur
+
+Nutzerfeedback direkt nach Phase 14e: Galtons Original lebt von scharfen,
+dunklen Küstenlinien und Schrift ohne störenden weißen Rand. Umgesetzt:
+neue Konstante `ANTHRACITE = "#2b2e33"` in `plot_h3_map.py`, ersetzt das
+bisherige Grau (`#888888` Küstenlinien, `#333333`/`#222222` Beschriftung)
+überall, `patheffects.withStroke`-Weißkontur bei den Labels entfernt,
+Küstenlinien-Strichstärke leicht erhöht (0,5→0,7) für mehr Druckschärfe.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

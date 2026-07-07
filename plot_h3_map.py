@@ -14,7 +14,6 @@ import h3
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as patheffects
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 import cartopy.crs as ccrs
@@ -34,6 +33,10 @@ import config
 # für echte Antimeridian-Fälle würde solche Kacheln zu einem absurd
 # breiten Riesenpolygon aufblähen, das große Teile der Karte verdeckt.
 POLE_DEGENERACY_THRESHOLD_DEG = 300
+
+# Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
+# am scharfen, gestochenen Druckbild von Galtons Original.
+ANTHRACITE = "#2b2e33"
 
 # Nachempfunden der Legende von Galtons "Isochronic Passage Chart for
 # Travellers" (1881): Grün (<10 Tage) - Gelb (10-20) - Rosa (20-30) -
@@ -76,18 +79,16 @@ def _draw_labels(ax):
     for name, lon, lat in CONTINENT_LABELS:
         ax.text(
             lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=13, fontweight="bold", color="#333333", ha="center", va="center",
-            path_effects=[patheffects.withStroke(linewidth=3, foreground="white")],
+            fontsize=13, fontweight="bold", color=ANTHRACITE, ha="center", va="center",
         )
     for name, lon, lat in _load_city_labels():
         ax.plot(
-            lon, lat, marker="o", markersize=2, color="black",
+            lon, lat, marker="o", markersize=2, color=ANTHRACITE,
             transform=ccrs.PlateCarree(), zorder=6,
         )
         ax.text(
             lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=6.5, color="#222222", ha="left", va="center",
-            path_effects=[patheffects.withStroke(linewidth=2, foreground="white")],
+            fontsize=6.5, color=ANTHRACITE, ha="left", va="center",
         )
 
 
@@ -174,7 +175,7 @@ def plot_h3_map(
     ax.set_global()
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
-    ax.coastlines(linewidth=0.5, color="#888888", zorder=2)
+    ax.coastlines(linewidth=0.7, color=ANTHRACITE, zorder=2)
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
