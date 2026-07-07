@@ -691,6 +691,31 @@ Ein Zweizeiler in `plot_h3_map.py` (`lat_max, lat_min = (80, -60) if
 galton else (85, -85)`), keine neuen Parameter nötig, da `galton` schon
 als Argument vorhanden war.
 
+## Phase 14k: --grid - Längen-/Breitengrad-Raster
+
+Nutzer wollte ein Gradnetz alle 20°, in derselben Strichstärke wie die
+Küstenlinien - "Gerne auch ein anderer Schalter, der dir passender
+erscheint", aber `--grid` passte schon. Dafür zunächst die bislang
+hartkodierte Küstenlinien-Strichstärke in eine Konstante
+`COASTLINE_LINEWIDTH = 0.7` ausgelagert (statt sie ein zweites Mal als
+Magic Number für die Gitterlinien hinzuschreiben), dazu
+`GRID_STEP_DEG = 20`. Direkt nach `ax.coastlines(...)`:
+
+```python
+if grid:
+    ax.gridlines(
+        xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-90, 91, GRID_STEP_DEG),
+        linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-", zorder=2,
+    )
+```
+
+Funktioniert unverändert unter Mercator und Robinson, da `ax.gridlines()`
+projektionsunabhängig in PlateCarree-Koordinaten rechnet. `grid=False`
+als neuer Parameter durch alle vier Kartenskripte durchgereicht
+(`plot_h3_map.py`, `map_from_airport.py`, `friction_surface_map.py`,
+`friction_map_from_airport.py`), Dateiname bekommt bei aktivem Schalter
+das Suffix `_grid` (letztes Glied der Suffix-Kette, nach `_robinson`).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

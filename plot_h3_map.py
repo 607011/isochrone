@@ -38,6 +38,10 @@ POLE_DEGENERACY_THRESHOLD_DEG = 300
 # Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
 # am scharfen, gestochenen Druckbild von Galtons Original.
 ANTHRACITE = "#2b2e33"
+COASTLINE_LINEWIDTH = 0.7
+
+# Abstand des Längen-/Breitengrad-Rasters für --grid, in Grad.
+GRID_STEP_DEG = 20
 
 # Typografie im Stil alter Kartendrucke: Playfair Display für die
 # Hauptüberschrift (Google Font, OFL-Lizenz, als statische Bold-Instanz
@@ -180,6 +184,7 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    grid=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -212,7 +217,13 @@ def plot_h3_map(
         ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
-    ax.coastlines(linewidth=0.7, color=ANTHRACITE, zorder=2)
+    ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
+
+    if grid:
+        ax.gridlines(
+            xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-90, 91, GRID_STEP_DEG),
+            linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-", zorder=2,
+        )
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
@@ -305,6 +316,10 @@ if __name__ == "__main__":
         "--robinson", action="store_true",
         help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
     )
+    parser.add_argument(
+        "--grid", action="store_true",
+        help=f"Längen-/Breitengrad-Raster in {GRID_STEP_DEG}°-Abständen einzeichnen",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
@@ -312,4 +327,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
+        grid=args.grid,
     )
