@@ -46,7 +46,11 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
 ):
-    df = pd.read_csv(h3_csv_path)
+    # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
+    # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
+    # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
+    # sonst über diese gemischte Spalte, die hier ohnehin nicht genutzt wird.
+    df = pd.read_csv(h3_csv_path, low_memory=False)
     covered = df[df["reisezeit_stunden"].notna()].copy()
 
     airports_df = pd.read_csv(travel_times_csv_path)
