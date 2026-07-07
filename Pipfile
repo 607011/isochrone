@@ -17,6 +17,8 @@ pycountry = "*"
 osmnx = "*"
 pyrosm = "*"
 pyarrow = "*"
+rasterio = "*"
+scikit-image = "*"
 
 [dev-packages]
 

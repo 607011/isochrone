@@ -4,3 +4,4 @@ __pycache__/
 .claude/
 cache/
 osm_data/*.osm.pbf
+friction_data/*.geotiff

@@ -331,7 +331,75 @@ Melbourne-Vorbild), plus ein klar abgegrenztes dunkles Gebiet
 südöstlich von Birdsville, wo das Straßennetz dünn ist und die
 isotrope Annahme die Erreichbarkeit deutlich überschätzt hätte.
 
-## Phase 10 (geplant): Isochronen-Konturlinien
+## Phase 10: Friction Surface global (statt nur Birdsville)
+
+Nutzerfrage: "Soll ich via Torrent die restliche Welt von OpenStreetMap
+laden?" - Antwort: nein. Grund: nur noch 19 GB freier Speicher zu dem
+Zeitpunkt, ein vollständiger `planet.osm.pbf` liegt bei ~80+ GB. Und
+selbst mit genug Platz wäre der eigentliche Flaschenhals nicht die
+Downloadgröße gewesen, sondern dass man sinngemäß für jeden der 3210
+Flughäfen einzeln einen Straßengraphen bräuchte, mit Logik zum sauberen
+Zusammenfügen an Ländergrenzen - ein Vielfaches des Aufwands der
+Birdsville-Demo. Stattdessen empfohlen und (nach Nutzer-Zustimmung)
+umgesetzt: ein fertiges, vorgerechnetes globales Friction-Surface-Raster
+statt eigenem Routing.
+
+**Datensatz:** Malaria Atlas Project, "2020 motorized friction surface"
+(Weiss et al.), via `data.malariaatlas.org` direkt herunterladbar (kein
+Overpass-Problem wie bei OSM) - 744 MB entpackt, GeoTIFF, 43200×17400px,
+~1 km Auflösung, Werte in Minuten/Meter, Abdeckung 85°N-60°S (keine
+Antarktis). Überraschung beim Prüfen: das Raster hat auch über offenem
+Ozean gültige, langsame Werte (~3-30 km/h, vermutlich für Fähren
+gedacht) statt "nodata" - hätte mit dem bestehenden Häfen-Seemodell
+kollidiert (Boots-Shortcuts quer über den Atlantik). Deshalb bewusst auf
+reines Land maskiert (`global-land-mask`, wie im Rest des Projekts) und
+Wasserpixel komplett aus dem Graphen entfernt statt als langsame Kanten
+zuzulassen.
+
+**Rechnerische Machbarkeit:** volle Auflösung wäre ~752 Mio. Pixel
+(~3 GB allein als Rohdaten) auf einer 16-GB-RAM-Maschine riskant für
+eine globale Multi-Source-Kostendistanz. Auf ~11 km heruntergerechnet
+(Faktor 12, Min-Pooling statt Mittelwert, damit dünne schnelle Straßen
+beim Vergröbern nicht verschwinden) - immer noch feiner als unsere
+H3-Kacheln (~22 km bei Res. 4), aber nur noch ~5,2 Mio. Pixel, davon
+~1,55 Mio. Land.
+
+**Umsetzung** (`friction_surface_global.py`, drei Phasen, jede
+gecacht):
+
+1. Downsampling (Min-Pooling, ~15s).
+2. Graph nur über Landpixeln bauen: 8er-Nachbarschaft, Kantengewicht =
+   Reibung × echte Distanz. Erster Versuch hatte einen Vorzeichenfehler
+   in der `np.roll`-basierten Nachbar-Verschiebung, der gültige
+   Landknoten mit Wasser-Platzhalterindex (-1) verband und beim
+   Bauen der Sparse-Matrix crashte - `np.roll` (umschließt Kartenränder
+   zirkulär) durch explizites, klar herleitbares Array-Slicing ersetzt.
+   Ergebnis: 1.545.928 Knoten, 12.157.216 Kanten.
+3. Virtueller Superknoten -> jeder Flughafen-Pixel, Kantengewicht =
+   dessen eigene Reisezeit ab London (in Minuten) - derselbe Trick wie
+   der virtuelle Ursprungsknoten in `travel_time.py`/`nearest_hub.py`,
+   nur über einen Rastergraphen statt einer Radius-Suche. Ein einziges
+   `scipy.sparse.csgraph.dijkstra` liefert direkt Flugzeit + echte
+   anisotrope Bodenzeit kombiniert - lief in unter einer Sekunde.
+
+Sanity Checks: London-Pixel ~5 Minuten, Birdsville-Pixel exakt 31,69h
+(= reine Flugzeit, da praktisch am Flughafen selbst), 98,7 % der
+Landpixel erreichbar (Rest: isolierte Inseln ohne Nachbarpixel im Raster).
+
+`friction_surface_map.py` ordnet jeder globalen H3-Landkachel den
+nächstgelegenen Friction-Graph-Knoten zu, Wasserkacheln bleiben
+unverändert aus der bestehenden Pipeline.
+
+Ergebnis (`h3_travel_times_map_london_friction_surface_land.png`):
+deutlich sichtbare dunklere Flecken über Sahara, Amazonas, Zentralasien
+und australischem Outback - schwer passierbares Gelände, das die
+isotrope Karte als "genauso gut erreichbar wie die Umgebung" gezeigt
+hätte. Antarktis fällt auf den nächstgelegenen verfügbaren
+Friction-Graph-Knoten zurück (Datensatz endet bei 60°S) - ähnlich
+unschön wie das frühere Ground-Speed-Modell dort, aber eine
+akzeptierte, dokumentierte Lücke.
+
+## Phase 11 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
 Isolinien zeichnen. Noch nicht umgesetzt.
