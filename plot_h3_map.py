@@ -42,7 +42,10 @@ def _cell_polygon_lonlat(h3_index):
     return list(zip(lons, lats))
 
 
-def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas, origin_label="London"):
+def plot_h3_map(
+    h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
+    origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
+):
     df = pd.read_csv(h3_csv_path)
     covered = df[df["reisezeit_stunden"].notna()].copy()
 
@@ -75,14 +78,15 @@ def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, or
     )
     ax.add_collection(coll)
 
-    ax.scatter(
-        airports_df["lon"], airports_df["lat"], c="#ff9d00", marker="o", s=4,
-        linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
-    )
-    ax.scatter(
-        ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
-        linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
-    )
+    if show_hubs:
+        ax.scatter(
+            airports_df["lon"], airports_df["lat"], c="#ff9d00", marker="o", s=4,
+            linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
+        )
+        ax.scatter(
+            ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
+            linewidths=0, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
+        )
     ax.scatter(
         origins["lon"], origins["lat"], c="red", marker="*", s=200,
         transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
@@ -98,12 +102,20 @@ def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, or
     )
     ax.legend(loc="lower left", markerscale=2)
 
-    fig.savefig(png_path, dpi=150, bbox_inches="tight")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
     print(f"Karte gespeichert unter {png_path}")
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    args = parser.parse_args()
+
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
+        dpi=args.dpi, show_hubs=not args.no_hubs,
     )

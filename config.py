@@ -15,6 +15,13 @@ OUTPUT_MAP_PNG = Path("travel_times_map_london_airports_points.png")
 # --- Darstellung der Punktkarte ---
 COLORMAP = "viridis_r"  # _r: dunkel = weit weg, hell = nah
 
+# Auflösung der gespeicherten PNGs. Höher = schärfer, aber Dateigröße und
+# Renderzeit skalieren etwa quadratisch mit.
+MAP_DPI = 150
+
+# Flughafen-/Hafen-Punkte standardmäßig einblenden?
+SHOW_HUBS = True
+
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
 # die Skala linear bis zum tatsächlichen Maximum zu strecken - wie bei
 # Galtons Original mit diskreten Farbbändern und einer letzten

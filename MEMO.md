@@ -416,7 +416,44 @@ jede Geometrie-Verzerrung. Umgesetzt in `plot_h3_map.py` und
 `friction_surface_demo.py`, alle betroffenen Karten neu gerendert (reine
 Render-Schritte, keine Neuberechnung nötig).
 
-## Phase 11 (geplant): Isochronen-Konturlinien
+## Phase 12: Friction Surface für beliebigen Start-Flughafen
+
+Nutzer bemerkte an der Thule-Karte, dass Grönlands Inlandeis dort
+verdächtig gut erreichbar aussah. Ursache gefunden: `map_from_airport.py`
+nutzte für Thule/Birdsville nie die Friction Surface, sondern weiterhin
+das alte isotrope Kreismodell - die Friction Surface war bis dahin nur
+für London fest verdrahtet (`friction_surface_global.py` liest
+`config.OUTPUT_CSV`, also immer die London-Flugzeiten).
+
+Statt Thule/Birdsville einzeln zu reparieren, wollte der Nutzer lieber
+den ganzen Workflow parametrisierbar machen. Umsetzung:
+
+- `friction_surface_global.py`: `run_dijkstra()` bekommt einen
+  `output_path`-Parameter (statt fest `land_travel_minutes.npy`), neue
+  Funktion `load_graph()` lädt den gecachten Rastergraphen. Wichtige
+  Erkenntnis dabei: der Graph selbst (Knoten, Kanten, Reibungswerte)
+  hängt gar nicht vom Start-Flughafen ab - nur die Gewichte des
+  virtuellen Superknotens tun das. Ein neuer Ursprung braucht also nur
+  einen erneuten Dijkstra-Lauf (< 1s), nicht den ~30s-Graphenbau.
+- `map_from_airport.py`: Häfen-/Wasserkacheln-Logik aus `build_h3()` in
+  eine eigene `build_sea(land_result)`-Funktion ausgelagert, die eine
+  bereits fertige Landkachel-Reisezeit als Eingabe nimmt - unabhängig
+  davon, ob die isotrop (Kreismodell) oder via Friction Surface
+  zustande kam. Slug-Erzeugung ebenfalls in `slug_for()` ausgelagert.
+- Neues Skript `friction_map_from_airport.py`: kombiniert beides -
+  `map_from_airport.build_travel_times()` für die Flugzeiten ab dem
+  neuen Ursprung, `friction_surface_global.load_graph()` +
+  `run_dijkstra()` für die anisotrope Landkachel-Reisezeit, dann
+  `map_from_airport.build_sea()` für Häfen/Wasser. Setzt voraus, dass
+  `friction_surface_global.py` mindestens einmal gelaufen ist (für den
+  gecachten Graphen).
+
+Getestet für Thule und Birdsville: Grönlands Inlandeis zeigt jetzt
+korrekt als kaum erreichbar (>48h, gekappte Farbe), nur der schmale
+Küstenstreifen um Thule bleibt hell - anders als vorher, wo das ganze
+Eisschild wie leicht befahrbares Gelände aussah.
+
+## Phase 13 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
 Isolinien zeichnen. Noch nicht umgesetzt.

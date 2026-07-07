@@ -24,7 +24,7 @@ import pandas as pd
 import config
 
 
-def plot_travel_times(csv_path, png_path, origin_iatas):
+def plot_travel_times(csv_path, png_path, origin_iatas, dpi=config.MAP_DPI):
     df = pd.read_csv(csv_path)
 
     fig = plt.figure(figsize=(16, 9))
@@ -57,9 +57,15 @@ def plot_travel_times(csv_path, png_path, origin_iatas):
     ax.set_title(f"Erreichbarkeit ab London — {len(df)} Flughäfen (Stand: OpenFlights-Routennetz ~2014)")
     ax.legend(loc="lower left")
 
-    fig.savefig(png_path, dpi=150, bbox_inches="tight")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
     print(f"Karte gespeichert unter {png_path}")
 
 
 if __name__ == "__main__":
-    plot_travel_times(config.OUTPUT_CSV, config.OUTPUT_MAP_PNG, config.ORIGIN_AIRPORTS)
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    args = parser.parse_args()
+
+    plot_travel_times(config.OUTPUT_CSV, config.OUTPUT_MAP_PNG, config.ORIGIN_AIRPORTS, dpi=args.dpi)

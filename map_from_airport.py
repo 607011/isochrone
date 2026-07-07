@@ -41,17 +41,18 @@ def build_travel_times(origin_iatas):
     return pd.DataFrame(rows)
 
 
-def build_h3(travel_times_df):
+def build_sea(land_result):
+    """Häfen + Wasserkacheln zu einer bereits berechneten Landkachel-Reisezeit.
+
+    Unabhängig davon, wie land_result zustande kam (isotropes Kreismodell
+    hier, oder das Friction-Surface-Modell in friction_map_from_airport.py) -
+    ein Hafen bekommt einfach die Reisezeit seiner nächstgelegenen
+    Landkachel, Wasserkacheln dann die Reisezeit des schnellsten Hafens
+    im Umkreis. Siehe main_h3.py/MEMO.md für die Begründung.
+    """
     grid_df = build_grid(config.H3_RESOLUTION)
     on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
-    land_df = grid_df[on_land].reset_index(drop=True)
     sea_df = grid_df[~on_land].reset_index(drop=True)
-
-    land_result = assign_travel_times(
-        land_df, travel_times_df, config.MAX_AIRPORT_DISTANCE_KM, config.GROUND_SPEED_KMH,
-        hub_id_col="iata_code",
-    )
-    land_result["hub_type"] = "airport"
 
     ports_df = load_ports(config.PORTS_CSV)
     ports_df["reisezeit_stunden"] = nearest_value(ports_df, land_result, "reisezeit_stunden")
@@ -61,8 +62,26 @@ def build_h3(travel_times_df):
         hub_id_col="unlocode",
     )
     sea_result["hub_type"] = "port"
+    return sea_result, ports_df
 
+
+def build_h3(travel_times_df):
+    grid_df = build_grid(config.H3_RESOLUTION)
+    on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
+    land_df = grid_df[on_land].reset_index(drop=True)
+
+    land_result = assign_travel_times(
+        land_df, travel_times_df, config.MAX_AIRPORT_DISTANCE_KM, config.GROUND_SPEED_KMH,
+        hub_id_col="iata_code",
+    )
+    land_result["hub_type"] = "airport"
+
+    sea_result, ports_df = build_sea(land_result)
     return pd.concat([land_result, sea_result], ignore_index=True), ports_df
+
+
+def slug_for(iata, name):
+    return iata.lower() + "_" + "".join(c if c.isalnum() else "_" for c in name.lower())
 
 
 def main(origin_iata):
@@ -71,7 +90,7 @@ def main(origin_iata):
         raise ValueError(f"{origin_iata} ist im Flugnetz nicht erreichbar/vorhanden.")
 
     origin_row = travel_times_df[travel_times_df["iata_code"] == origin_iata].iloc[0]
-    slug = origin_iata.lower() + "_" + "".join(c if c.isalnum() else "_" for c in origin_row["name"].lower())
+    slug = slug_for(origin_iata, origin_row["name"])
 
     h3_df, ports_df = build_h3(travel_times_df)
 

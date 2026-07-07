@@ -126,14 +126,28 @@ def build_land_graph(friction):
     return graph, node_lat, node_lon
 
 
-def run_dijkstra(graph, node_lat, node_lon, airports_df):
+def load_graph():
+    """Lädt den gecachten, Ursprungs-unabhängigen Landgraphen.
+
+    Der Graph selbst (Knoten, Kanten, Reibung) hängt nicht vom
+    Start-Flughafen ab - nur die Gewichte des virtuellen Superknotens in
+    run_dijkstra() tun das. Für einen neuen Ursprung muss also nur
+    run_dijkstra() erneut laufen, nicht downsample_friction()/
+    build_land_graph() (Minuten statt Minuten+Sekunden).
+    """
+    graph = sparse.load_npz(CACHE_GRAPH)
+    node_latlon = np.load(CACHE_NODE_LATLON)
+    return graph, node_latlon[:, 0], node_latlon[:, 1]
+
+
+def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVEL_MINUTES):
     n = graph.shape[0]
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
     airport_node_idx = airport_node_idx.ravel()
 
     # virtueller Superknoten (Index n) -> Flughafen-Pixel, Kantengewicht =
-    # eigene Reisezeit des Flughafens ab London, in Minuten.
+    # eigene Reisezeit des Flughafens ab seinem Ursprung, in Minuten.
     graph_coo = graph.tocoo()
     virtual_rows = np.full(len(airports_df), n)
     virtual_cols = airport_node_idx
@@ -148,7 +162,7 @@ def run_dijkstra(graph, node_lat, node_lon, airports_df):
     dist = dijkstra(big, directed=True, indices=[n])[0]
     print(f"Dijkstra fertig in {time.time()-t0:.0f}s")
     minutes = dist[:n]
-    np.save(CACHE_TRAVEL_MINUTES, minutes.astype(np.float32))
+    np.save(output_path, minutes.astype(np.float32))
     return minutes
 
 
