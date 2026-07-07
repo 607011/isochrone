@@ -42,7 +42,7 @@ def _cell_polygon_lonlat(h3_index):
     return list(zip(lons, lats))
 
 
-def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas):
+def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas, origin_label="London"):
     df = pd.read_csv(h3_csv_path)
     covered = df[df["reisezeit_stunden"].notna()].copy()
 
@@ -85,14 +85,14 @@ def plot_h3_map(h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, or
     )
     ax.scatter(
         origins["lon"], origins["lat"], c="red", marker="*", s=200,
-        transform=ccrs.PlateCarree(), zorder=4, label="London",
+        transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
     )
 
     cbar = fig.colorbar(coll, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
-    cbar.set_label(f"Reisezeit ab London (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
+    cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
 
     ax.set_title(
-        f"Erreichbarkeit ab London — H3-Raster Res. {config.H3_RESOLUTION}, "
+        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {config.H3_RESOLUTION}, "
         f"Land+See ({len(covered)}/{len(df)} Kacheln abgedeckt, "
         f"{n_dropped} Pol-Kacheln nicht darstellbar)"
     )

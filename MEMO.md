@@ -260,7 +260,78 @@ Australien/Papua-Neuguinea - dort tippt `reverse_geocoder` auf den
 geografisch nächsten Ort im Nachbarland, obwohl die Koordinate selbst
 stimmt).
 
-## Phase 7 (geplant): Isochronen-Konturlinien
+## Phase 8: Karten ab beliebigem Flughafen (map_from_airport.py)
+
+Nutzerfrage: Wie sieht die Karte von einem Flughafen aus, der selbst nur
+über 5 Umstiege ab London erreichbar ist? Kandidaten dafür in
+`travel_times.csv` (`anzahl_umstiege == 5`, 9 Flughäfen): Thule Air Base
+(Grönland, 18,22h), Attawapiskat, Salluit, Bunia, Kalemie, Santana do
+Araguaia, sowie Birdsville und Thargomindah (beide australisches
+Outback, 31,69h bzw. 33,75h). Interpretation "5 Hops" = 5 Umstiege
+(unsere `anzahl_umstiege`-Spalte), nicht 5 Flugsegmente - dem Nutzer
+mitgeteilt, falls anders gemeint.
+
+Neues Skript `map_from_airport.py` verallgemeinert main.py/main_h3.py/
+plot_h3_map.py auf einen beliebigen Start-Flughafen (nicht mehr fest auf
+`config.ORIGIN_AIRPORTS`), inklusive neu berechneter Hafen-Reisezeiten
+(hängen ja vom Start ab). `plot_h3_map.py` bekam dafür einen
+`origin_label`-Parameter statt hartcodiertem "London" in Titel/Legende.
+
+Ergebnis: Thule zeigt einen winzigen hellen Fleck in der Arktis, fast
+die ganze Welt >48h entfernt (extrem schlecht angebundener Militär-
+Flugplatz). Birdsville dagegen hat trotz eigener Abgeschiedenheit ein
+sichtbar größeres helles Umfeld (ganz Australien/Neuseeland), weil die
+nahen Drehkreuze (Sydney, Melbourne, Brisbane) selbst gut vernetzt sind
+- Abgeschiedenheit vom Flugnetz und Abgeschiedenheit von der Welt sind
+nicht dasselbe.
+
+Auf Nutzerwunsch ab dieser Phase: alle erzeugten Karten (auch die
+London-Standardkarten) bekommen sprechende Dateinamen statt der
+generischen `travel_times_map.png`/`h3_travel_times_map.png` -
+`config.py` entsprechend angepasst, bestehende Dateien umbenannt.
+
+## Phase 9: Friction Surface - anisotrope Bodenzeit (Birdsville-Demo)
+
+Rückgriff auf die Melbourne-Diskussion (siehe Anfang des Gesprächs):
+Nutzer wollte sehen, wie sich die Birdsville-Karte mit einem
+anisotropen (straßenbasierten) statt isotropem (Kreis-)Bodenzeitmodell
+verändert.
+
+Technischer Weg dahin nicht ganz reibungslos:
+
+1. **Live-Overpass-API nicht erreichbar.** `osmnx.graph_from_point()`
+   (der übliche Weg, Straßendaten für eine Region zu holen) schlug mit
+   `ConnectionError`/406 fehl - getestet gegen mehrere Overpass-Mirrors
+   (overpass-api.de, overpass.kumi.systems), auch direkt per `curl`
+   reproduzierbar. Einfache GET-Requests an dieselben Hosts funktionierten,
+   nur die eigentliche Query (POST) nicht - vermutlich eine Einschränkung
+   der Sandbox-Umgebung, keine osmnx-spezifische Ursache.
+2. **Workaround: direkter Download statt Live-Abfrage.** Geofabrik
+   (`download.geofabrik.de`) stellt fertige, regionale OSM-Extrakte als
+   normalen HTTPS-Download bereit (kein Overpass nötig) - Queensland-
+   Extrakt (~196 MB) geladen, mit `pyrosm` auf eine Bounding Box um
+   Birdsville gefiltert (61.480 Knoten, 61.829 Kanten, ~2 Minuten).
+   Nicht ins Git-Repo aufgenommen (zu groß, reproduzierbar), die
+   gefilterten Parquet-Dateien fürs Birdsville-Gebiet dagegen schon
+   (klein, sparen die 2 Minuten Filterzeit).
+
+`friction_surface_demo.py` (bewusst eigenständig, nicht Teil der
+globalen Pipeline - echtes Routing weltweit wäre unverhältnismäßig
+aufwändig, siehe frühere Diskussion): baut aus den OSM-Kanten einen
+`networkx`-Graphen (Fahrzeit je Kante = Länge / Geschwindigkeit nach
+Straßenklasse, grobe Default-Tabelle mangels `maxspeed`-Tags), Dijkstra
+ab dem nächsten Netzknoten zu Birdsville Airport, und vergleicht das
+Ergebnis mit dem bisherigen isotropen Modell für dieselbe Region
+(H3 Res. 6, ~330 km Kantenlänge der Region).
+
+Ergebnis (`birdsville_friction_surface_vs_isotropic.png`): deutlicher
+Unterschied. Isotrop = perfekte Kreise. Straßenbasiert = "Finger"
+entlang der tatsächlichen Straßen (genau wie beim historischen
+Melbourne-Vorbild), plus ein klar abgegrenztes dunkles Gebiet
+südöstlich von Birdsville, wo das Straßennetz dünn ist und die
+isotrope Annahme die Erreichbarkeit deutlich überschätzt hätte.
+
+## Phase 10 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
 Isolinien zeichnen. Noch nicht umgesetzt.

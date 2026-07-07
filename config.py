@@ -10,7 +10,7 @@ from pathlib import Path
 ROUTES_CSV = Path("routes.csv")
 AIRPORTS_CSV = Path("airports.csv")
 OUTPUT_CSV = Path("travel_times.csv")
-OUTPUT_MAP_PNG = Path("travel_times_map.png")
+OUTPUT_MAP_PNG = Path("travel_times_map_london_airports_points.png")
 
 # --- Darstellung der Punktkarte ---
 COLORMAP = "viridis_r"  # _r: dunkel = weit weg, hell = nah
@@ -57,7 +57,7 @@ MAX_AIRPORT_DISTANCE_KM = 3000
 GROUND_SPEED_KMH = 80
 
 OUTPUT_H3_CSV = Path("h3_travel_times.csv")
-OUTPUT_H3_MAP_PNG = Path("h3_travel_times_map.png")
+OUTPUT_H3_MAP_PNG = Path("h3_travel_times_map_london_h3_land_and_sea.png")
 
 # --- Häfen (LINERLIB, github.com/blof/LINERLIB) ---
 PORTS_CSV = Path("ports.csv")
