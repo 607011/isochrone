@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pandas = "*"
+networkx = "*"
+matplotlib = "*"
+cartopy = "*"
+certifi = "*"
+h3 = "*"
+scikit-learn = "*"
+global-land-mask = "*"
+reverse-geocoder = "*"
+pycountry = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
