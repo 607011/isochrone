@@ -14,10 +14,12 @@ import h3
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as patheffects
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import cartopy.io.shapereader as shpreader
 import numpy as np
 import pandas as pd
 from global_land_mask import globe
@@ -41,6 +43,52 @@ POLE_DEGENERACY_THRESHOLD_DEG = 300
 # unsere Daten sinnlos, da schon die "<10 Tage"-Kategorie bei uns die
 # gesamte Welt abdeckt (unser Maximum liegt bei 48h = 2 Tagen).
 GALTON_COLORS = ["#7f9779", "#f5efb6", "#eccbc9", "#a3c4d7", "#c9a878"]
+
+# Grobe Kontinent-Beschriftungspositionen für --labels - ändern sich nie,
+# deshalb fest hinterlegt statt aus einem Datensatz abgeleitet.
+CONTINENT_LABELS = [
+    ("NORTH AMERICA", -100, 45),
+    ("SOUTH AMERICA", -60, -15),
+    ("EUROPE", 15, 52),
+    ("AFRICA", 20, 5),
+    ("ASIA", 90, 50),
+    ("AUSTRALIA", 135, -25),
+]
+
+# Nur die wichtigsten Weltstädte (SCALERANK 0 in Natural Earth's
+# populated_places, ca. 27 Städte) - alle ~3200 Flughäfen zu beschriften
+# wäre nur Buchstabenbrei, und Airport-Namen ("Heathrow") sind ohnehin
+# keine Stadtnamen ("London").
+CITY_LABEL_MAX_SCALERANK = 0
+
+
+def _load_city_labels(max_scalerank=CITY_LABEL_MAX_SCALERANK):
+    path = shpreader.natural_earth(resolution="110m", category="cultural", name="populated_places")
+    records = shpreader.Reader(path).records()
+    return [
+        (r.attributes["NAME"], r.attributes["LONGITUDE"], r.attributes["LATITUDE"])
+        for r in records
+        if r.attributes["SCALERANK"] <= max_scalerank
+    ]
+
+
+def _draw_labels(ax):
+    for name, lon, lat in CONTINENT_LABELS:
+        ax.text(
+            lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
+            fontsize=13, fontweight="bold", color="#333333", ha="center", va="center",
+            path_effects=[patheffects.withStroke(linewidth=3, foreground="white")],
+        )
+    for name, lon, lat in _load_city_labels():
+        ax.plot(
+            lon, lat, marker="o", markersize=2, color="black",
+            transform=ccrs.PlateCarree(), zorder=6,
+        )
+        ax.text(
+            lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
+            fontsize=6.5, color="#222222", ha="left", va="center",
+            path_effects=[patheffects.withStroke(linewidth=2, foreground="white")],
+        )
 
 
 def _cell_polygon_lonlat(h3_index):
@@ -108,7 +156,7 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
-    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP,
+    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -186,6 +234,9 @@ def plot_h3_map(
     ax.set_title(f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})")
     ax.legend(loc="lower left", markerscale=2)
 
+    if labels:
+        _draw_labels(ax)
+
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
     print(f"Karte gespeichert unter {png_path}")
 
@@ -205,11 +256,15 @@ if __name__ == "__main__":
         help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
     )
     parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap, oder 'galton' fuer eine an das Original angelehnte Palette")
+    parser.add_argument(
+        "--labels", action="store_true",
+        help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
-        band_hours=args.band_hours, cmap_name=args.cmap,
+        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels,
     )

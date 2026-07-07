@@ -573,6 +573,38 @@ per `--band-hours` gewählte Bandzahl.
 Getestet mit `--cmap galton --band-hours 8`: gedämpfte Grün-Gelb-Rosa-
 Blau-Braun-Abfolge, optisch klar an das Original angelehnt.
 
+## Phase 14e: --labels - Kontinente und Städte beschriften
+
+Nutzerwunsch, wie bei Galtons Original Kontinent- und Stadtnamen
+einzuzeichnen. Vorher besprochen (noch nicht implementiert): zwei
+getrennte Probleme.
+
+- **Kontinente**: trivial, sieben feste Positionen von Hand, ändern
+  sich nie.
+- **Städte**: eigene Flughafendaten ungeeignet - `name` ist der
+  Flughafenname ("Heathrow"), nicht der Stadtname ("London"), und es
+  gibt keine Wichtigkeits-Rangfolge. Stattdessen Cartopy/Natural
+  Earth's `populated_places`-Layer (schon für Küstenlinien im Einsatz)
+  mit echtem `SCALERANK`-Feld genutzt: 0 = wichtigste ~27 Weltstädte.
+  SSL-Zertifikatsfehler beim ersten Download (derselbe bekannte
+  macOS-Python-Fehler wie bei den Küstenlinien) - mit `certifi` gelöst.
+
+Nutzer-Entscheidung zur Kopplung: eigener `--labels`-Schalter, nicht an
+`--galton` gebunden.
+
+Umsetzung in `plot_h3_map.py`: `CONTINENT_LABELS` (fest), `_load_city_labels()`
+(Natural Earth, gefiltert nach `SCALERANK <= CITY_LABEL_MAX_SCALERANK`),
+`_draw_labels()` zeichnet beides mit weißer Kontur (`patheffects.withStroke`)
+für Lesbarkeit über jeder Bandfarbe. Durchgereicht durch alle drei
+Wrapper-Skripte, PNG-Dateiname bekommt `_labels`-Suffix.
+
+Getestet mit `--galton --cmap galton --band-hours 8 --labels`: gut
+lesbar, aber vereinzelte Überlappungen in dichten Regionen (Rio/São
+Paulo laufen ineinander, Europe/London-Stern, Afrika/Lagos) - kein
+Auto-Decluttering (z.B. `adjustText`) eingebaut, nur der
+`SCALERANK`-Schwellenwert begrenzt die Dichte. Als bekannte
+Einschränkung akzeptiert, kein Blocker.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
