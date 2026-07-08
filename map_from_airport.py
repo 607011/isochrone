@@ -141,7 +141,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cmap", default=config.COLORMAP,
-        help="Name einer matplotlib-Colormap, 'galton' fuer eine interpolierte, an das Original angelehnte Palette, oder 'galton10' fuer dieselben zehn Originalfarben als feste, nicht interpolierte Palette (zusammen mit --galton: exakt zehn Stufen statt --band-hours)",
+        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig). "
+             "Weitere perzeptuell gleichmaessige Optionen: plasma_r, inferno_r, magma_r, cividis_r "
+             "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
+             "'galton': interpolierte, an das Original angelehnte Palette. "
+             "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
+             "(zusammen mit --galton: exakt zehn Stufen statt --band-hours).",
     )
     parser.add_argument(
         "--labels", action="store_true",

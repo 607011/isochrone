@@ -958,6 +958,17 @@ Aufruf: `pipenv run python friction_map_from_point.py <lat> <lon>
 `--labels`, `--grid`, `--title`, `--lat-limits`, ...) identisch zu
 `friction_map_from_airport.py`.
 
+## Phase 14t: --cmap-Optionen in der Hilfeausgabe dokumentiert
+
+Nutzer fragte, welche Farbpaletten neben `viridis_r`/`galton`/`galton10`
+noch möglich sind, und wollte das in `--help` sehen. Der `--cmap`-Hilfetext
+in allen fünf Skripten (auch `friction_map_from_point.py`) nennt jetzt
+explizit die übrigen perzeptuell gleichmäßigen matplotlib-Paletten
+(`plasma_r`, `inferno_r`, `magma_r`, `cividis_r`, jeweils auch ohne
+`_r` für umgekehrte Farbrichtung), plus den Hinweis, dass grundsätzlich
+jeder matplotlib-Colormap-Name funktioniert - vorher stand dort nur der
+allgemeine Verweis auf "eine matplotlib-Colormap".
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
