@@ -19,7 +19,7 @@ from ports_loading import load_ports
 
 def main(resolution=config.H3_RESOLUTION, output_csv=config.OUTPUT_H3_CSV, output_ports_csv=config.OUTPUT_PORTS_CSV):
     airports_df = pd.read_csv(config.OUTPUT_CSV)
-    ports_df = load_ports(config.PORTS_CSV)
+    ports_df = load_ports(config.PORTS_CORRECTED_CSV)
     print(f"{len(ports_df)} Häfen mit gültigen Koordinaten geladen.")
 
     grid_df = build_grid(resolution)

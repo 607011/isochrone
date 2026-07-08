@@ -54,7 +54,7 @@ def build_sea(land_result, resolution=config.H3_RESOLUTION):
     on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
     sea_df = grid_df[~on_land].reset_index(drop=True)
 
-    ports_df = load_ports(config.PORTS_CSV)
+    ports_df = load_ports(config.PORTS_CORRECTED_CSV)
     ports_df["reisezeit_stunden"] = nearest_value(ports_df, land_result, "reisezeit_stunden")
 
     sea_result = assign_travel_times(

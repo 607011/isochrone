@@ -86,7 +86,11 @@ OUTPUT_H3_CSV = Path("h3_travel_times.csv")
 OUTPUT_H3_MAP_PNG = Path("h3_travel_times_map_london_h3_land_and_sea.png")
 
 # --- Häfen (LINERLIB, github.com/blof/LINERLIB) ---
+# PORTS_CSV ist der unveränderte Rohdatensatz, nur für
+# fix_ports_coordinates.py relevant (siehe dort). Die normale Pipeline
+# liest PORTS_CORRECTED_CSV.
 PORTS_CSV = Path("ports.csv")
+PORTS_CORRECTED_CSV = Path("ports_corrected.csv")
 OUTPUT_PORTS_CSV = Path("ports_travel_times.csv")
 
 # Angenommene Schiffsgeschwindigkeit für die "letzte Meile" Hafen -> Wasserkachel.

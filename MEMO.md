@@ -995,6 +995,49 @@ Code-Fehler, nur ein Wahrnehmungsproblem beim ersten Hinsehen.
 Durch alle vier Kartenskripte durchgereicht, Dateiname bekommt bei
 aktivem Schalter das Suffix `_rivers` (letztes Glied der Kette).
 
+## Phase 14v: reverse-geocoder aus dem Pflicht-Install entfernt (Windows-Fix)
+
+Nutzer versuchte, das Projekt unter Windows 11 zum Laufen zu bringen -
+`pipenv install` scheiterte an `cykhash` (transitive Abhängigkeit von
+`reverse-geocoder`, siehe Phase 10/`ports_loading.py`): erst fehlendes
+Cython beim `setup.py egg_info`-Schritt (durch Cython vorinstallieren +
+`PIP_NO_BUILD_ISOLATION=1` behoben), danach - selbst mit installierten
+Visual-C++-Build-Tools und Developer-Konsole - "Microsoft Visual C++
+14.0 or greater is required" beim eigentlichen Kompilieren der
+Cython-Extension. Native-Extension-Build-Ketten unter Windows sind
+notorisch fragil; nach zwei fehlgeschlagenen Workaround-Runden lohnte
+sich eine grundsätzlichere Lösung mehr als ein dritter Reparaturversuch.
+
+Kernbeobachtung: `ports.csv` (LINERLIB) ist ein statischer Datensatz,
+der sich nicht mehr ändert - die Longitude/Latitude-Korrektur per
+Reverse-Geocoding (siehe `ports_loading.py`, jetzt umbenannt/aufgeteilt)
+lief bisher aber bei JEDEM Pipeline-Lauf neu, obwohl das Ergebnis
+deterministisch immer gleich ist. Sinnvoller: die Korrektur einmalig
+laufen lassen, das Ergebnis als Datei committen, und die eigentliche
+Pipeline liest nur noch diese fertige Datei - kein Reverse-Geocoding,
+keine `reverse_geocoder`/`cykhash`-Abhängigkeit mehr zur Laufzeit nötig.
+
+Umsetzung:
+- Die komplette Korrekturlogik aus `ports_loading.py` in ein neues,
+  eigenständiges Skript `fix_ports_coordinates.py` verschoben (liest
+  `ports.csv`, schreibt `ports_corrected.csv`, `config.PORTS_CORRECTED_CSV`
+  als neuer Pfad). Einmal ausgeführt, Ergebnis committet (333 Häfen,
+  korrigiert).
+- `ports_loading.py` auf das Nötigste eingedampft: liest nur noch
+  `ports_corrected.csv` und wählt die benötigten Spalten - kein
+  `reverse_geocoder`/`pycountry`-Import mehr.
+- Aufrufer (`map_from_airport.py`, `main_h3.py`) auf
+  `config.PORTS_CORRECTED_CSV` umgestellt.
+- `Pipfile`: `reverse-geocoder`/`pycountry` von `[packages]` nach
+  `[dev-packages]` verschoben - nur noch nötig, wenn `ports.csv`
+  irgendwann doch aktualisiert wird und `fix_ports_coordinates.py`
+  erneut laufen muss. `pipenv install` (ohne `--dev`) installiert diese
+  Gruppe gar nicht mehr, der cykhash-Build entfällt komplett für alle,
+  die nur die Karten rendern wollen - Windows-Blocker gelöst, ohne dass
+  irgendjemand einen MSVC-Compiler braucht.
+- `pipenv lock` neu ausgeführt, Verhalten end-to-end nachgetestet
+  (inklusive eines simulierten "reverse_geocoder nicht installiert"-Laufs).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

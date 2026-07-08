@@ -1,0 +1,334 @@
+unlocode,name,Country,lat,lon
+GBABD,Aberdeen,United Kingdom,57.125,-2.0937
+CIABJ,Abidjan,Ivory Coast,5.32,-4.03
+AEAUH,Abu Dhabi,U. A. E.,24.4531,54.3593
+SVAQJ,Acajutla,El Salvador,13.5781,-89.8281
+AUADL,Adelaide,Australia,-34.9218,138.5937
+YEADE,Aden,Yemen,12.76667,45.01667
+MAAGA,Agadir,Morocco,30.5,-9.667
+SAJBI,Al Jubayl,Saudi Arabia,27.05,49.5667
+EGALY,Alexandria,Egypt,31.1875,29.8906
+ESALG,Algeciras,Spain,36.125,-5.45
+DZALG,Algiers,Algeria,36.7812,3.0468
+TRAMB,Ambarli,Turkey,40.983,28.745
+DZAAE,Annaba,Algeria,36.8906,7.7656
+BEANR,Antwerp,Belgium,51.216666,4.416666
+NGAPP,Apapa,Nigeria,6.4218,3.3437
+JOAQB,Al Aqabah,Jordan,29.55,35.0
+CLARI,Arica,Chile,-18.49,-70.3
+ILASH,Ashdod,Israel,31.8125,34.6406
+NZAKL,Auckland,New Zealand,-36.86667,174.766667
+ARBHI,Bahia Blanca,Argentina,-38.71667,-62.28333
+BHBAH,Bahrain,Bahrain,26.0,50.5
+PABLB,Balboa,Panama,8.9375,-79.5625
+USBAL,Baltimore,United States,39.28973,-76.6212
+IRBND,Bandar Abbas,Iran,27.2,56.25
+GMBJL,Banjul,Gambia,13.451189,-16.584243
+ESBCN,Barcelona,Spain,41.38334,2.18334
+COBAQ,Barranquilla,Colombia,10.98,-74.8
+GQBSG,Bata,Equatorial Guinea,1.85,9.77
+LBBEY,Beirut,Lebanon,33.8593,35.5
+DZBJA,Bejaia,Algeria,36.75,5.08333
+BZBZE,Belize,Belize,17.51,-88.3
+LYBEN,Benghazi,Libya,32.1093,20.0625
+NOBGO,Bergen,Norway,60.3834,5.31667
+GWOXB,Bissau,Guinea-Bissau,11.851832,-15.587181
+CDBOA,Boma,Congo. Dem. Rep. of,-5.84,13.053
+TRUSK,Bosperus,Turkey,41.012,29.02
+DEBRV,Bremerhaven,Germany,53.55,8.58
+FRBES,Brest,France,48.3906,-4.4687
+AUBNE,Brisbane,Australia,-27.5,153.0156
+COBUN,Buenaventura,Colombia,3.9,-77.033333
+ARBUE,Buenos Aires,Argentina,-34.612,-58.466667
+KRPUS,Busan,Korea. South,35.1,129.04
+PECLL,Callao,Peru,-12.06667,-77.0
+ZACPT,Cape Town,South Africa,-33.9166,18.416666
+COCTG,Cartagena,Colombia,10.38,-75.5
+ESCAR,Cartagena,Spain,37.5937,-0.9687
+MACAS,Casablanca,Morocco,33.583333,-7.616666
+DOCAU,Caucedo,Dominican Republic,18.41667,-69.6333
+USCHS,Charleston,United States,32.79423,-79.94032
+INMAA,Chennai,India,13.06,80.18
+BDCGP,Chittagong,Bangladesh,22.3281,91.8281
+CNCWN,Chiwan,China,22.493138,113.888909
+INCOK,Cochin,India,9.987639,76.236338
+LKCMB,Colombo,Sri Lanka,6.933334,79.85
+GNCKY,Conakry,Guinea,9.519446,-13.709253
+ROCND,Constanta,Romania,44.17541,28.63817
+NICIO,Corinto,Nicaragua,12.0312,-86.3437
+IEORK,Cork. Co Cork,Ireland,51.9,-8.466666
+BJCOO,Cotonou,Benin,6.35,2.43
+VNDAD,Da Nang,Vietnam,16.0,108.25
+SNDKR,Dakar,Senegal,14.684,-17.446
+CNDLC,Dalian,China,38.922061,121.646487
+EGDAM,Damietta,Egypt,31.4062,31.7968
+SADMM,Dammam,Saudi Arabia,26.4218,50.1093
+TZDAR,Dar es Salaam,Tanzania,-6.817,39.277
+DJJIB,Djibouti,Djibouti,11.598434,43.148656
+CMDLA,Douala,Cameroon,3.75,9.9375
+IEDUB,Dublin,Ireland,53.333333,-6.25
+FRDKK,Dunkerque,France,51.0468,2.3593
+ZADUR,Durban,South Africa,-29.8437,31.0156
+USDUT,Dutch Harbor,United States,53.81,-166.53743
+ZAELS,East London,South Africa,-32.989,27.898
+MXESE,Ensenada,Mexico,31.86667,-116.61667
+ECESM,Esmeraldas,Ecuador,0.9687,-79.6875
+WP081,Fazendinha,Brazil,-0.9218,-47.7187
+GBFXT,Felixstowe,United Kingdom,51.9531,1.35
+MQFDF,Fort de France,Martinique,14.602804,-61.081786
+FRFOS,Fos sur Mer,France,43.433333,4.95
+BSFPO,Freeport Bahamas,Bahamas,26.5312,-78.6875
+SLFNA,Freetown,Sierra Leone,8.4687,-13.2187
+AUFRE,Fremantle,Australia,-32.0468,115.7656
+NOFUS,Fusa,Norway,60.1875,5.5937
+CNFOC,Fuzhou,China,26.0781,119.2968
+PLGDY,Gdynia,Poland,54.5,18.55
+PHGES,General Santos City,Philippines,6.11667,125.16667
+ITGOA,Genoa,Italy,44.42,8.95
+ITGIT,Gioia Tauro,Italy,38.416666,15.9
+SEGOT,Gothenburg,Sweden,57.7031,11.9531
+GBGRG,Grangemouth,United Kingdom,56.0156,-3.7187
+GUGUM,Guam,Guam,13.381,144.721
+ECGYE,Guayaquil,Ecuador,-2.169538,-79.902519
+ILHFA,Haifa,Israel,32.7968,34.9687
+VNHPH,Haiphong,Vietnam,20.866667,106.68334
+JPHKT,Hakata,Japan,33.5937,130.4062
+INHAL,Haldia Port. India,India,22.02,88.02
+DEHAM,Hamburg,Germany,53.55,10.0
+CUHAV,Havana Cuba,Cuba,23.125,-82.3593
+TRHAY,Haydarpasa Port. Istanbul,Turkey,41.03693,28.92393
+VNSGN,Saigon,Vietnam,10.75,106.66667
+YEHOD,Hodeidah,Yemen,14.8,43.2
+HKHKG,Hong Kong,Hong Kong,22.320135,114.200376
+USHNL,Honolulu,United States,21.38451,-157.93542
+USHOU,Houston,United States,29.7631,-95.3631
+CNHUA,Huangpu,China,22.6875,113.3125
+UAILK,Ilyichevsk,Ukraine,46.29897,30.65714
+KRICH,Inchon,Korea. South,37.475,126.636
+CLIQQ,Iquique,Chile,-20.2031,-70.1562
+BRIGI,Itaguai (Sepetiba),Brazil,-22.966,-43.702
+BRITJ,Itajai,Brazil,-26.52,-48.69
+TRIZM,Izmir,Turkey,38.4062,27.15
+TRIZE,Izmit Korfezi,Turkey,40.798,29.665
+IDJKT,Jakarta,Indonesia,-6.1667,106.8
+INNSA,Jawaharlal Nehru,India,18.56,73.02
+AEJEA,Jebel Ali,U. A. E.,25.14,55.19
+SAJED,Jeddah,Saudi Arabia,21.48334,39.2
+RUKGD,Kaliningrad,Russia,54.7031,20.5
+INIXY,Kandla,India,23.0312,70.21666
+TWKHH,Kaohsiung,Taiwan,22.633334,120.28333
+PKKHI,Karachi,Pakistan,24.866667,67.05
+TWKEL,Keelung,Taiwan,25.125,121.7187
+WP082,Kiel Kanal,Germany,54.2071,10.0875
+JPUKB,Kobe,Japan,34.68,135.17
+INCCU,Kolkata,India,22.5312,88.3593
+SIKOP,Koper,Slovenia,45.54548,13.739
+FIKTK,Kotka,Finland,60.47,26.92
+NOKRS,Kristiansand,Norway,58.1562,8.0
+KRKAN,Kwangyang,Korea. South,34.97,127.58
+VELAG,La Guaira,Venezuela,10.6,-66.93333
+FRLPE,La Pallice,France,46.16774,-1.19276
+THLCH,Laem Chabang,Thailand,13.382173,100.991433
+NOLAR,Larvik,Norway,59.0625,10.0
+ESLPA,Las Palmas,Spain,28.1,-15.42
+SYLTK,Latakia,Syria,35.52,35.79
+FJLTK,Lautoka,Fiji Islands,-17.61,177.455
+MXLZC,Lazaro Cardenas,Mexico,22.1875,-105.2343
+FRLEH,Le Havre,France,49.5,0.125
+ITLIV,Leghorn,Italy,43.55,10.316
+PTLEI,Leixoes,Portugal,41.192526,-8.709055
+CNLYG,Lianyungang,China,34.7187,119.4375
+GALBV,Libreville,Gabon,0.394,9.5465
+CYLMS,Limassol,Cyprus,34.66667,33.03333
+CLLQN,Lirquen,Chile,-36.7031,-72.9531
+PTLIS,Lisbon,Portugal,38.7167,-9.13
+AOLOB,Lobito,Angola,-12.3437,13.5468
+TGLFW,Lome,Togo,6.125,1.2031
+USLGB,Long Beach,United States,33.766448,-118.194944
+USLAX,Los Angeles,United States,34.0522,-118.2428
+AOLAD,Luanda,Angola,-9.11,13.242
+NZLYT,Lyttelton,New Zealand,-43.6,172.71667
+ESAGP,Malaga,Spain,36.71815,-4.42747
+BRMAO,Manaus,Brazil,-3.06,-60.0
+PHMNL,Manila,Philippines,14.58334,121.0
+PAMIT,Manzanillo,Panama,9.35,-79.9
+MTMAR,Marsaxlokk,Malta,35.85,14.55
+CDMAT,Matadi,Congo. Dem. Rep. of,-5.814,13.469
+AUMEL,Melbourne,Australia,-37.833333,145.0
+ESMLN,Melilla,Spain,35.294129,-2.944813
+TRMER,Mersin,Turkey,36.8,34.63
+USMIA,Miami,United States,25.79371,-80.20735
+CVMIN,Mindelo,Cape Verde Island,16.89,-24.99
+LYMRA,Misuratah,Libya,32.375,15.0937
+USMOB,Mobile,United States,30.6942,-88.0431
+KEMBA,Mombasa,Kenya,-4.0468,39.6562
+LRMLW,Monrovia,Liberia,6.3125,-10.7968
+UYMVD,Montevideo,Uruguay,-34.883333,-56.183333
+FRMTX,Montoir de Bretagne,France,47.32495,-2.16266
+CAMTR,Montreal,Canada,45.5,-73.5781
+OMMCT,Muscat. Oman,Oman,23.6093,58.5781
+NOMAY,Maaloey,Norway,61.938442,5.078354
+JPNGO,Nagoya,Japan,35.17,136.92
+AOMSZ,Namibe,Angola,-15.153104,12.152578
+CNNSA,Nansha New Port,China,22.76,113.572
+NZNPE,Napier,New Zealand,-39.483333,176.91666
+NZNSN,Nelson,New Zealand,-41.2812,173.2812
+USMSY,New Orleans,United States,29.9544,-90.075
+NZNPL,New Plymouth,New Zealand,-39.0625,174.0781
+USEWR,Newark,United States,40.73812,-74.18329
+CNNGB,Ningbo,China,29.875,121.5468
+USORF,Norfolk,United States,36.85373,-76.28163
+USNTS,North Charleston,United States,32.87161,-79.99029
+MRNDB,Nouadhibou,Mauritania,20.8906,-17.0625
+MRNKC,Nouakchott,Mauritania,18.0937,-15.9375
+NCNOU,Noumea,New Caledonia,-22.286509,166.440087
+USOAK,Oakland,United States,37.81105,-122.26795
+UAODS,Odessa,Ukraine,46.4531,30.7187
+NGONN,Onne Seaport,Nigeria,4.7031,7.1406
+DZORN,Oran,Algeria,35.6875,-0.625
+JPOSA,Osaka,Japan,34.67,135.5
+PEPAI,Paita,Peru,-5.0937,-81.1093
+PFPPT,Papeete,French Polynesia,-17.535,-149.57
+BRPNG,Paranagua,Brazil,-25.54,-48.51
+BRPEC,Pecem,Brazil,-3.53,-38.869
+MYPEN,Penang,Malaysia,5.4062,100.28
+USPHL,Philadelphia,United States,39.9522,-75.1642
+INPAV,Pipavav,India,20.974917,71.583081
+GRPIR,Piraeus,Greece,37.95134,23.64113
+TTPTS,Point Lisas,Trinidad & Tobago,10.405,-61.482
+GPPTP,Pointe a Pitre,Guadeloupe,16.23333,-61.51667
+CGPNR,Pointe Noire,Congo,1.5468,15.7968
+NZPOE,Port Chalmers,New Zealand,-45.81667,170.61667
+ZAPLZ,Port Elizabeth,South Africa,-33.9531,25.5781
+GAPOG,Port Gentil,Gabon,-0.719,8.774
+MYPKG,Port Klang,Malaysia,3.042,101.446
+MUPLU,Port Louis,Mauritius,-20.1562,57.5
+PKBQM,Port Qasim,Pakistan,24.767667,67.33334
+EGPSD,Port Said,Egypt,31.21583,32.35722
+MAPTM,Tangier,Morocco,35.885,-5.4847
+GEPTI,Poti,Georgia,42.14743,41.67701
+CVRAI,Praia,Cape Verde Island,14.916666,-23.524
+MXPGO,Progreso,Mexico,21.29,-89.667
+VEPBL,Puerto Cabello,Venezuela,10.46667,-68.01667
+CRCAL,Puerto Caldera,Costa Rica,9.9375,-84.7031
+HNPCR,Puerto Cortes,Honduras,15.83333,-87.91667
+ARPUD,Puerto Deseado,Argentina,-47.75,-65.8906
+CRLIO,Puerto Limon,Costa Rica,9.98,-83.04
+ARPMY,Puerto Madryn,Argentina,-42.7656,-65.0468
+CRMOB,Puerto Limon-Moin,Costa Rica,9.99,-83.089
+GTPRQ,Puerto Quetzal,Guatemala,15.0,-91.8125
+CNTAO,Qingdao,China,36.08333,120.35
+FIRAU,Rauma,Finland,61.133333,21.5
+BRRIG,Rio Grande,Brazil,-32.03333,-52.083333
+NLRTM,Rotterdam,Netherlands,51.91667,4.5
+FRURO,Rouen,France,49.4218,1.0781
+OMSLL,Salalah,Oman,17.014,54.091
+ITSAL,Salerno,Italy,40.41,15.0
+CLSAI,San Antonio,Chile,-33.58,-71.63
+PRSJU,San Juan,Puerto Rico,18.454,-66.07
+CISPY,San Pedro,Ivory Coast,4.733333,-6.616666
+GTSTC,Santo Tomas de Castilla,Guatemala,15.693433,-88.617721
+BRSSZ,Santos,Brazil,-23.95,-46.33
+BRSFS,Sao Francisco do Sul,Brazil,-26.25,-48.62
+USSAV,Savannah,United States,32.0833,-81.1
+USSEA,Seattle,United States,47.597244,-122.351973
+IDSRG,Semarang,Indonesia,-6.974997,110.423953
+TNSFA,Sfax,Tunisia,34.72024,10.745077
+CNSHA,Shanghai,China,31.2187,121.4531
+AESHJ,Sharjah,U. A. E.,25.375,55.408
+CNSHK,Shekou,China,22.5,113.875
+JPSMZ,Shimizu,Japan,35.02,138.48
+KWSAA,Shuaiba,Kuwait,29.0468,48.125
+KWSWK,Ash Shuwaykh,Kuwait,29.3437,47.9062
+KHKOS,Sihanoukville,Cambodia,10.63333,103.53
+SGSIN,Singapore,Singapore,1.2812,103.8437
+GRSKA,Skaramanga,Greece,38.01361,23.60026
+DZSKI,Skikda,Algeria,36.8593,6.8906
+OMSOH,Sohar,Oman,24.3593,56.74
+THSGZ,Songkhla,Thailand,7.215083,100.558519
+GBSOU,Southampton,United Kingdom,50.89926,-1.40029
+AOSZA,Soyo,Angola,-6.125,12.3593
+RULED,St Petersburg,Russia,59.9,30.27
+NOSVG,Stavanger,Norway,58.96667,5.66
+EGSUZ,Suez Canal,Egypt,31.15,32.37
+IDSUB,Surabaya,Indonesia,-7.25,112.75
+FJSUV,Suva,Fiji Islands,-18.124,178.464
+AUSYD,Sydney,Australia,-33.888888,151.2
+GHTKD,Takoradi,Ghana,4.88333,-1.75
+MYTPP,Tanjung Pelepas,Malaysia,1.405,103.593
+ESTAR,Tarragona,Spain,41.11713,1.24976
+NZTRG,Tauranga,New Zealand,-37.68333,176.16667
+GHTEM,Tema,Ghana,5.633,0.008
+ESSCT,Santa Cruz De Tenerife,Spain,28.46,-16.25
+GBTHP,Thames Haven,United Kingdom,51.45573,0.70808
+GRSKG,Thessaloniki,Greece,40.64098,22.93274
+GBTIL,Tilbury,United Kingdom,51.46339,0.36583
+NZTIU,Timaru,New Zealand,-44.3906,171.25
+NGTIN,Tin Can Island Port,Nigeria,6.4339,3.3564
+MGTMM,Toamasina,Madagascar,-18.1562,49.375
+JPTYO,Tokyo,Japan,35.6875,139.7656
+WP083,Torres Strait,Australia,-9.562,142.345
+ITTRS,Trieste,Italy,45.65,13.7834
+TNTUN,Tunis,Tunisia,36.7968,10.1718
+ARUSH,Ushuaia,Argentina,-54.48,-68.19
+ESVLC,Valencia,Spain,39.47,-0.37
+CAVAN,Vancouver,Canada,49.25,-123.125
+BGVAR,Varna,Bulgaria,43.216666,27.916666
+SCPOV,Victoria,Seychelles,-4.6093,55.4375
+ESVGO,Vigo,Spain,42.23413,-8.71136
+BRVLC,Vila do Conde,Brazil,-1.53838,-48.72982
+BRVIX,Vitoria,Brazil,-20.19,-40.22
+NAWVB,Walvis Bay,Namibia,-22.944,14.506
+NZWLG,Wellington,New Zealand,-41.2968,174.7812
+ANWIL,Willemstad,Netherl. Antilles,12.1,-68.91667
+USILM,WilmingtonNC,United States,34.2256,-77.945
+CNXMN,Xiamen,China,24.45,118.08
+CNTXG,Xingang,China,38.562,117.56
+CNYTN,Shenzhen,China,22.58333,114.26667
+JPYOK,Yokohama,Japan,35.45,139.55
+ARZAE,Zarate,Argentina,-34.09,-59.035
+BEZEE,Zeebrugge,Belgium,51.3281,3.1875
+NOAES,Alesund,Norway,62.49,6.5
+DKAAR,Aarhus,Denmark,56.15,10.216666
+PAPCN,Panama Canal,Panama,8.9531,-79.5312
+REREU,Port Reunion,Reunion,-20.883333,55.533333
+MXACA,Acapulco,Mexico,16.51,-99.52
+ESLEI,Almeria,Spain,36.5,-2.27
+CLANF,Antofagasta,Chile,-23.38,-70.23
+ITATX,Arbatax,Italy,39.56,9.42
+CANWP,Argentia,Canada,47.18,-54.0
+ERASA,Assab,,42.44,13.0
+CKAVA,Avarua,,-21.11,-159.46
+PTAVE,Aveiro,Portugal,40.38,-8.39
+BRBEL,Belem,Brazil,-1.27,-48.3
+CUCAI,Caibarien,Cuba,22.31,-79.28
+HTCAP,Cap-Haitien,,19.45,-72.12
+JPCHW,Chimu Wan,Japan,26.23,127.55
+CRCLN,Colon,Costa Rica,9.55,-84.15
+CADAR,Dartmouth,Canada,44.4,-63.34
+CAFAH,Falmouth,Canada,45.0,-64.1
+ESGIJ,Gijon,Spain,43.32,-5.4
+AUHAL,Halifax,Australia,-18.35,146.17
+AUHBA,Hobart,Australia,-42.52,147.18
+GRNAI,Iraklion,Greece,35.2,22.43
+ESZGM,Lagos,Spain,36.48,-3.26
+ARMDQ,Mar Del Plata,Argentina,-38.0,-57.33
+FRETN,Menton,France,43.47,7.3
+ITNAP,Napoli,Italy,40.5,14.15
+BSNAS,Nassau,Bahamas,25.05,-77.21
+GBPLY,Plymouth,United Kingdom,50.24,-4.07
+PTPDL,Ponta Delgada,Portugal,37.44,-25.4
+USNTD,Port Hueneme,United States,34.08,-119.11
+CVGRA,Porto Grande,Cape Verde Island,16.52,-25.0
+CLPUQ,Punta Arenas,Chile,-53.08,-70.56
+AURDS,Rhodes,Australia,-33.5,151.05
+ARSFO,San Francisco,Argentina,-31.25,-62.04
+CLSDO,Santo Domingo,Chile,-33.38,-71.39
+BESGS,St Georges,Belgium,50.36,5.21
+USSJ4,St Johns,United States,43.0,-84.33
+FRSNG,St Nazaire,France,44.12,4.36
+MXTAM,Tampico,Mexico,22.15,-97.52
+FOTOR,Torshavn,,62.1,-64.6
+BRTRM,Tramandai,Brazil,-29.58,-50.08
+INTUT,Tuticorin,India,8.47,78.08
+DEWVN,Wilhelmshaven,Germany,53.31,8.08
