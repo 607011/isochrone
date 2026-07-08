@@ -1178,6 +1178,78 @@ Umsetzung in `friction_map_from_point.py`:
   sonst mit dem Suffix-losen Normal-Lauf kollidieren würde (dieselbe
   Fehlerklasse wie die `--cmap galton`/`galton10`-Kollision aus Phase 14p).
 
+## Phase 14zA: Falscher Alarm bei --james-bond, dann zwei echte Verbesserungen
+
+Nutzer zeigte einen `--james-bond`-Kartenausschnitt aus der Taimyr-
+Halbinsel (Жданиха) und vermutete einen Bug: kein sichtbarer Kreis um
+den Startpunkt, praktisch der gesamte Rest der Welt unauffällig
+"leer". Ausführliche Fehlersuche (cProfile-artige Verifikation von
+`contourf`/`extend='max'`/`ListedColormap`, minimale Repro-Fälle mit
+`pcolormesh`, `BoundaryNorm`) führte zunächst auf eine echte, reale
+Matplotlib-3.11.0-Eigenart (`extend`-Farbwert wird intern als
+`5.0e+249` statt eines sinnvollen Werts berechnet) - die sich aber am
+Ende als **nicht die Ursache** herausstellte. Der tatsächliche Grund
+war simpel: Pixel-Sample bestätigte, dass die "leere" Fläche exakt die
+oberste Palettenfarbe (`#d2bea4`, "Braun hell", sowohl bei `galton` als
+auch `galton10`) trägt - die liegt nur zufällig fast auf dem
+Papierhintergrund (`#dad4bb`) und ist deshalb kaum zu erkennen. Kein
+Rendering-Fehler, nur ein Kontrastproblem (noch nicht behoben - Nutzer
+hat noch nicht zugestimmt).
+
+Nutzer akzeptierte die Erklärung, brachte aber zwei berechtigte
+Beobachtungen, die zu echten Verbesserungen führten:
+
+1. **Kein sichtbarer Radius-Kreis**: Bislang beschleunigte
+   `--heli`/`--jetpack` nur die Einstiegs-Etappe Startpunkt ->
+   Flughafen (siehe Phase 14z) - die Weltkarte selbst blieb davon
+   unberührt, sie zeigt nach wie vor nur die normale
+   Friction-Surface-Ausbreitung ab dem jeweils schnellsten erreichten
+   Flughafen. Nutzervorschlag: die H3-Kacheln selbst direkt per
+   Luftlinie einfärben, kein separates Overlay nötig.
+
+   Umsetzung: `_air_entry_hours()` zu `_air_hours_to(lat, lon,
+   dest_lat, dest_lon, heli, jetpack)` verallgemeinert (nimmt jetzt
+   beliebige Ziel-Koordinaten-Arrays statt nur `airports_df` - Basis
+   für Wiederverwendung). Neue Funktion `_apply_air_reach_to_h3(h3_df,
+   lat, lon, heli, jetpack)`: berechnet dieselbe Luftlinie-Formel für
+   *jede* H3-Kachel (Land und See) und nimmt `min()` gegen den bereits
+   berechneten Wert - wer schneller ist, gewinnt, genau dasselbe
+   Prinzip wie beim Flughafen-Einstieg, nur direkt auf Kacheln
+   angewendet statt nur auf die eine Einstiegs-Etappe. In `main()`
+   direkt nach dem Zusammenführen von `land_result`/`sea_result`
+   eingehängt. Ergebnis verifiziert: echter, gut sichtbarer Kreis um
+   den Startpunkt (Mercator ist konform, ein realer Umkreis bleibt bei
+   jeder Breite ein Kreis, kein Oval), reicht sogar übers offene Wasser
+   (Kara-See), da die Luftlinie kein Land braucht - im Gegensatz zur
+   alten Friction-Surface-"Finger"-Form, die weiterhin für die
+   Bodenroute sichtbar bleibt.
+
+2. **Mehrere erreichte Flughäfen bringen kaum Reichweitengewinn**:
+   Bestätigt, Ursache in den Daten: Khatanga (HTG, nur ~20km vom
+   Startpunkt, deckungsgleich mit dem 0.09h-Wert aus der CSV) und
+   Saskylakh (SYS) haben **null Routen** in `routes.csv` - reine
+   Sackgassen im Flugnetz. Der nächste Flughafen mit echten Verbindungen
+   (Yakutsk, 76 Routen) liegt außerhalb der 520km-Kombireichweite, also
+   bleibt trotz Heli/Jetpack nur die langsame Bodenroute (69+ Stunden)
+   übrig, um überhaupt einen nutzbaren Flughafen zu erreichen. Kein
+   Bug, sondern eine Eigenschaft des ~2014er OpenFlights-Datensatzes für
+   sehr kleine arktische Flughäfen. Führte zur dritten Änderung:
+
+3. **`--airports`/`--ports` statt `--no-hubs`**: Nutzerwunsch, weil das
+   unkommentierte Einzeichnen aller Flughäfen (auch nutzloser wie
+   Khatanga/Saskylakh) in die Irre führt. Logik umgedreht: standardmäßig
+   werden weder Flughafen- noch Hafen-Punkte gezeichnet, zwei
+   unabhängige Opt-in-Schalter statt einem gemeinsamen Opt-out.
+   `config.SHOW_HUBS` zu `SHOW_AIRPORTS`/`SHOW_PORTS` (beide `False`)
+   aufgeteilt, `plot_h3_map()`s `show_hubs`-Parameter zu
+   `show_airports`/`show_ports` aufgeteilt (zwei getrennte `if`-Blöcke
+   statt einem gemeinsamen), durch alle fünf Skripte durchgereicht.
+   Bewusst `--ports` statt `--hubs` gewählt (auf Nachfrage), da "Hub"
+   im Code bereits als Oberbegriff für Flughäfen UND Häfen gemeinsam
+   verwendet wird (`hub_type`-Spalte, `nearest_hub.py`) - `--hubs`
+   speziell nur für Häfen zu verwenden wäre mit dieser bestehenden
+   Terminologie kollidiert.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

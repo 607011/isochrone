@@ -230,7 +230,8 @@ def parse_lat_limits(s):
 
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
-    origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
+    origin_label="London", dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS,
+    show_ports=config.SHOW_PORTS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG,
@@ -381,11 +382,12 @@ def plot_h3_map(
         )
         ax.add_collection(mappable)
 
-    if show_hubs:
+    if show_airports:
         ax.scatter(
             airports_df["lon"], airports_df["lat"], c="#ff9d00", marker="o", s=4,
             linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
         )
+    if show_ports:
         ax.scatter(
             ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
             linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
@@ -439,7 +441,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
-    parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
+    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument(
         "--galton", action="store_true",
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
@@ -492,7 +495,7 @@ if __name__ == "__main__":
     plot_h3_map(
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
-        dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
+        dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
         galton_sigma=args.galton_sigma,

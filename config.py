@@ -19,8 +19,12 @@ COLORMAP = "viridis_r"  # _r: dunkel = weit weg, hell = nah
 # Renderzeit skalieren etwa quadratisch mit.
 MAP_DPI = 150
 
-# Flughafen-/Hafen-Punkte standardmäßig einblenden?
-SHOW_HUBS = True
+# Flughafen-/Hafen-Punkte standardmäßig einblenden? Aus, da sonst auch
+# Flughäfen ohne jeden Flugnetz-Nutzen (z.B. ohne einzige Route in
+# routes.csv, siehe MEMO.md) unkommentiert als Punkt erscheinen -
+# gezielt per --airports/--ports einblendbar.
+SHOW_AIRPORTS = False
+SHOW_PORTS = False
 
 # --- "--galton"-Modus: geglättete, diskrete Farbbänder statt Kachel-Mosaik ---
 # Bandbreite in Stunden (0-8, 8-16, 16-24, ...). Bei --cmap galton (10

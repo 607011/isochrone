@@ -58,13 +58,16 @@ def slug_for_point(lat, lon):
     return f"point_{fmt(lat)}_{fmt(lon)}"
 
 
-def _air_entry_hours(lat, lon, airports_df, heli, jetpack):
-    """Luftlinien-Reisezeit je Flughafen per Heli/Jetpack, np.inf außerhalb der Reichweite."""
-    hours = np.full(len(airports_df), np.inf)
+def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):
+    """Luftlinien-Reisezeit vom Startpunkt zu (dest_lat, dest_lon) per Heli/Jetpack,
+    np.inf außerhalb der Reichweite. dest_lat/dest_lon: beliebige numpy-Arrays -
+    Flughafen-Koordinaten für die Einstiegs-Etappe, H3-Kachel-Koordinaten für die
+    direkte Kacheleinfärbung (siehe _apply_air_reach_to_h3)."""
+    hours = np.full(len(dest_lat), np.inf)
     if not (heli or jetpack):
         return hours
 
-    dist_km = haversine_km_vec(lat, lon, airports_df["lat"].to_numpy(), airports_df["lon"].to_numpy())
+    dist_km = haversine_km_vec(lat, lon, dest_lat, dest_lon)
 
     if heli and jetpack:
         # Erst Heli bis HELI_RANGE_KM, den Rest bis JETPACK_RANGE_KM weiter per Jetpack.
@@ -94,7 +97,7 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
 
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
     ground_hours = dist_minutes[airport_node_idx.ravel()] / 60
-    air_hours = _air_entry_hours(lat, lon, airports_df, heli, jetpack)
+    air_hours = _air_hours_to(lat, lon, airports_df["lat"].to_numpy(), airports_df["lon"].to_numpy(), heli, jetpack)
     best_hours = np.minimum(ground_hours, air_hours)
 
     entry_hours = {
@@ -122,8 +125,26 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
     return pd.DataFrame(rows)
 
 
+def _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack):
+    """Färbt H3-Kacheln (Land und See) innerhalb der Heli-/Jetpack-Reichweite direkt
+    per Luftlinie ein, statt nur die Einstiegs-Etappe zu einem Flughafen zu
+    beschleunigen (siehe _air_hours_to). Konkurriert per min() mit dem bereits
+    berechneten Wert (Friction-Surface- bzw. Hafen-Modell) - wer schneller ist,
+    gewinnt, kachelweise, exakt dasselbe Prinzip wie beim Flughafen-Einstieg.
+    Wirkt sich nur innerhalb weniger hundert Kilometer um den Startpunkt aus
+    (außerhalb liefert _air_hours_to ohnehin nur np.inf), macht die Heli-/
+    Jetpack-Reichweite dadurch aber als echten Umkreis auf der Karte sichtbar,
+    statt nur indirekt über schneller erreichte Flughäfen.
+    """
+    if not (heli or jetpack):
+        return h3_df
+    air_hours = _air_hours_to(lat, lon, h3_df["lat"].to_numpy(), h3_df["lon"].to_numpy(), heli, jetpack)
+    h3_df["reisezeit_stunden"] = np.minimum(h3_df["reisezeit_stunden"].to_numpy(), air_hours)
+    return h3_df
+
+
 def main(
-    lat, lon, label=None, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
+    lat, lon, label=None, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
@@ -154,6 +175,7 @@ def main(
     )
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
+    h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
     # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
     # travel_times_df/h3_df inhaltlich (andere Einstiegszeiten je Flughafen),
@@ -171,7 +193,7 @@ def main(
 
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [],
-        origin_label=origin_label, dpi=dpi, show_hubs=show_hubs, galton=galton,
+        origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
         galton_sigma=galton_sigma,
@@ -186,7 +208,8 @@ if __name__ == "__main__":
     parser.add_argument("lon", type=float, help="Längengrad des Startpunkts")
     parser.add_argument("--label", default=None, help="Beschriftung für Titel/Legende (Standard: 'lat°, lon°')")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
-    parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
+    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument(
         "--galton", action="store_true",
@@ -253,7 +276,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.lat, args.lon, label=args.label, dpi=args.dpi, show_hubs=not args.no_hubs,
+        args.lat, args.lon, label=args.label, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports,
         resolution=args.resolution, galton=args.galton, band_hours=args.band_hours, cmap_name=args.cmap,
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
         lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,

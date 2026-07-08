@@ -38,7 +38,7 @@ def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path
 
 
 def main(
-    origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
+    origin_iata, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
@@ -78,7 +78,7 @@ def main(
 
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
-        origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs, galton=galton,
+        origin_label=origin_row["name"], dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, rivers=rivers, galton_sigma=galton_sigma,
     )
@@ -90,7 +90,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("iata", nargs="?", default="THU", help="IATA-Code des Start-Flughafens")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
-    parser.add_argument("--no-hubs", action="store_true", help="Flughafen-/Hafen-Punkte ausblenden")
+    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
+    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument(
         "--galton", action="store_true",
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton,
+        args.iata, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, resolution=args.resolution, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
         galton_sigma=args.galton_sigma,
