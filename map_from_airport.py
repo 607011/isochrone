@@ -97,7 +97,7 @@ def main(
     origin_row = travel_times_df[travel_times_df["iata_code"] == origin_iata].iloc[0]
     slug = slug_for(origin_iata, origin_row["name"])
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
-    galton_suffix = "_galton" if galton else ""
+    galton_suffix = ("_galton10" if cmap_name == "galton10" else "_galton") if galton else ""
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""

@@ -829,6 +829,36 @@ Drei weitere Nachbesserungen:
    nur `_galton` als Suffix, wenn `--galton` gesetzt ist - wie schon bei
    `--cmap galton` beeinflusst die Farbwahl den Dateinamen nicht.
 
+## Phase 14p: Dateinamens-Kollision und zu enges GALTON_BAND_HOURS behoben
+
+Nutzer meldete: "`--cmap galton10` und `--cmap galton` führen zum
+selben zehnfarbigen Schema." Zwei getrennte Ursachen, beide behoben:
+
+1. **Dateinamens-Kollision**: `galton_suffix` hing nur von `galton`
+   ab, nicht von `cmap_name` - `--cmap galton` und `--cmap galton10`
+   schrieben also unter demselben Dateinamen (`..._galton_labels.png`)
+   und überschrieben sich gegenseitig. Wer beide Varianten
+   nacheinander testete, sah beim zweiten Mal denselben Dateinamen mit
+   dem Inhalt des zweiten Laufs - und hielt das für "beide sehen
+   gleich aus". Fix: `galton_suffix = ("_galton10" if cmap_name ==
+   "galton10" else "_galton") if galton else ""` in allen drei
+   Wrapper-Skripten (`map_from_airport.py`, `friction_surface_map.py`,
+   `friction_map_from_airport.py`).
+2. **Echtes optisches Problem bei `--cmap galton` mit der
+   Standard-Bandbreite**: `GALTON_BAND_HOURS` stand seit der
+   allerersten Einführung von `--galton` auf 4 (also 12 Bänder bei
+   `COLOR_CAP_HOURS=48`). Jeder Beispiel-Aufruf in diesem gesamten
+   Chat hatte aber immer explizit `--band-hours 8` gesetzt (6 Bänder) -
+   der Standardwert 4 wurde nie tatsächlich betrachtet. Mit 12 Bändern
+   tastet `contourf` die zehn Ankerfarben von `GALTON_COLORS` so dicht
+   ab, dass die interpolierte `LinearSegmentedColormap` kaum noch von
+   der festen `ListedColormap` aus `--cmap galton10` zu unterscheiden
+   ist - die Bänder landen jeweils sehr nah an einem der zehn Anker.
+   Fix: `GALTON_BAND_HOURS` von 4 auf 8 geändert - damit liest sich
+   `--cmap galton` wieder klar als fünf ineinander übergehende
+   Farbfamilien statt als beinahe-diskretes Zehnerschema, ganz ohne
+   dass `--band-hours` manuell gesetzt werden muss.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

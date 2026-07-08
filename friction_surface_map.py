@@ -49,7 +49,7 @@ def main(
     combined = pd.concat([land_df[["h3_index", "lat", "lon", "reisezeit_stunden"]], sea_df], ignore_index=True)
 
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
-    galton_suffix = "_galton" if galton else ""
+    galton_suffix = ("_galton10" if cmap_name == "galton10" else "_galton") if galton else ""
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""

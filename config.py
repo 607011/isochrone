@@ -23,8 +23,13 @@ MAP_DPI = 150
 SHOW_HUBS = True
 
 # --- "--galton"-Modus: geglättete, diskrete Farbbänder statt Kachel-Mosaik ---
-# Bandbreite in Stunden (0-4, 4-8, 8-12, ...).
-GALTON_BAND_HOURS = 4
+# Bandbreite in Stunden (0-8, 8-16, 16-24, ...). Bei --cmap galton (10
+# Ankerfarben, interpoliert) ist ein zu kleiner Wert hier problematisch:
+# das Sampling der Ankerfarben liegt dann so dicht, dass die Bänder kaum
+# von --cmap galton10 (dieselben 10 Farben, aber fest statt interpoliert)
+# zu unterscheiden sind. 8h ergibt 6 Bänder, die klar als 5 ineinander
+# übergehende Farbfamilien lesbar sind - wie im Original.
+GALTON_BAND_HOURS = 8
 
 # Nachbarschafts-Mittelung auf dem H3-Gitter selbst (1 Ring) glättet zu
 # schwach, um Galtons handgezeichnete, glatte Bänder nachzubilden - das
