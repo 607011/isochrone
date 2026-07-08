@@ -1038,6 +1038,24 @@ Umsetzung:
 - `pipenv lock` neu ausgeführt, Verhalten end-to-end nachgetestet
   (inklusive eines simulierten "reverse_geocoder nicht installiert"-Laufs).
 
+## Phase 14w: --galton-sigma (Glättungsradius parametrisiert)
+
+Nutzer fragte (Diskussion zuerst), ob sich die Glättung für --galton
+parametrisieren ließe. Kurz abgewogen: `GALTON_SIGMA_DEG` (Gauß-
+Glättungsradius, bestimmt maßgeblich den "verwaschenen" Look) ist ein
+sinnvoller Kandidat für einen CLI-Schalter, analog zu `--band-hours`.
+`GALTON_GRID_DEG` (Auflösung des Zwischenrasters) dagegen bewusst nicht
+freigegeben - reiner Performance/Präzisions-Kompromiss ohne nennenswert
+sichtbaren gestalterischen Effekt, bleibt interner Konfigurationswert.
+
+Umsetzung: `--galton-sigma` (Standard `config.GALTON_SIGMA_DEG` = 3.0°)
+durch alle fünf Skripte durchgereicht, `_build_galton_grid(covered,
+sigma_deg=galton_sigma)` statt des Konstanten-Default. Titel-Detailtext
+nutzt jetzt den tatsächlich übergebenen Wert statt der Konstante direkt.
+Kein Dateinamens-Suffix (wie bei `--band-hours` schon so gehandhabt).
+Getestet mit σ=1.0 (deutlich schärfer/lokaler) und σ=5.0 (deutlich
+weicher/verwaschener) gegen den Standard 3.0.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

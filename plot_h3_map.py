@@ -212,6 +212,7 @@ def plot_h3_map(
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
+    galton_sigma=config.GALTON_SIGMA_DEG,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -332,7 +333,7 @@ def plot_h3_map(
         # contourf statt Kachel-Mosaik: siehe _build_galton_grid für die
         # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
         # Galtons handgezeichnete Bänder nachzubilden).
-        lon_grid, lat_grid, galton_values = _build_galton_grid(covered)
+        lon_grid, lat_grid, galton_values = _build_galton_grid(covered, sigma_deg=galton_sigma)
         if cmap_name == "galton10":
             # Exakt zehn gleich breite Stufen - eine je Palettenfarbe -,
             # unabhängig von --band-hours.
@@ -380,9 +381,9 @@ def plot_h3_map(
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
         if galton and cmap_name == "galton10":
-            detail = f"10 feste Stufen, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
+            detail = f"10 feste Stufen, geglättet (Gauß-Radius {galton_sigma}°)"
         elif galton:
-            detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
+            detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {galton_sigma}°)"
         else:
             detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
         ax.set_title(
@@ -426,6 +427,11 @@ if __name__ == "__main__":
         help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...), ignoriert von --cmap galton10",
     )
     parser.add_argument(
+        "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
+        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
+             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
+    )
+    parser.add_argument(
         "--cmap", default=config.COLORMAP,
         help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig). "
              "Weitere perzeptuell gleichmaessige Optionen: plasma_r, inferno_r, magma_r, cividis_r "
@@ -467,4 +473,5 @@ if __name__ == "__main__":
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
+        galton_sigma=args.galton_sigma,
     )

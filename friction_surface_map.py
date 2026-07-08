@@ -28,7 +28,7 @@ OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 def main(
     resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, lat_limits=None, rivers=False,
+    grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
@@ -72,6 +72,7 @@ def main(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
         dpi=dpi, show_hubs=show_hubs, galton=galton, band_hours=band_hours, cmap_name=cmap_name,
         labels=labels, robinson=robinson, grid=grid, title=title, lat_limits=lat_limits, rivers=rivers,
+        galton_sigma=galton_sigma,
     )
 
 
@@ -89,6 +90,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
         help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...), ignoriert von --cmap galton10",
+    )
+    parser.add_argument(
+        "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
+        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
+             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
     )
     parser.add_argument(
         "--cmap", default=config.COLORMAP,
@@ -130,4 +136,5 @@ if __name__ == "__main__":
         resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
+        galton_sigma=args.galton_sigma,
     )

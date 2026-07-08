@@ -84,7 +84,7 @@ def main(
     lat, lon, label=None, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, lat_limits=None, rivers=False,
+    grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
     slug = slug_for_point(lat, lon)
@@ -123,6 +123,7 @@ def main(
         origin_label=origin_label, dpi=dpi, show_hubs=show_hubs, galton=galton,
         band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
+        galton_sigma=galton_sigma,
     )
 
 
@@ -143,6 +144,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
         help="Bandbreite in Stunden im --galton-Modus (0-8, 8-16, ...), ignoriert von --cmap galton10",
+    )
+    parser.add_argument(
+        "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
+        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
+             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
     )
     parser.add_argument(
         "--cmap", default=config.COLORMAP,
@@ -184,5 +190,5 @@ if __name__ == "__main__":
         args.lat, args.lon, label=args.label, dpi=args.dpi, show_hubs=not args.no_hubs,
         resolution=args.resolution, galton=args.galton, band_hours=args.band_hours, cmap_name=args.cmap,
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
-        lat_limits=args.lat_limits, rivers=args.rivers,
+        lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,
     )
