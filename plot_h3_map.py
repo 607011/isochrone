@@ -58,18 +58,17 @@ FRAME_GAP_PT = 3.0
 BACKGROUND_COLOR = "#dad4bb"
 
 # Typografie im Stil alter Kartendrucke: Playfair Display für die
-# Hauptüberschrift (Google Font, OFL-Lizenz, als statische Bold-Instanz
-# aus der Variable-Font-Datei erzeugt - matplotlib kann keine
-# Font-Achsen ansteuern), Baskerville (macOS-Systemschrift) für
-# Orts-/Kontinentnamen - Kontinente fett, Städte kursiv.
-PLAYFAIR_BOLD = "fonts/PlayfairDisplay-Bold.ttf"
-if os.path.exists(PLAYFAIR_BOLD):
-    fm.fontManager.addfont(PLAYFAIR_BOLD)
-    TITLE_FONT = fm.FontProperties(fname=PLAYFAIR_BOLD)
+# Hauptüberschrift, Baskerville (macOS-Systemschrift) für Orts-/
+# Kontinentnamen - Kontinente fett, Städte kursiv. Schriftnamen und
+# -größen stehen in config.py, damit man sie ohne Codeänderung anpassen
+# kann, siehe MEMO.md.
+if os.path.exists(config.PLAYFAIR_BOLD_PATH):
+    fm.fontManager.addfont(config.PLAYFAIR_BOLD_PATH)
+    TITLE_FONT = fm.FontProperties(fname=config.PLAYFAIR_BOLD_PATH)
 else:
-    TITLE_FONT = fm.FontProperties(family="serif", weight="bold")
-CONTINENT_FONT = fm.FontProperties(family="Baskerville", weight="bold")
-CITY_FONT = fm.FontProperties(family="Baskerville", style="italic")
+    TITLE_FONT = fm.FontProperties(family=config.TITLE_FONT_FALLBACK_FAMILY, weight="bold")
+CONTINENT_FONT = fm.FontProperties(family=config.CONTINENT_FONT_FAMILY, weight="bold")
+CITY_FONT = fm.FontProperties(family=config.CITY_FONT_FAMILY, style="italic")
 
 # Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
 # je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
@@ -125,16 +124,18 @@ def _draw_labels(ax):
     for name, lon, lat in CONTINENT_LABELS:
         ax.text(
             lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=14, color=ANTHRACITE, ha="center", va="center", fontproperties=CONTINENT_FONT,
+            fontsize=config.CONTINENT_FONT_SIZE, color=ANTHRACITE, ha="center", va="center",
+            fontproperties=CONTINENT_FONT,
         )
     for name, lon, lat in _load_city_labels():
         ax.plot(
-            lon, lat, marker="o", markersize=2, color=ANTHRACITE,
+            lon, lat, marker="o", markersize=config.CITY_MARKER_SIZE, color=ANTHRACITE,
             transform=ccrs.PlateCarree(), zorder=6,
         )
         ax.text(
             lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
-            fontsize=7.5, color=ANTHRACITE, ha="left", va="center", fontproperties=CITY_FONT,
+            fontsize=config.CITY_FONT_SIZE, color=ANTHRACITE, ha="left", va="center",
+            fontproperties=CITY_FONT,
         )
 
 
@@ -347,7 +348,7 @@ def plot_h3_map(
     )
 
     cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
-    cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
+    cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
     if galton:
         cbar.ax.xaxis.label.set_fontproperties(TITLE_FONT)
 
@@ -361,7 +362,7 @@ def plot_h3_map(
             detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
         ax.set_title(
             f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
-            fontproperties=TITLE_FONT, fontsize=18, color=ANTHRACITE,
+            fontproperties=TITLE_FONT, fontsize=config.TITLE_FONT_SIZE, color=ANTHRACITE,
         )
     legend = ax.legend(loc="lower left", markerscale=2)
     if galton:

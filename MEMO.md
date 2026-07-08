@@ -859,6 +859,37 @@ selben zehnfarbigen Schema." Zwei getrennte Ursachen, beide behoben:
    Farbfamilien statt als beinahe-diskretes Zehnerschema, ganz ohne
    dass `--band-hours` manuell gesetzt werden muss.
 
+## Phase 14q: Schriftnamen/-größen nach config.py ausgelagert
+
+Nutzer fragte, ob sich `config.py` zu einer `config.yaml` umbauen
+ließe, um dort auch Schriftarten/-größen abzulegen. Dagegen
+gesprochen: `config.py` enthält Python-Ausdrücke und eng an den Code
+gebundene Erklärkommentare, die in YAML entweder verloren gingen oder
+nur redundant nachgebildet werden könnten, plus überall
+`config.X`-Zugriffe durch `config["X"]` oder einen Wrapper ersetzt
+werden müssten - für eine nur von mir selbst editierte Datei ohne
+klaren Zusatznutzen. Als Zwischenlösung akzeptiert: die bislang direkt
+in `plot_h3_map.py` verstreuten Font-Literale (Dateipfad, Family-Namen,
+Schriftgrößen für Titel/Kontinente/Städte, Stadt-Marker-Größe) nach
+`config.py` gezogen, ohne den Dateityp zu wechseln:
+
+```python
+PLAYFAIR_BOLD_PATH = "fonts/PlayfairDisplay-Bold.ttf"
+TITLE_FONT_FALLBACK_FAMILY = "serif"
+CONTINENT_FONT_FAMILY = "Baskerville"
+CITY_FONT_FAMILY = "Baskerville"
+TITLE_FONT_SIZE = 18
+CONTINENT_FONT_SIZE = 14
+CITY_FONT_SIZE = 7.5
+CITY_MARKER_SIZE = 2
+```
+
+`plot_h3_map.py` referenziert diese jetzt statt der bisherigen
+Literale (`PLAYFAIR_BOLD`-Konstante entfernt, `fontsize=14`/`7.5`/`18`
+und `markersize=2` durch `config.*` ersetzt) - Verhalten unverändert,
+nur die Werte sitzen jetzt an einer Stelle mit allen anderen
+Stellschrauben.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

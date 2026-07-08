@@ -101,3 +101,17 @@ SEA_SPEED_KMH = 35
 # Galtons Original, das ab einer Schwelle den dunkelsten Farbton vergibt,
 # statt die Skala linear bis zum Extremwert gemeinsam zu strecken.
 MAX_PORT_DISTANCE_KM = 20_015
+
+# --- Typografie (siehe plot_h3_map.py: TITLE_FONT/CONTINENT_FONT/CITY_FONT) ---
+# Playfair Display ist eine Variable-Font-Datei - matplotlib kann deren
+# Gewichtsachse nicht ansteuern, daher die statische Bold-Instanz
+# (per fonttools varLib.instancer erzeugt), nicht die Variable-Datei selbst.
+PLAYFAIR_BOLD_PATH = "fonts/PlayfairDisplay-Bold.ttf"
+TITLE_FONT_FALLBACK_FAMILY = "serif"  # falls die Playfair-Datei fehlt
+CONTINENT_FONT_FAMILY = "Baskerville"  # macOS-Systemschrift, nichts zu bundeln
+CITY_FONT_FAMILY = "Baskerville"
+
+TITLE_FONT_SIZE = 18
+CONTINENT_FONT_SIZE = 14
+CITY_FONT_SIZE = 7.5
+CITY_MARKER_SIZE = 2
