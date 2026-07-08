@@ -1250,6 +1250,64 @@ Beobachtungen, die zu echten Verbesserungen führten:
    speziell nur für Häfen zu verwenden wäre mit dieser bestehenden
    Terminologie kollidiert.
 
+## Phase 14zB: Der echte Bug - Fliegen "verschenkt" die geflogene Strecke
+
+Nutzer prüfte den in Phase 14zA gefixten `--james-bond`-Kartenausschnitt
+genauer und widersprach zweimal der Kontrastfarben-Erklärung
+("Da stimmt was nicht" / "Nein, das ist auch nicht das Problem") - der
+eigentliche Fehler lag nicht im Rendering, sondern in der Modellierung:
+"Wann immer James Bond gezwungen ist, Heli und Jetpack aufzugeben,
+bewegt er sich nach dem Friction-Surface-Modell weiter. Ergo müsste es
+so am Kreisrand weitergehen, oder?"
+
+Ein erster Demo-Fix (`_apply_ground_only_to_h3()`) berechnete die reine
+Bodenzeit ab dem Startpunkt selbst - also ganz ohne Anrechnung der
+bereits per Heli/Jetpack zurückgelegten Strecke. Nutzer erkannte den
+Fehler exakt anhand des Demobilds: "Aber es müsste _überall_ am
+Kreisrand auf der Landmasse per Friction-Surface-Modell weitergehen.
+Das tut es aber nicht, sondern nur rechts unten. Und der Teil sieht so
+aus, als ob er nicht vom Kreisrand aus berechnet worden wäre, sondern
+vom Startpunkt aus." - exakt richtig diagnostiziert: `min(ground_ab_start,
+air)` vergleicht nur zwei komplette Einzelstrecken, kombiniert sie nie,
+und "gewinnt" nur zufällig in der einen Richtung, in der reines
+Zufußgehen der gesamten Distanz noch mit der Flugroute mithalten kann.
+
+Fix: `_combo_ground_minutes(lat, lon, graph, node_lat, node_lon, heli,
+jetpack)` - derselbe virtuelle-Superknoten-Trick wie in
+`friction_surface_global.py` (dort: Flughäfen als gewichtete
+Einstiegspunkte für die Welt-Dijkstra), hier: jeder Friction-Graph-Knoten
+in Flugreichweite wird ein virtueller Einstiegspunkt mit Kantengewicht
+= seine eigene individuelle Flugzeit ab dem Startpunkt
+(`_air_hours_to`). Ein einziger Dijkstra über den gesamten Graphen
+liefert dann je Knoten das Minimum über alle Einstiegspunkte von
+(Flugzeit dorthin + Bodenzeit von dort zum Knoten) - "so weit fliegen,
+wie es sich lohnt, dann zu Fuß weiter", radial symmetrisch um den
+Reichweitenkreis statt nur in einer zufälligen Richtung. Der Startpunkt
+selbst ist immer ein kostenloser Einstiegspunkt (0h Flugzeit), deckt
+damit automatisch auch den reinen Fußweg-Fall ganz ohne
+`--heli`/`--jetpack` ab (identisch zum ursprünglichen
+Einzelquellen-Dijkstra) - kein Sonderfall nötig.
+
+`build_travel_times_from_point()` nutzt das Ergebnis jetzt direkt als
+Einstiegszeit je Flughafen (ersetzt die alte separate `min(ground,
+air)`-Rechnung komplett - hatte denselben Fehler), `_apply_ground_only_to_h3()`
+wurde durch `_apply_combo_ground_to_h3()` ersetzt, die dasselbe
+`combo_minutes`-Array (einmal pro Lauf berechnet, von beiden Aufrufern
+wiederverwendet) gegen die bisherigen H3-Landkachel-Werte per `min()`
+konkurrieren lässt. `_apply_air_reach_to_h3()` (reine Flugzeit, kein
+Fußweg) bleibt zusätzlich bestehen, da sie als einzige auch
+See-Kacheln einfärben kann (der Friction-Graph ist reines Land).
+
+Verifiziert: Testlauf für Жданиха (72.1525957, 102.3660656) mit
+`--james-bond` und `viridis_r`-Farbskala (zur Vermeidung des
+Kontrastproblems aus Phase 14zA) zeigt den Übergang jetzt tatsächlich
+radial in alle Richtungen (Westen, Süden, Osten - nicht mehr nur
+Südosten). Die Weltkarte insgesamt wirkt zudem spürbar besser vernetzt,
+da derselbe Fix auch die Flughafen-Einstiegszeiten korrigiert.
+Regressionstest mit Paris (48.85, 2.35, ganz ohne `--heli`/`--jetpack`)
+bestätigt unverändertes Verhalten im Normalfall (Orly/Le Bourget/CDG
+weiterhin korrekt als nächste Flughäfen erkannt).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

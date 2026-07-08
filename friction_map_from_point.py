@@ -4,11 +4,12 @@
 Vertauscht die Blickrichtung von friction_surface_global.py: dort läuft
 ein Dijkstra vom virtuellen Superknoten über alle Flughäfen (deren
 Reisezeit ab London schon bekannt ist) zu jeder Landkachel der Welt. Hier
-läuft zunächst ein einzelner Dijkstra ab dem gewählten Startpunkt über
-denselben gecachten Land-Friction-Graphen zu jedem Flughafen-Pixel - das
-liefert dessen individuelle Bodenzeit ab dem Startpunkt statt der bisher
-einheitlichen 0h für "echte" Startflughäfen. Diese Bodenzeiten sind die
-Kantengewichte des virtuellen Ursprungsknotens in
+läuft zunächst ein Dijkstra ab dem gewählten Startpunkt (genauer: von
+allen Punkten, die per Heli/Jetpack von dort aus erreichbar sind, siehe
+unten) über denselben gecachten Land-Friction-Graphen zu jedem Flughafen-
+Pixel - das liefert dessen individuelle Bodenzeit ab dem Startpunkt statt
+der bisher einheitlichen 0h für "echte" Startflughäfen. Diese Bodenzeiten
+sind die Kantengewichte des virtuellen Ursprungsknotens in
 travel_time.compute_shortest_times (dort seit dieser Änderung auch als
 Dict statt nur als Liste möglich), der normale Flugnetz-Dijkstra
 kombiniert daraus in einem Rutsch Bodenzeit-zum-Flughafen + Flug-/
@@ -26,18 +27,26 @@ per Luftlinie (Haversine) mit fester Geschwindigkeit statt Friction-
 Graph, dafür mit begrenzter Reichweite (siehe HELI_SPEED_KMH/
 HELI_RANGE_KM/JETPACK_* in config.py). Beide zusammen (oder per
 --james-bond) verketten sich: erst so weit wie möglich per Heli, der
-Rest der Strecke bis zur Jetpack-Reichweite per Jetpack. Für jeden
-Flughafen gewinnt am Ende die schnellere der beiden Einstiegs-Optionen
-(Luft oder Boden) - in Reichweite eines Flughafens (civilisation) ist
-die Straße oft schneller als das langsame Jetpack, aus großer
-Entfernung schlägt die kreuz und quer über Gelände fliegende Luftlinie
-den umwegreichen Friction-Graphen.
+Rest der Strecke bis zur Jetpack-Reichweite per Jetpack.
+
+Wichtig: das ist kein simples "Boden- oder Luftweg, wer schneller ist"
+mehr (das würde die bereits geflogene Strecke verschenken, sobald man
+zwischendurch auf den Friction-Graphen umsteigen muss - siehe MEMO.md).
+Stattdessen wird in _combo_ground_minutes() ein virtueller Superknoten
+mit Kanten zu JEDEM Friction-Graph-Knoten in Flugreichweite gebaut,
+Kantengewicht = dessen individuelle Flugzeit ab dem Startpunkt - ein
+einziger Dijkstra über den ganzen Graphen liefert dann für jeden Punkt
+der Welt das Minimum über alle Einstiegspunkte von (Flugzeit dorthin +
+Bodenzeit von dort zum Ziel). Der Startpunkt selbst ist dabei immer ein
+kostenloser Einstiegspunkt (0h Flugzeit), deckt reines Zufußgehen ganz
+ohne Flug also automatisch mit ab.
 """
 
 import math
 
 import numpy as np
 import pandas as pd
+from scipy import sparse
 from scipy.sparse.csgraph import dijkstra
 from sklearn.neighbors import BallTree
 
@@ -88,17 +97,59 @@ def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):
     return hours
 
 
-def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_df, heli=False, jetpack=False):
+def _combo_ground_minutes(lat, lon, graph, node_lat, node_lon, heli, jetpack):
+    """Bodenzeit (in Minuten) zu jedem Knoten im Friction-Graphen, unter
+    Berücksichtigung, dass man zunächst per Heli/Jetpack so weit wie günstig
+    fliegen und erst danach zu Fuß weiterlaufen kann. Eine reine "Bodenzeit
+    ab dem Startpunkt" (ohne die geflogene Strecke gutzuschreiben) würde
+    genau die bereits zurückgelegte Flugstrecke verschenken - siehe MEMO.md.
+
+    Technik: virtueller Superknoten mit Kanten zu jedem Friction-Graph-Knoten
+    in Flugreichweite, Kantengewicht = dessen individuelle Flugzeit ab dem
+    Startpunkt (_air_hours_to) - ein einziger Dijkstra über den ganzen Graphen
+    liefert dann je Knoten das Minimum über alle Einstiegspunkte von
+    (Flugzeit dorthin + Bodenzeit von dort zum Knoten). Exakt dasselbe
+    Prinzip wie der virtuelle Superknoten in friction_surface_global.py
+    (dort: Flughäfen mit ihrer eigenen Reisezeit als Kantengewicht), nur mit
+    Flugreichweiten-Punkten statt Flughäfen.
+
+    Der Startpunkt selbst ist immer ein kostenloser Einstiegspunkt (0h
+    Flugzeit), unabhängig von --heli/--jetpack - deckt reines Zufußgehen
+    ganz ohne Flug automatisch mit ab, ohne dass ein Sonderfall nötig wäre
+    (ohne --heli/--jetpack ist er dadurch schlicht der einzige
+    Einstiegspunkt, identisch zum ursprünglichen Einzelquellen-Dijkstra).
+
+    Gibt (Minuten-Array über alle Knoten, BallTree über node_lat/node_lon)
+    zurück - der Tree wird von den Aufrufern für eigene Nearest-Node-
+    Abfragen wiederverwendet, statt ihn ein zweites Mal aufzubauen.
+    """
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, start_idx = tree.query(np.radians([[lat, lon]]), k=1)
     start_idx = int(start_idx[0, 0])
 
-    dist_minutes = dijkstra(graph, directed=True, indices=[start_idx])[0]
+    entry_air_hours = _air_hours_to(lat, lon, node_lat, node_lon, heli, jetpack)
+    entry_air_hours[start_idx] = min(entry_air_hours[start_idx], 0.0)
+    entry_idx = np.where(np.isfinite(entry_air_hours))[0]
+
+    n = graph.shape[0]
+    graph_coo = graph.tocoo()
+    virtual_rows = np.full(len(entry_idx), n)
+    virtual_cols = entry_idx
+    virtual_weights = entry_air_hours[entry_idx] * 60  # Minuten, wie der Rest des Graphen
+
+    all_rows = np.concatenate([graph_coo.row, virtual_rows])
+    all_cols = np.concatenate([graph_coo.col, virtual_cols])
+    all_data = np.concatenate([graph_coo.data, virtual_weights])
+    big = sparse.csr_matrix((all_data, (all_rows, all_cols)), shape=(n + 1, n + 1))
+    combo_minutes = dijkstra(big, directed=True, indices=[n])[0][:n]
+    return combo_minutes, tree
+
+
+def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_df, heli=False, jetpack=False):
+    combo_minutes, tree = _combo_ground_minutes(lat, lon, graph, node_lat, node_lon, heli, jetpack)
 
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
-    ground_hours = dist_minutes[airport_node_idx.ravel()] / 60
-    air_hours = _air_hours_to(lat, lon, airports_df["lat"].to_numpy(), airports_df["lon"].to_numpy(), heli, jetpack)
-    best_hours = np.minimum(ground_hours, air_hours)
+    best_hours = combo_minutes[airport_node_idx.ravel()] / 60
 
     entry_hours = {
         iata: hours for iata, hours in zip(airports_df["iata"], best_hours)
@@ -122,7 +173,7 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
             "reisezeit_stunden": round(res["hours"], 2),
             "anzahl_umstiege": res["stops"],
         })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), combo_minutes
 
 
 def _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack):
@@ -140,6 +191,25 @@ def _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack):
         return h3_df
     air_hours = _air_hours_to(lat, lon, h3_df["lat"].to_numpy(), h3_df["lon"].to_numpy(), heli, jetpack)
     h3_df["reisezeit_stunden"] = np.minimum(h3_df["reisezeit_stunden"].to_numpy(), air_hours)
+    return h3_df
+
+
+def _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon):
+    """Konkurriert combo_minutes (siehe _combo_ground_minutes - Fliegen so
+    weit wie günstig, dann per Friction-Surface zu Fuß weiter, ab dem
+    Startpunkt) gegen den bisherigen Wert je Landkachel. Nur für Landkacheln
+    (hub_type == "airport"), da der Friction-Graph reines Land ist und
+    Wasserkacheln keinen zugeordneten Knoten haben (dafür siehe
+    _apply_air_reach_to_h3 - deckt auch See ab, aber nur die reine
+    Flugstrecke ohne Fußweg-Fortsetzung).
+    """
+    tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
+    is_land = h3_df["hub_type"] == "airport"
+    _, idx = tree.query(np.radians(h3_df.loc[is_land, ["lat", "lon"]].to_numpy()), k=1)
+    ground_hours = combo_minutes[idx.ravel()] / 60
+    h3_df.loc[is_land, "reisezeit_stunden"] = np.minimum(
+        h3_df.loc[is_land, "reisezeit_stunden"].to_numpy(), ground_hours,
+    )
     return h3_df
 
 
@@ -164,7 +234,7 @@ def main(
 
     airports_df = load_airports(config.AIRPORTS_CSV)
     graph, node_lat, node_lon = friction.load_graph()
-    travel_times_df = build_travel_times_from_point(
+    travel_times_df, combo_minutes = build_travel_times_from_point(
         lat, lon, graph, node_lat, node_lon, airports_df, heli=heli, jetpack=jetpack,
     )
 
@@ -175,6 +245,7 @@ def main(
     )
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
+    h3_df = _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon)
     h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
     # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
