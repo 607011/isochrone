@@ -750,6 +750,42 @@ ax.add_patch(Rectangle(
 ))
 ```
 
+## Phase 14m: Nackte Randzahlen, gleichmäßiger Doppelrahmen, --title, Papierhintergrund
+
+Vier Nachbesserungen zum Vergleich mit der Originalkarte:
+
+1. **Randbeschriftung ohne °/N/E/S/W**: cartopys Gridliner formatiert
+   Längen-/Breitengrade standardmäßig mit Gradzeichen und
+   Himmelsrichtung (`LongitudeFormatter`/`LatitudeFormatter`). Ersetzt
+   durch einen simplen `FuncFormatter(lambda v, pos: f"{v:g}")` für
+   `gl.xformatter`/`gl.yformatter` - reine Zahl, negatives Vorzeichen
+   statt S/W, wie in der Vorlage.
+2. **Gleichmäßiger Doppelrahmen**: der bisherige Rechteck-Versatz war
+   ein fester Achsen-Bruchteil (`0.015` in beide Richtungen), aber die
+   Karte ist nicht quadratisch - horizontal und vertikal ergaben sich
+   dadurch unterschiedliche Pixelabstände. Jetzt wird der Abstand in
+   Punkten festgelegt (`FRAME_GAP_PT = 3.0`) und über die tatsächliche
+   Pixel-Bounding-Box der Achse (`ax.get_window_extent()`, dafür ein
+   früher `fig.canvas.draw()` nötig - günstig, weil zu diesem Zeitpunkt
+   im Code noch keine Konturen/Punkte gezeichnet sind) in
+   Achsen-Koordinaten zurückgerechnet. Ergebnis: exakt gleicher Abstand
+   in beide Richtungen, dazu insgesamt viel enger als vorher.
+3. **`--title`**: Überschrift ist jetzt standardmäßig aus, nur mit
+   `--title` sichtbar - die Originalkarte hat schließlich auch keine
+   Überschrift *auf* der Karte selbst, sondern nur die Legende unten
+   links. `title=False` als neuer Parameter durch alle vier
+   Kartenskripte durchgereicht, Dateiname bekommt bei `--title` das
+   Suffix `_title` (letztes Glied der Kette).
+4. **Papierhintergrund**: `BACKGROUND_COLOR = "#dad4bb"`, mittig
+   zwischen den zwei vom Nutzer vorgegebenen RGB-Werten
+   rgb(220,212,183) und rgb(215,212,191) - für die gesamte PNG-Fläche
+   außerhalb der eigentlichen Kartenfläche (Titelbereich, Legende,
+   Colorbar-Rand), nicht nur für Land/Meer. Gesetzt über
+   `fig.patch.set_facecolor(...)` und zusätzlich explizit an
+   `fig.savefig(..., facecolor=...)` übergeben, da `bbox_inches="tight"`
+   beim Speichern neu rendert und sich sonst nicht zwangsläufig auf die
+   zuvor gesetzte Figure-Facecolor verlässt.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

@@ -28,7 +28,7 @@ OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 def main(
     resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False,
+    grid=False, title=False,
 ):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
@@ -53,8 +53,9 @@ def main(
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""
+    title_suffix = "_title" if title else ""
     output_csv = OUTPUT_CSV.replace(".csv", f"{res_suffix}.csv")
-    output_png = OUTPUT_PNG.replace(".png", f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}.png")
+    output_png = OUTPUT_PNG.replace(".png", f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}.png")
     combined.to_csv(output_csv, index=False)
 
     covered = combined["reisezeit_stunden"].notna().sum()
@@ -65,7 +66,7 @@ def main(
     plot_h3_map(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
         dpi=dpi, show_hubs=show_hubs, galton=galton, band_hours=band_hours, cmap_name=cmap_name,
-        labels=labels, robinson=robinson, grid=grid,
+        labels=labels, robinson=robinson, grid=grid, title=title,
     )
 
 
@@ -97,10 +98,14 @@ if __name__ == "__main__":
         "--grid", action="store_true",
         help="Längen-/Breitengrad-Raster in 20°-Abständen einzeichnen",
     )
+    parser.add_argument(
+        "--title", action="store_true",
+        help="Überschrift einblenden (standardmäßig aus)",
+    )
     args = parser.parse_args()
 
     main(
         resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid,
+        grid=args.grid, title=args.title,
     )

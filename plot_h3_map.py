@@ -18,6 +18,8 @@ import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FuncFormatter
+from matplotlib.transforms import Bbox
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
@@ -43,6 +45,17 @@ COASTLINE_LINEWIDTH = 0.7
 
 # Abstand des Längen-/Breitengrad-Rasters für --grid, in Grad.
 GRID_STEP_DEG = 20
+
+# Abstand zwischen den beiden Linien des --galton-Doppelrahmens, in
+# Punkten statt Achsen-Bruchteilen - so ist der Abstand in beide
+# Richtungen exakt gleich groß, unabhängig vom (nicht-quadratischen)
+# Seitenverhältnis der Karte.
+FRAME_GAP_PT = 3.0
+
+# Papierfarbe, wie sie ein gealterter Druck von 1881 hätte - liegt
+# zwischen den zwei vom Nutzer vorgegebenen Werten rgb(220,212,183) und
+# rgb(215,212,191).
+BACKGROUND_COLOR = "#dad4bb"
 
 # Typografie im Stil alter Kartendrucke: Playfair Display für die
 # Hauptüberschrift (Google Font, OFL-Lizenz, als statische Bold-Instanz
@@ -185,7 +198,7 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False,
+    grid=False, title=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -199,6 +212,7 @@ def plot_h3_map(
     ports_df = pd.read_csv(ports_csv_path)
 
     fig = plt.figure(figsize=(16, 9))
+    fig.patch.set_facecolor(BACKGROUND_COLOR)
     if robinson:
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
         ax.set_global()
@@ -235,24 +249,38 @@ def plot_h3_map(
             alpha=0.8 if grid else 0, zorder=2, draw_labels=draw_labels,
         )
         if draw_labels:
-            # Wie im Original: Gradzahlen an allen vier Seiten, nicht nur oben/seitlich.
+            # Wie im Original: Gradzahlen an allen vier Seiten, nicht nur
+            # oben/seitlich - aber nur die nackte Zahl, ohne °/N/E/S/W.
             gl.top_labels = True
             gl.bottom_labels = True
             gl.left_labels = True
             gl.right_labels = True
             gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8}
             gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8}
+            plain_formatter = FuncFormatter(lambda v, pos: f"{v:g}")
+            gl.xformatter = plain_formatter
+            gl.yformatter = plain_formatter
 
     if galton:
         # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
-        # schon eine Linie (cartopys "geo"-Spine), eine zweite, leicht
-        # nach innen versetzte via transAxes (projektionsunabhängig)
-        # ergibt den charakteristischen Doppelstrich drumherum.
+        # schon eine Linie (cartopys "geo"-Spine), eine zweite ergibt den
+        # charakteristischen Doppelstrich drumherum. Der Abstand zwischen
+        # beiden wird in Punkten statt Achsen-Bruchteilen berechnet (über
+        # die Pixel-Bounding-Box der Achse), damit er horizontal und
+        # vertikal exakt gleich groß ist - ein fester Achsen-Bruchteil
+        # wäre das nicht, da die Karte nicht quadratisch ist.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
         ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
+        fig.canvas.draw()
+        bbox_px = ax.get_window_extent(fig.canvas.get_renderer())
+        gap_px = FRAME_GAP_PT * fig.dpi / 72.0
+        inner_px = Bbox.from_extents(
+            bbox_px.x0 + gap_px, bbox_px.y0 + gap_px, bbox_px.x1 - gap_px, bbox_px.y1 - gap_px,
+        )
+        inner_axes = inner_px.transformed(ax.transAxes.inverted())
         ax.add_patch(Rectangle(
-            (0.015, 0.015), 0.97, 0.97, transform=ax.transAxes,
-            fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
+            (inner_axes.x0, inner_axes.y0), inner_axes.width, inner_axes.height,
+            transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
         ))
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
@@ -305,21 +333,22 @@ def plot_h3_map(
     cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
     cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
 
-    resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
-    if galton:
-        detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
-    else:
-        detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
-    ax.set_title(
-        f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
-        fontproperties=TITLE_FONT, fontsize=18, color=ANTHRACITE,
-    )
+    if title:
+        resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
+        if galton:
+            detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
+        else:
+            detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
+        ax.set_title(
+            f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
+            fontproperties=TITLE_FONT, fontsize=18, color=ANTHRACITE,
+        )
     ax.legend(loc="lower left", markerscale=2)
 
     if labels:
         _draw_labels(ax)
 
-    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
     print(f"Karte gespeichert unter {png_path}")
 
 
@@ -350,6 +379,10 @@ if __name__ == "__main__":
         "--grid", action="store_true",
         help=f"Längen-/Breitengrad-Raster in {GRID_STEP_DEG}°-Abständen einzeichnen",
     )
+    parser.add_argument(
+        "--title", action="store_true",
+        help="Überschrift einblenden (standardmäßig aus)",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
@@ -357,5 +390,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid,
+        grid=args.grid, title=args.title,
     )
