@@ -1097,6 +1097,30 @@ der spezialisierte Antimeridian-Trace-Pfad umgangen wird. `--galton`
 (nutzt `contourf` statt `PolyCollection`, war nie betroffen) unverändert
 getestet, keine Regression.
 
+## Phase 14y: "Dijkstra fertig in 0s" - Zeitmessung korrigiert
+
+Nutzer bemerkte, dass die erste Konsolenausgabe (`friction_map_from_airport.py`/
+`friction_map_from_point.py`) immer "Dijkstra fertig in 0s" meldet, obwohl
+bis dahin spürbar Zeit vergangen war. Zwei Ursachen, beide in
+`friction_surface_global.py::run_dijkstra()`:
+
+1. `t0 = time.time()` saß direkt vor dem eigentlichen
+   `dijkstra(big, ...)`-Aufruf - der BallTree-Aufbau (Flughafen-Pixel
+   im Friction-Graph finden) und das Zusammenbauen der
+   Superknoten-Sparse-Matrix liefen davor unbemerkt und ungemessen mit,
+   obwohl sie zusammen ähnlich lang dauern wie Dijkstra selbst (je
+   ~0,2-0,8s in einem Testlauf). Gemessen wurde also nur der letzte,
+   kürzeste Teilschritt, nicht "bis zu diesem Punkt" wie die
+   Nutzererwartung an die erste Ausgabe war.
+2. `:.0f}` rundete auf ganze Sekunden - selbst der isoliert gemessene
+   `dijkstra()`-Aufruf allein lag mit ~0,4s schon im "wird zu 0"-Bereich.
+
+Fix: `t0` an den Funktionsanfang verschoben (misst jetzt BallTree +
+Matrix-Aufbau + Dijkstra zusammen), Formatierung auf `.1f}` erhöht.
+Getestet: zeigt jetzt reproduzierbar "Dijkstra fertig in 1.4s" statt
+"0s", für beide Aufrufer (`friction_map_from_airport.py`,
+`friction_map_from_point.py`).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

@@ -141,6 +141,13 @@ def load_graph():
 
 
 def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVEL_MINUTES):
+    # Misst die gesamte Funktion, nicht nur den eigentlichen dijkstra()-
+    # Aufruf: der saß vorher direkt vor der Zeitmessung, sodass der BallTree-
+    # Aufbau und das Zusammenbauen der Superknoten-Matrix (zusammen oft
+    # ähnlich viel Zeit wie Dijkstra selbst) unbemerkt vorbeiliefen - die
+    # Ausgabe "in 0s" war für den gemessenen Teil korrekt, täuschte aber
+    # eine viel kürzere Gesamtlaufzeit vor, als tatsächlich verging.
+    t0 = time.time()
     n = graph.shape[0]
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
@@ -158,9 +165,11 @@ def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVE
     all_data = np.concatenate([graph_coo.data, virtual_weights])
     big = sparse.csr_matrix((all_data, (all_rows, all_cols)), shape=(n + 1, n + 1))
 
-    t0 = time.time()
     dist = dijkstra(big, directed=True, indices=[n])[0]
-    print(f"Dijkstra fertig in {time.time()-t0:.0f}s")
+    # .1f statt .0f: Dijkstra selbst läuft auf dem gecachten Graphen meist
+    # unter einer Sekunde - mit .0f wäre das immer "0s" gewesen, ganz
+    # unabhängig vom eigentlichen Rundungsfehler oben.
+    print(f"Dijkstra fertig in {time.time()-t0:.1f}s")
     minutes = dist[:n]
     np.save(output_path, minutes.astype(np.float32))
     return minutes
