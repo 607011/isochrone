@@ -87,7 +87,7 @@ GALTON_COLORS = [
     "#a48d81", "#d2bea4",  # Braun dunkel/hell
 ]
 
-# --galton10: dieselben zehn Original-Farbwerte, aber als direkte,
+# --cmap galton10: dieselben zehn Original-Farbwerte, aber als direkte,
 # diskrete ListedColormap statt als Stützstellen einer interpolierten
 # LinearSegmentedColormap (--cmap galton) - der Entfernungsstrahl bekommt
 # so exakt zehn Stufen, eine Farbe pro Stufe, ohne Zwischentöne.
@@ -204,15 +204,8 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, galton10=False,
+    grid=False, title=False,
 ):
-    # --galton10 ist ein Retro-Modus-Preset mit fester Farbpalette und
-    # fester Stufenzahl - alles andere (Zuschnitt, Doppelrahmen,
-    # Randbeschriftung, Playfair-Schrift) folgt einfach der normalen
-    # --galton-Logik.
-    if galton10:
-        galton = True
-
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
     # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
@@ -299,7 +292,10 @@ def plot_h3_map(
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
     # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-    if galton10:
+    if cmap_name == "galton10":
+        # ListedColormap statt LinearSegmentedColormap: exakt zehn feste
+        # Farben, keine Zwischentöne - eine direkte Palette statt
+        # Stützstellen für eine Interpolation.
         cmap = ListedColormap(GALTON10_COLORS)
     elif cmap_name == "galton":
         cmap = LinearSegmentedColormap.from_list("galton", GALTON_COLORS)
@@ -311,7 +307,7 @@ def plot_h3_map(
         # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
         # Galtons handgezeichnete Bänder nachzubilden).
         lon_grid, lat_grid, galton_values = _build_galton_grid(covered)
-        if galton10:
+        if cmap_name == "galton10":
             # Exakt zehn gleich breite Stufen - eine je Palettenfarbe -,
             # unabhängig von --band-hours.
             boundaries = np.linspace(0, config.COLOR_CAP_HOURS, len(GALTON10_COLORS) + 1)
@@ -357,7 +353,7 @@ def plot_h3_map(
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
-        if galton10:
+        if galton and cmap_name == "galton10":
             detail = f"10 feste Stufen, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
         elif galton:
             detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
@@ -400,14 +396,13 @@ if __name__ == "__main__":
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
     )
     parser.add_argument(
-        "--galton10", action="store_true",
-        help="Wie --galton, aber mit den zehn Originalfarben als feste Palette (ein Farbton je Stufe statt interpolierter Übergänge), ignoriert --cmap/--band-hours",
+        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
+        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...), ignoriert von --cmap galton10",
     )
     parser.add_argument(
-        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
-        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...)",
+        "--cmap", default=config.COLORMAP,
+        help="Name einer matplotlib-Colormap, 'galton' fuer eine interpolierte, an das Original angelehnte Palette, oder 'galton10' fuer dieselben zehn Originalfarben als feste, nicht interpolierte Palette (zusammen mit --galton: exakt zehn Stufen statt --band-hours)",
     )
-    parser.add_argument("--cmap", default=config.COLORMAP, help="Name einer matplotlib-Colormap, oder 'galton' fuer eine an das Original angelehnte Palette")
     parser.add_argument(
         "--labels", action="store_true",
         help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
@@ -431,5 +426,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title, galton10=args.galton10,
+        grid=args.grid, title=args.title,
     )

@@ -807,23 +807,27 @@ Drei weitere Nachbesserungen:
    dieselbe Bold-Instanz wie die Hauptüberschrift, da für Playfair
    Display ohnehin nur diese eine statische Gewichtsvariante vorliegt
    (siehe Phase 14g).
-3. **`--galton10`**: ein neuer, eigenständiger Schalter, der wie
-   `--galton` den Retro-Look aktiviert, aber mit exakt zehn festen
-   Stufen statt einer über `--band-hours` gesteuerten,interpolierten
-   Farbskala - eine Farbe pro Stufe, keine Zwischentöne. Die zehn
-   RGB-Werte sind identisch mit den bereits vorhandenen
-   `GALTON_COLORS` (dieselben Werte, die der Nutzer beim ersten Mal
-   von der Originalkarte abgelesen hatte) - daher `GALTON10_COLORS =
-   GALTON_COLORS`, aber als eigene, benannte Konstante, weil sie hier
-   anders verwendet werden: nicht als Stützstellen einer
-   `LinearSegmentedColormap`, sondern direkt als `ListedColormap` mit
-   `boundaries = np.linspace(0, COLOR_CAP_HOURS, 11)` (10 gleich breite
-   Bänder), unabhängig von `--band-hours`/`--cmap`. Intern setzt
-   `galton10=True` einfach `galton = True` am Funktionsanfang, sodass
-   Zuschnitt, Doppelrahmen, Randbeschriftung und Playfair-Schrift aus
-   den vorherigen Phasen automatisch mitgelten, ohne Code-Duplizierung.
-   Dateiname bekommt `_galton10` statt `_galton` als Suffix (die beiden
-   schließen sich gegenseitig aus).
+3. **`--cmap galton10`**: exakt zehn feste Stufen statt einer über
+   `--band-hours` gesteuerten, interpolierten Farbskala - eine Farbe
+   pro Stufe, keine Zwischentöne. Die zehn RGB-Werte sind identisch mit
+   den bereits vorhandenen `GALTON_COLORS` (dieselben Werte, die der
+   Nutzer beim ersten Mal von der Originalkarte abgelesen hatte) -
+   daher `GALTON10_COLORS = GALTON_COLORS`, aber als eigene, benannte
+   Konstante, weil sie hier anders verwendet werden: nicht als
+   Stützstellen einer `LinearSegmentedColormap`, sondern direkt als
+   `ListedColormap` mit `boundaries = np.linspace(0, COLOR_CAP_HOURS,
+   11)` (10 gleich breite Bänder) statt `--band-hours`.
+   Ursprünglich als eigener Schalter `--galton10` umgesetzt (der intern
+   `galton = True` setzte), auf Wunsch des Nutzers aber korrigiert: es
+   soll kein eigener Schalter sein, sondern - konsistent mit `--cmap
+   galton` - ein Wert für `--cmap`. Dadurch verhält es sich jetzt auch
+   wie jeder andere `--cmap`-Wert: `--cmap galton10` allein wählt nur
+   die Palette (wirkt auch ohne `--galton`, da eine `ListedColormap`
+   Werte ohnehin automatisch in ihre N Farben einrastet, auch ohne
+   `contourf`); erst zusammen mit `--galton` werden daraus zehn feste
+   `contourf`-Bänder statt `--band-hours`. Dateiname bekommt weiterhin
+   nur `_galton` als Suffix, wenn `--galton` gesetzt ist - wie schon bei
+   `--cmap galton` beeinflusst die Farbwahl den Dateinamen nicht.
 
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
