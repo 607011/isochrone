@@ -716,6 +716,40 @@ als neuer Parameter durch alle vier Kartenskripte durchgereicht
 `friction_map_from_airport.py`), Dateiname bekommt bei aktivem Schalter
 das Suffix `_grid` (letztes Glied der Suffix-Kette, nach `_robinson`).
 
+## Phase 14l: Dezentere Punkte/Linien (alpha=0.8), Rahmen + Randbeschriftung im --galton-Modus
+
+Drei kleine, direkt aufeinanderfolgende Nachbesserungen am Retro-Look:
+
+1. `--grid`-Linien bekamen `alpha=0.8` statt voller Deckkraft - wirkten
+   sonst zu dominant neben den Küstenlinien und Bändern.
+2. Dieselbe Überlegung für die Flughafen-/Hafen-Punkte (`ax.scatter(...,
+   alpha=0.8)`) - der rote London-Stern bleibt bewusst voll deckend,
+   da er der auffälligste Punkt der Karte sein soll.
+3. Auf Wunsch des Nutzers (Vergleich mit der Originalkarte): ein
+   doppelter Rahmen und Gradzahlen an allen vier Rändern, aber nur im
+   `--galton`-Modus. Für die Randbeschriftung reicht cartopys
+   `ax.gridlines(draw_labels=True)` - das funktioniert nur bei
+   rechteckigen Projektionen (Mercator), nicht bei Robinson, daher
+   `draw_labels = galton and not robinson`. Die eigentlichen inneren
+   Gitterlinien sollen weiterhin nur bei `--grid` sichtbar sein, auch
+   wenn `--galton` ohne `--grid` läuft - gelöst über `alpha=0.8 if grid
+   else 0`, statt die Linien ganz wegzulassen: die Tick-Labels an den
+   Enden bleiben so erhalten, nur die Linien selbst werden unsichtbar.
+   Für den Doppelrahmen genügt die ohnehin vorhandene "geo"-Spine der
+   Achse als äußere Linie, dazu ein zweites `Rectangle`, ein paar
+   Prozent nach innen versetzt, über `ax.transAxes` gezeichnet (damit
+   projektionsunabhängig, funktioniert also gleichermaßen unter
+   Mercator und Robinson):
+
+```python
+ax.spines["geo"].set_edgecolor(ANTHRACITE)
+ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
+ax.add_patch(Rectangle(
+    (0.015, 0.015), 0.97, 0.97, transform=ax.transAxes,
+    fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
+))
+```
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

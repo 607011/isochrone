@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.patches import Rectangle
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
@@ -219,11 +220,40 @@ def plot_h3_map(
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
 
-    if grid:
-        ax.gridlines(
+    if grid or galton:
+        # Im --galton-Modus sollen wie im Original 1881 die Gradzahlen
+        # außen an den Rändern stehen, unabhängig davon, ob die inneren
+        # Linien (--grid) sichtbar sind - daher Linien nur bei --grid
+        # eingeblendet (alpha=0 statt Weglassen, damit die Ticks/Labels
+        # trotzdem an den richtigen Stellen erscheinen), Labels nur bei
+        # --galton. Cartopys Gridliner-Labels funktionieren nur bei
+        # rechteckigen Projektionen (Mercator), nicht bei Robinson.
+        draw_labels = galton and not robinson
+        gl = ax.gridlines(
             xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-90, 91, GRID_STEP_DEG),
-            linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-", alpha=0.8, zorder=2,
+            linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-",
+            alpha=0.8 if grid else 0, zorder=2, draw_labels=draw_labels,
         )
+        if draw_labels:
+            # Wie im Original: Gradzahlen an allen vier Seiten, nicht nur oben/seitlich.
+            gl.top_labels = True
+            gl.bottom_labels = True
+            gl.left_labels = True
+            gl.right_labels = True
+            gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8}
+            gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8}
+
+    if galton:
+        # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
+        # schon eine Linie (cartopys "geo"-Spine), eine zweite, leicht
+        # nach innen versetzte via transAxes (projektionsunabhängig)
+        # ergibt den charakteristischen Doppelstrich drumherum.
+        ax.spines["geo"].set_edgecolor(ANTHRACITE)
+        ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
+        ax.add_patch(Rectangle(
+            (0.015, 0.015), 0.97, 0.97, transform=ax.transAxes,
+            fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
+        ))
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
