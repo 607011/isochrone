@@ -1,9 +1,17 @@
 """Kürzeste Reisezeiten von einem oder mehreren Start-Flughäfen (Dijkstra).
 
 Mehrere Startflughäfen (z.B. die 5 Londoner Flughäfen) werden über einen
-virtuellen Knoten mit Gewicht 0 angebunden, sodass jeweils der schnellste
-Startpunkt automatisch gewählt wird.
+virtuellen Knoten angebunden, sodass jeweils der schnellste Startpunkt
+automatisch gewählt wird. Normalerweise mit Gewicht 0 (die Flughäfen SIND
+der Start), aber origin_iatas darf auch ein Dict {iata: einstiegsstunden}
+sein - dann bekommt jede Kante das individuelle Gewicht statt einheitlich 0,
+z.B. die Bodenzeit von einem beliebigen Landpunkt bis zu diesem Flughafen
+(siehe friction_map_from_point.py). Gleiches Funktionsprinzip wie der
+virtuelle Superknoten in friction_surface_global.py, nur umgekehrte
+Richtung: dort Flugzeit -> Bodenzeit, hier Bodenzeit -> Flugzeit.
 """
+
+import math
 
 import networkx as nx
 
@@ -11,20 +19,23 @@ VIRTUAL_ORIGIN = "__ORIGIN__"
 
 
 def compute_shortest_times(G: nx.DiGraph, origin_iatas, transfer_hours: float) -> dict:
-    origins = [o for o in origin_iatas if o in G]
-    missing = set(origin_iatas) - set(origins)
+    if isinstance(origin_iatas, dict):
+        entry_hours = {o: h for o, h in origin_iatas.items() if o in G and math.isfinite(h)}
+    else:
+        entry_hours = {o: 0.0 for o in origin_iatas if o in G}
+    missing = set(origin_iatas) - set(entry_hours)
     if missing:
         print(f"Warnung: Start-Flughäfen nicht im Graphen gefunden und ignoriert: {sorted(missing)}")
-    if not origins:
+    if not entry_hours:
         raise ValueError("Keiner der angegebenen Start-Flughäfen ist im Graphen vorhanden.")
 
     G.add_node(VIRTUAL_ORIGIN)
-    for o in origins:
-        G.add_edge(VIRTUAL_ORIGIN, o, flight_hours=0.0, is_virtual=True)
+    for o, hours in entry_hours.items():
+        G.add_edge(VIRTUAL_ORIGIN, o, flight_hours=hours, is_virtual=True)
 
     def weight(u, v, data):
         if data.get("is_virtual"):
-            return 0.0
+            return data["flight_hours"]
         return data["flight_hours"] + transfer_hours
 
     try:

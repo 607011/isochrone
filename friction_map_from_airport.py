@@ -19,7 +19,7 @@ import friction_surface_global as friction
 from h3_grid import build_grid
 from land_mask import is_land
 from map_from_airport import build_sea, build_travel_times, slug_for
-from plot_h3_map import plot_h3_map
+from plot_h3_map import parse_lat_limits, plot_h3_map
 
 
 def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path, resolution=config.H3_RESOLUTION):
@@ -41,7 +41,7 @@ def main(
     origin_iata, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False,
+    grid=False, title=False, lat_limits=None,
 ):
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
@@ -55,6 +55,7 @@ def main(
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""
     title_suffix = "_title" if title else ""
+    lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
 
     graph, node_lat, node_lon = friction.load_graph()
     land_result = build_friction_land(
@@ -68,7 +69,7 @@ def main(
     travel_times_csv = f"travel_times_from_{slug}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -78,7 +79,7 @@ def main(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
         origin_label=origin_row["name"], dpi=dpi, show_hubs=show_hubs, galton=galton,
         band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
-        title=title,
+        title=title, lat_limits=lat_limits,
     )
 
 
@@ -118,10 +119,15 @@ if __name__ == "__main__":
         "--title", action="store_true",
         help="Überschrift einblenden (standardmäßig aus)",
     )
+    parser.add_argument(
+        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
+        help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
+             "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
+    )
     args = parser.parse_args()
 
     main(
         args.iata, dpi=args.dpi, show_hubs=not args.no_hubs, resolution=args.resolution, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title,
+        grid=args.grid, title=args.title, lat_limits=args.lat_limits,
     )

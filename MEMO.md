@@ -890,6 +890,74 @@ und `markersize=2` durch `config.*` ersetzt) - Verhalten unverändert,
 nur die Werte sitzen jetzt an einer Stelle mit allen anderen
 Stellschrauben.
 
+## Phase 14r: --lat-limits (freier Breitengrad-Zuschnitt)
+
+Nutzer wollte den Mercator-Zuschnitt frei wählen können statt nur
+zwischen den zwei fest einprogrammierten Werten (85/-85 Standard,
+80/-60 unter `--galton`) zu wählen, z.B. `--lat-limits=80,-60`. Kleiner
+Parser `parse_lat_limits()` in `plot_h3_map.py` ("80,-60" ->
+`(80.0, -60.0)`), als `type=` direkt an `argparse` übergeben. Neuer
+Parameter `lat_limits=None` an `plot_h3_map()`: wenn gesetzt, überschreibt
+er die bisherige if/else-Fallunterscheidung; wirkt nur im Mercator-Zweig
+(unter `--robinson` weiterhin `ax.set_global()`, unverändert). Durch
+alle vier Kartenskripte durchgereicht, Dateiname bekommt bei aktiver
+Option das Suffix `_lat{nord}_{süd}` (letztes Glied der Kette).
+
+## Phase 14s: Beliebiger Landpunkt als Startpunkt (friction_map_from_point.py)
+
+Nutzer fragte (nur Diskussion zunächst): Ließe sich statt eines
+Flughafens ein beliebiger Punkt auf der Landmasse als Start wählen,
+über das Friction-Surface-Modell? Antwort: ja, sogar einfacher als der
+Flughafen-Fall, weil man die Richtung des ohnehin schon vorhandenen
+Musters nur umdreht.
+
+Bisher (friction_surface_global.py): virtueller Superknoten -> alle
+Flughäfen (deren Reisezeit ab London schon bekannt ist) -> ein
+einziger globaler Dijkstra verteilt Boden-Reisezeit an jede Landkachel
+der Welt.
+
+Neu (friction_map_from_point.py), für einen beliebigen Startpunkt: erst
+ein einzelner Dijkstra *ab dem Startpunkt* über denselben gecachten
+Land-Friction-Graphen zu jedem Flughafen-Pixel - liefert dessen
+individuelle Bodenzeit ab dem Punkt (statt der bisher einheitlichen 0h
+für "echte" Startflughäfen). Diese Bodenzeiten sind die Kantengewichte
+des virtuellen Ursprungsknotens im normalen Flugnetz-Dijkstra - dafür
+musste `travel_time.compute_shortest_times()` erweitert werden: das
+`origin_iatas`-Argument darf jetzt auch ein Dict `{iata: einstiegsstunden}`
+statt nur eine Liste sein, dann bekommt jede virtuelle Kante ihr
+individuelles Gewicht statt einheitlich `0.0` (rückwärtskompatibel -
+die bestehenden Aufrufer in main.py/map_from_airport.py übergeben
+weiter Listen). Danach läuft exakt derselbe Flugnetz-Dijkstra wie immer
+und kombiniert "Bodenzeit zum Flughafen + Flug-/Umstiegszeit" in einem
+Rutsch. Flughäfen ohne Landverbindung zum Startpunkt (z.B. Inseln)
+bekommen unendliche Bodenzeit und fallen automatisch aus den
+Kandidaten - `math.isfinite()`-Filter beim Bauen des Gewicht-Dicts,
+kein Sonderfall nötig.
+
+Ab dort läuft alles wie in `friction_map_from_airport.py` weiter -
+`build_friction_land()` (unverändert) nutzt denselben Friction-Graphen
+noch einmal, diesmal wieder in der ursprünglichen Richtung (Flughafen
+-> Weltkarte).
+
+Ein Detail brauchte eine kleine Erweiterung von `plot_h3_map()`: der
+rote Ursprungs-Stern wurde bisher immer per IATA-Code aus
+`travel_times.csv` nachgeschlagen (`origin_iatas`) - für einen
+Startpunkt, der kein Flughafen ist, gibt es dort aber keine passende
+Zeile. Neuer Parameter `origin_points` (Liste von `(lat, lon)`-Paaren,
+Default `None`) umgeht den Nachschlage-Schritt und platziert den Stern
+direkt an den übergebenen Koordinaten; bestehende Aufrufer sind
+unberührt, da sie `origin_points` gar nicht setzen.
+
+Slug fürs Dateinamensschema: `slug_for_point(lat, lon)` analog zu
+`slug_for(iata, name)` aus `map_from_airport.py`, z.B. `48.85, 2.35` ->
+`point_48p85_2p35` (Punkt statt `.`, `m` statt `-`, da beides in
+Dateinamen zwar technisch erlaubt, aber unschön/verwechselbar wäre).
+
+Aufruf: `pipenv run python friction_map_from_point.py <lat> <lon>
+[--label "Name"]`, alle übrigen Schalter (`--galton`, `--cmap`,
+`--labels`, `--grid`, `--title`, `--lat-limits`, ...) identisch zu
+`friction_map_from_airport.py`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

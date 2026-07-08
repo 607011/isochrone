@@ -201,11 +201,17 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
     return lon_grid, lat_grid, values
 
 
+def parse_lat_limits(s):
+    """CLI-Parser für '--lat-limits=80,-60' (Norden,Süden) -> (80.0, -60.0)."""
+    north_str, south_str = s.split(",")
+    return float(north_str), float(south_str)
+
+
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False,
+    grid=False, title=False, lat_limits=None, origin_points=None,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -215,8 +221,17 @@ def plot_h3_map(
     covered = df[df["reisezeit_stunden"].notna()].copy()
 
     airports_df = pd.read_csv(travel_times_csv_path)
-    origins = airports_df[airports_df["iata_code"].isin(origin_iatas)]
     ports_df = pd.read_csv(ports_csv_path)
+    # origin_points: für Startpunkte, die keine Flughäfen sind (siehe
+    # friction_map_from_point.py) - direkt übergebene (lat, lon)-Paare
+    # statt einer Suche in airports_df per IATA-Code.
+    if origin_points is not None:
+        origin_lats = [lat for lat, lon in origin_points]
+        origin_lons = [lon for lat, lon in origin_points]
+    else:
+        origins = airports_df[airports_df["iata_code"].isin(origin_iatas)]
+        origin_lats = origins["lat"]
+        origin_lons = origins["lon"]
 
     fig = plt.figure(figsize=(16, 9))
     fig.patch.set_facecolor(BACKGROUND_COLOR)
@@ -233,7 +248,10 @@ def plot_h3_map(
         # asymmetrisch - die Karte reichte nach Norden weiter als nach
         # Süden), sonst ein symmetrischer Standardwert.
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
-        lat_max, lat_min = (80, -60) if galton else (85, -85)
+        if lat_limits is not None:
+            lat_max, lat_min = lat_limits
+        else:
+            lat_max, lat_min = (80, -60) if galton else (85, -85)
         # -180/180 exakt lässt Cartopys Mercator-Randberechnung auf NaN
         # laufen, daher ein winziges Inset.
         ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
@@ -343,7 +361,7 @@ def plot_h3_map(
             linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
         )
     ax.scatter(
-        origins["lon"], origins["lat"], c="red", marker="*", s=200,
+        origin_lons, origin_lats, c="red", marker="*", s=200,
         transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
     )
 
@@ -420,6 +438,11 @@ if __name__ == "__main__":
         "--title", action="store_true",
         help="Überschrift einblenden (standardmäßig aus)",
     )
+    parser.add_argument(
+        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
+        help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
+             "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
@@ -427,5 +450,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title,
+        grid=args.grid, title=args.title, lat_limits=args.lat_limits,
     )
