@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
 from matplotlib.transforms import Bbox
@@ -86,6 +86,12 @@ GALTON_COLORS = [
     "#8b98a9", "#aeb5be",  # Blau dunkel/hell
     "#a48d81", "#d2bea4",  # Braun dunkel/hell
 ]
+
+# --galton10: dieselben zehn Original-Farbwerte, aber als direkte,
+# diskrete ListedColormap statt als Stützstellen einer interpolierten
+# LinearSegmentedColormap (--cmap galton) - der Entfernungsstrahl bekommt
+# so exakt zehn Stufen, eine Farbe pro Stufe, ohne Zwischentöne.
+GALTON10_COLORS = GALTON_COLORS
 
 # Grobe Kontinent-Beschriftungspositionen für --labels - ändern sich nie,
 # deshalb fest hinterlegt statt aus einem Datensatz abgeleitet.
@@ -198,8 +204,15 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False,
+    grid=False, title=False, galton10=False,
 ):
+    # --galton10 ist ein Retro-Modus-Preset mit fester Farbpalette und
+    # fester Stufenzahl - alles andere (Zuschnitt, Doppelrahmen,
+    # Randbeschriftung, Playfair-Schrift) folgt einfach der normalen
+    # --galton-Logik.
+    if galton10:
+        galton = True
+
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
     # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
@@ -286,7 +299,9 @@ def plot_h3_map(
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
     # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-    if cmap_name == "galton":
+    if galton10:
+        cmap = ListedColormap(GALTON10_COLORS)
+    elif cmap_name == "galton":
         cmap = LinearSegmentedColormap.from_list("galton", GALTON_COLORS)
     else:
         cmap = matplotlib.colormaps[cmap_name].copy()
@@ -296,7 +311,12 @@ def plot_h3_map(
         # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
         # Galtons handgezeichnete Bänder nachzubilden).
         lon_grid, lat_grid, galton_values = _build_galton_grid(covered)
-        boundaries = np.arange(0, config.COLOR_CAP_HOURS + band_hours, band_hours)
+        if galton10:
+            # Exakt zehn gleich breite Stufen - eine je Palettenfarbe -,
+            # unabhängig von --band-hours.
+            boundaries = np.linspace(0, config.COLOR_CAP_HOURS, len(GALTON10_COLORS) + 1)
+        else:
+            boundaries = np.arange(0, config.COLOR_CAP_HOURS + band_hours, band_hours)
         mappable = ax.contourf(
             lon_grid, lat_grid, galton_values, levels=boundaries, cmap=cmap, extend="max",
             transform=ccrs.PlateCarree(), zorder=1,
@@ -332,10 +352,14 @@ def plot_h3_map(
 
     cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
     cbar.set_label(f"Reisezeit ab {origin_label} (Stunden, ab {config.COLOR_CAP_HOURS}h dunkelster Ton)")
+    if galton:
+        cbar.ax.xaxis.label.set_fontproperties(TITLE_FONT)
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
-        if galton:
+        if galton10:
+            detail = f"10 feste Stufen, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
+        elif galton:
             detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {config.GALTON_SIGMA_DEG}°)"
         else:
             detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
@@ -343,7 +367,20 @@ def plot_h3_map(
             f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
             fontproperties=TITLE_FONT, fontsize=18, color=ANTHRACITE,
         )
-    ax.legend(loc="lower left", markerscale=2)
+    legend = ax.legend(loc="lower left", markerscale=2)
+    if galton:
+        for text in legend.get_texts():
+            text.set_fontproperties(TITLE_FONT)
+    # Nur der Stern soll in der Legende kleiner erscheinen als auf der
+    # Karte (dort bleibt er unverändert auffällig groß) - daher erst
+    # nach dem automatischen Anlegen der Legende gezielt dieses eine
+    # Handle verkleinern, statt am scatter()-Aufruf selbst zu drehen.
+    # scatter()-Größen sind Flächen, keine Durchmesser - durch 4 statt
+    # durch 2 teilen, damit der Stern optisch (im Durchmesser) halb so
+    # groß wirkt.
+    for handle, text in zip(legend.legend_handles, legend.get_texts()):
+        if text.get_text() == origin_label:
+            handle.set_sizes(handle.get_sizes() / 4)
 
     if labels:
         _draw_labels(ax)
@@ -361,6 +398,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--galton", action="store_true",
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+    )
+    parser.add_argument(
+        "--galton10", action="store_true",
+        help="Wie --galton, aber mit den zehn Originalfarben als feste Palette (ein Farbton je Stufe statt interpolierter Übergänge), ignoriert --cmap/--band-hours",
     )
     parser.add_argument(
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
@@ -390,5 +431,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title,
+        grid=args.grid, title=args.title, galton10=args.galton10,
     )

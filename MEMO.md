@@ -786,6 +786,45 @@ Vier Nachbesserungen zum Vergleich mit der Originalkarte:
    beim Speichern neu rendert und sich sonst nicht zwangsläufig auf die
    zuvor gesetzte Figure-Facecolor verlässt.
 
+## Phase 14n: Kleinerer Legenden-Stern, Playfair für Legende/Entfernungsstrahl, --galton10
+
+Drei weitere Nachbesserungen:
+
+1. **Stern in der Legende halbieren**: der Stern auf der Karte selbst
+   (`s=200`) soll unverändert auffällig bleiben, nur sein
+   Legenden-Symbol soll kleiner sein. `s` bei `scatter()` ist eine
+   Fläche, kein Durchmesser - ein Legenden-Handle nachträglich mit
+   `handle.set_sizes(handle.get_sizes() / 2)` skalieren hätte die
+   Fläche halbiert, aber der Durchmesser wäre dann nur auf ~71%
+   geschrumpft (Wurzel aus 0,5), nicht auf 50%. Für einen wirklich
+   halb so großen Durchmesser durch 4 statt durch 2 geteilt. Umgesetzt
+   über den automatisch aus dem `scatter()`-Aufruf erzeugten
+   Legend-Handle, gezielt nur für den Eintrag mit `label=origin_label`
+   - die anderen beiden (Flughafen/Hafen) bleiben unangetastet.
+2. **Playfair Display für Legende und Entfernungsstrahl-Beschriftung im
+   `--galton`-Modus**: `legend.get_texts()` bzw.
+   `cbar.ax.xaxis.label` bekommen `set_fontproperties(TITLE_FONT)` -
+   dieselbe Bold-Instanz wie die Hauptüberschrift, da für Playfair
+   Display ohnehin nur diese eine statische Gewichtsvariante vorliegt
+   (siehe Phase 14g).
+3. **`--galton10`**: ein neuer, eigenständiger Schalter, der wie
+   `--galton` den Retro-Look aktiviert, aber mit exakt zehn festen
+   Stufen statt einer über `--band-hours` gesteuerten,interpolierten
+   Farbskala - eine Farbe pro Stufe, keine Zwischentöne. Die zehn
+   RGB-Werte sind identisch mit den bereits vorhandenen
+   `GALTON_COLORS` (dieselben Werte, die der Nutzer beim ersten Mal
+   von der Originalkarte abgelesen hatte) - daher `GALTON10_COLORS =
+   GALTON_COLORS`, aber als eigene, benannte Konstante, weil sie hier
+   anders verwendet werden: nicht als Stützstellen einer
+   `LinearSegmentedColormap`, sondern direkt als `ListedColormap` mit
+   `boundaries = np.linspace(0, COLOR_CAP_HOURS, 11)` (10 gleich breite
+   Bänder), unabhängig von `--band-hours`/`--cmap`. Intern setzt
+   `galton10=True` einfach `galton = True` am Funktionsanfang, sodass
+   Zuschnitt, Doppelrahmen, Randbeschriftung und Playfair-Schrift aus
+   den vorherigen Phasen automatisch mitgelten, ohne Code-Duplizierung.
+   Dateiname bekommt `_galton10` statt `_galton` als Suffix (die beiden
+   schließen sich gegenseitig aus).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

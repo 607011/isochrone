@@ -28,7 +28,7 @@ OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 def main(
     resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False,
+    grid=False, title=False, galton10=False,
 ):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
@@ -49,7 +49,7 @@ def main(
     combined = pd.concat([land_df[["h3_index", "lat", "lon", "reisezeit_stunden"]], sea_df], ignore_index=True)
 
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
-    galton_suffix = "_galton" if galton else ""
+    galton_suffix = "_galton10" if galton10 else ("_galton" if galton else "")
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""
@@ -66,7 +66,7 @@ def main(
     plot_h3_map(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
         dpi=dpi, show_hubs=show_hubs, galton=galton, band_hours=band_hours, cmap_name=cmap_name,
-        labels=labels, robinson=robinson, grid=grid, title=title,
+        labels=labels, robinson=robinson, grid=grid, title=title, galton10=galton10,
     )
 
 
@@ -80,6 +80,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--galton", action="store_true",
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+    )
+    parser.add_argument(
+        "--galton10", action="store_true",
+        help="Wie --galton, aber mit den zehn Originalfarben als feste Palette (ein Farbton je Stufe statt interpolierter Übergänge), ignoriert --cmap/--band-hours",
     )
     parser.add_argument(
         "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
@@ -107,5 +111,5 @@ if __name__ == "__main__":
     main(
         resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title,
+        grid=args.grid, title=args.title, galton10=args.galton10,
     )
