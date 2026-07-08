@@ -969,6 +969,32 @@ explizit die übrigen perzeptuell gleichmäßigen matplotlib-Paletten
 jeder matplotlib-Colormap-Name funktioniert - vorher stand dort nur der
 allgemeine Verweis auf "eine matplotlib-Colormap".
 
+## Phase 14u: --rivers (große Flüsse wie im Original)
+
+Nutzer wollte, analog zu Galtons Karte, große Flüsse einblenden können,
+in derselben Strichstärke wie die Landmassenumrisse. Cartopy bringt mit
+`cfeature.RIVERS` (Natural Earth, `rivers_lake_centerlines`, 110m) genau
+den passenden Layer bereits mit - bei 110m nur 13 Liniengeometrien
+weltweit (Nil, Amazonas, Kongo, Mississippi, Donau, Jangtse, ...), exakt
+die "großen, bedeutsamen" Flüsse, keine Nebenflüsse - wie im Original.
+Direkt nach `ax.coastlines(...)` eingehängt: `ax.add_feature(cfeature.RIVERS,
+edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)`.
+
+Kurzer Verifikations-Umweg: im ersten Testrender (Standardmodus, bunter
+viridis-Verlauf als Hintergrund) waren die Flüsse mit bloßem Auge nicht
+zu erkennen, was nach einem Bug aussah. Isolierte Nachstellung mit
+exakt denselben Parametern (Mercator, dieselbe Extent, anthrazit,
+`linewidth=0.7`) auf neutralem Land/See-Hintergrund zeigte den Nil klar
+sichtbar - die Geometrien waren also die ganze Zeit korrekt vorhanden
+und gezeichnet, nur auf dem bunten, texturierten Kartenhintergrund und
+in einem herunterskalierten Screenshot einfach zu unauffällig, um sie
+beiläufig zu bemerken. Mit `--galton` (ruhigerer, flächiger Hintergrund)
+sind Nil, Amazonas, Kongo und Mississippi klar erkennbar. Kein
+Code-Fehler, nur ein Wahrnehmungsproblem beim ersten Hinsehen.
+
+Durch alle vier Kartenskripte durchgereicht, Dateiname bekommt bei
+aktivem Schalter das Suffix `_rivers` (letztes Glied der Kette).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

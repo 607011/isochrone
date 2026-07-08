@@ -28,7 +28,7 @@ OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
 def main(
     resolution=config.H3_RESOLUTION, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, lat_limits=None,
+    grid=False, title=False, lat_limits=None, rivers=False,
 ):
     minutes = np.load(TRAVEL_MINUTES_NPY)
     node_latlon = np.load(NODE_LATLON_NPY)
@@ -55,9 +55,11 @@ def main(
     grid_suffix = "_grid" if grid else ""
     title_suffix = "_title" if title else ""
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
+    rivers_suffix = "_rivers" if rivers else ""
     output_csv = OUTPUT_CSV.replace(".csv", f"{res_suffix}.csv")
     output_png = OUTPUT_PNG.replace(
-        ".png", f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}.png",
+        ".png",
+        f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}.png",
     )
     combined.to_csv(output_csv, index=False)
 
@@ -69,7 +71,7 @@ def main(
     plot_h3_map(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
         dpi=dpi, show_hubs=show_hubs, galton=galton, band_hours=band_hours, cmap_name=cmap_name,
-        labels=labels, robinson=robinson, grid=grid, title=title, lat_limits=lat_limits,
+        labels=labels, robinson=robinson, grid=grid, title=title, lat_limits=lat_limits, rivers=rivers,
     )
 
 
@@ -118,10 +120,14 @@ if __name__ == "__main__":
         help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
              "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
     )
+    parser.add_argument(
+        "--rivers", action="store_true",
+        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+    )
     args = parser.parse_args()
 
     main(
         resolution=args.resolution, dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title, lat_limits=args.lat_limits,
+        grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
     )

@@ -211,7 +211,7 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, lat_limits=None, origin_points=None,
+    grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
@@ -258,6 +258,13 @@ def plot_h3_map(
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
+
+    if rivers:
+        # Natural-Earth-Layer für die großen, weltweit bedeutsamen Flüsse
+        # (110m-Auflösung, wie bei den übrigen cfeature-Layern) - in
+        # derselben Strichstärke wie die Landmassenumrisse, wie bei
+        # Galtons Original, das auch nur die prominenten Flüsse zeigt.
+        ax.add_feature(cfeature.RIVERS, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)
 
     if grid or galton:
         # Im --galton-Modus sollen wie im Original 1881 die Gradzahlen
@@ -448,6 +455,10 @@ if __name__ == "__main__":
         help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
              "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
     )
+    parser.add_argument(
+        "--rivers", action="store_true",
+        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+    )
     args = parser.parse_args()
 
     plot_h3_map(
@@ -455,5 +466,5 @@ if __name__ == "__main__":
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_hubs=not args.no_hubs, galton=args.galton,
         band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
-        grid=args.grid, title=args.title, lat_limits=args.lat_limits,
+        grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
     )

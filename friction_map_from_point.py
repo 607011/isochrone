@@ -84,7 +84,7 @@ def main(
     lat, lon, label=None, dpi=config.MAP_DPI, show_hubs=config.SHOW_HUBS,
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
-    grid=False, title=False, lat_limits=None,
+    grid=False, title=False, lat_limits=None, rivers=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
     slug = slug_for_point(lat, lon)
@@ -95,6 +95,7 @@ def main(
     grid_suffix = "_grid" if grid else ""
     title_suffix = "_title" if title else ""
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
+    rivers_suffix = "_rivers" if rivers else ""
 
     airports_df = load_airports(config.AIRPORTS_CSV)
     graph, node_lat, node_lon = friction.load_graph()
@@ -111,7 +112,7 @@ def main(
     travel_times_csv = f"travel_times_from_{slug}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -121,7 +122,7 @@ def main(
         h3_csv, travel_times_csv, ports_csv, png, [],
         origin_label=origin_label, dpi=dpi, show_hubs=show_hubs, galton=galton,
         band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
-        title=title, lat_limits=lat_limits, origin_points=[(lat, lon)],
+        title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
     )
 
 
@@ -173,11 +174,15 @@ if __name__ == "__main__":
         help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
              "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
     )
+    parser.add_argument(
+        "--rivers", action="store_true",
+        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+    )
     args = parser.parse_args()
 
     main(
         args.lat, args.lon, label=args.label, dpi=args.dpi, show_hubs=not args.no_hubs,
         resolution=args.resolution, galton=args.galton, band_hours=args.band_hours, cmap_name=args.cmap,
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
-        lat_limits=args.lat_limits,
+        lat_limits=args.lat_limits, rivers=args.rivers,
     )
