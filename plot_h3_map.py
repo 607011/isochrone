@@ -245,7 +245,7 @@ def plot_h3_map(
     galton_sigma=config.GALTON_SIGMA_DEG,
 ):
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
-    # Friction-Surface-Pfad haben keins, siehe friction_map_from_airport.py)
+    # Friction-Surface-Pfad haben keins, siehe friction_map_from_point.py)
     # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
     # sonst über diese gemischte Spalte, die hier ohnehin nicht genutzt wird.
     df = pd.read_csv(h3_csv_path, low_memory=False)

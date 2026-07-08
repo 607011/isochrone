@@ -13,9 +13,12 @@ sind die Kantengewichte des virtuellen Ursprungsknotens in
 travel_time.compute_shortest_times (dort seit dieser Änderung auch als
 Dict statt nur als Liste möglich), der normale Flugnetz-Dijkstra
 kombiniert daraus in einem Rutsch Bodenzeit-zum-Flughafen + Flug-/
-Umstiegszeit. Ab dort läuft alles wie in friction_map_from_airport.py
-weiter - build_friction_land() nutzt denselben Friction-Graphen erneut,
-diesmal in der ursprünglichen Richtung (Flughäfen -> Landkacheln).
+Umstiegszeit. Ab dort läuft build_friction_land() denselben Friction-
+Graphen erneut, diesmal in der ursprünglichen Richtung (Flughäfen ->
+Landkacheln) - identisch zum inzwischen entfernten
+friction_map_from_airport.py (siehe MEMO.md), das nur den Spezialfall
+Startpunkt == Flughafenkoordinaten abdeckte und sich als redundant
+herausstellte, sobald man diesen Spezialfall einfach hier miterledigt.
 
 Flughäfen ohne Landverbindung zum Startpunkt (z.B. auf Inseln, die der
 Friction-Graph nicht mit dem Festland verbindet) bekommen unendliche
@@ -54,8 +57,9 @@ import config
 import friction_surface_global as friction
 from data_loading import load_airports, load_routes
 from distance import haversine_km_vec
-from friction_map_from_airport import build_friction_land
 from graph_builder import build_graph
+from h3_grid import build_grid
+from land_mask import is_land
 from map_from_airport import build_sea
 from plot_h3_map import parse_lat_limits, plot_h3_map
 from travel_time import compute_shortest_times
@@ -65,6 +69,25 @@ def slug_for_point(lat, lon):
     def fmt(v):
         return f"{v:.2f}".replace(".", "p").replace("-", "m")
     return f"point_{fmt(lat)}_{fmt(lon)}"
+
+
+def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path, resolution=config.H3_RESOLUTION):
+    """Bodenzeit (in Stunden) je Land-H3-Kachel, ausgehend von den bereits
+    berechneten Einstiegszeiten je Flughafen (travel_times_df) - derselbe
+    gecachte Friction-Graph wie überall sonst, nur mit den für diesen Lauf
+    aktuellen Superknoten-Gewichten neu gelöst (unter einer Sekunde)."""
+    minutes = friction.run_dijkstra(graph, node_lat, node_lon, travel_times_df, output_path=minutes_path)
+    finite = np.isfinite(minutes)
+    tree = BallTree(np.radians(np.column_stack([node_lat[finite], node_lon[finite]])), metric="haversine")
+
+    grid_df = build_grid(resolution)
+    on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
+    land_df = grid_df[on_land].reset_index(drop=True)
+
+    _, idx = tree.query(np.radians(land_df[["lat", "lon"]].to_numpy()), k=1)
+    land_df["reisezeit_stunden"] = minutes[finite][idx.ravel()] / 60
+    land_df["hub_type"] = "airport"
+    return land_df
 
 
 def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):

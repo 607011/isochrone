@@ -1345,6 +1345,35 @@ Heli/Jetpack-Fix:
    Städte weiterhin fett/kursiv im passenden Serifenstil, keine
    sichtbare Verschlechterung gegenüber echtem Baskerville.
 
+## Phase 14zD: friction_map_from_airport.py entfernt (redundant)
+
+Nutzerfrage: `friction_map_from_point.py` kann inzwischen jeden
+Startpunkt (nicht nur Flughäfen), also müsste `friction_map_from_airport.py`
+eigentlich überflüssig sein. Empirisch geprüft statt nur behauptet:
+beide Skripte für denselben Flughafen (THU, Thule Air Base) laufen
+lassen - einmal per IATA-Code, einmal mit exakt denselben lat/lon-
+Koordinaten - und die resultierenden H3-CSVs zellweise verglichen.
+Ergebnis: von 2.016.842 Kacheln ist die maximale Abweichung
+2.8e-14h, reines Gleitkommarauschen, keine einzige Kachel weicht um
+mehr als 0.1h ab. `friction_map_from_point.py` reproduziert
+`friction_map_from_airport.py` also bitgenau, sobald man die
+Flughafenkoordinaten selbst als Punkt einsetzt - der Sonderfall
+"Startpunkt ist ein Flughafen" ergibt sich automatisch aus dem
+allgemeinen Fall, ganz ohne Sonderbehandlung (der Grund: für einen
+Flughafen als Startpunkt ist die vom BallTree gefundene nächste
+Friction-Graph-Kachel praktisch am selben Ort, die Bodenzeit dorthin
+also praktisch 0h - exakt das, was `friction_map_from_airport.py`
+für den Ursprungs-Flughafen fest auf 0h gesetzt hatte).
+
+Einzige echte Abhängigkeit: `friction_map_from_point.py` importierte
+`build_friction_land()` aus `friction_map_from_airport.py`. Die
+Funktion wurde nach `friction_map_from_point.py` verschoben (dort ihr
+einziger verbleibender Aufrufer), `friction_map_from_airport.py`
+komplett gelöscht. Ein stehengebliebener Kommentarverweis in
+`plot_h3_map.py` wurde mitkorrigiert. Nach dem Umbau erneut
+verifiziert: `friction_map_from_point.py` mit den THU-Koordinaten
+läuft weiterhin fehlerfrei und erzeugt dieselbe Karte.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
