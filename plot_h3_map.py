@@ -151,6 +151,27 @@ def _cell_polygon_lonlat(h3_index):
     return list(zip(lons, lats))
 
 
+def _project_polygons(verts_lonlat, projection):
+    """Projiziert alle Kachel-Vertices in einem Rutsch statt Polygon für Polygon.
+
+    `PolyCollection(..., transform=ccrs.PlateCarree())` lässt Cartopy jedes
+    Polygon einzeln über den generischen, Shapely-basierten Trace-Algorithmus
+    (für beliebige, ggf. Antimeridian-kreuzende Geometrien) reprojizieren -
+    bei hunderttausenden kleinen Sechsecken der dominante Kostenfaktor
+    (>95% der Renderzeit, siehe MEMO.md). H3-Kacheln sind aber klein und
+    (nach der Antimeridian-Korrektur in _cell_polygon_lonlat) nie
+    selbst-überschneidend, brauchen also nicht den generischen Trace-Pfad -
+    ein einziger vektorisierter `transform_points()`-Aufruf über alle
+    Eckpunkte auf einmal reicht und ist um Größenordnungen schneller, weil
+    er einmal statt 280.000-mal in die PROJ-Bibliothek wechselt.
+    """
+    counts = [len(v) for v in verts_lonlat]
+    flat_lonlat = np.array([pt for v in verts_lonlat for pt in v])
+    flat_xy = projection.transform_points(ccrs.PlateCarree(), flat_lonlat[:, 0], flat_lonlat[:, 1])[:, :2]
+    splits = np.cumsum(counts)[:-1]
+    return np.split(flat_xy, splits)
+
+
 def _nan_gaussian_filter(grid, sigma_px):
     """Gauß-Filter, der NaN-Bereiche ignoriert statt sie einzumischen.
 
@@ -348,14 +369,15 @@ def plot_h3_map(
     else:
         polygons = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
         keep = [p is not None for p in polygons]
-        verts = [p for p in polygons if p is not None]
+        verts_lonlat = [p for p in polygons if p is not None]
         values = covered["reisezeit_stunden"].to_numpy()[keep]
-        n_dropped = len(polygons) - len(verts)
+        n_dropped = len(polygons) - len(verts_lonlat)
+        verts = _project_polygons(verts_lonlat, ax.projection)
 
         norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
         mappable = PolyCollection(
             verts, array=values, cmap=cmap, norm=norm,
-            edgecolors="none", antialiased=False, transform=ccrs.PlateCarree(), zorder=1,
+            edgecolors="none", antialiased=False, zorder=1,
         )
         ax.add_collection(mappable)
 

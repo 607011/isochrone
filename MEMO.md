@@ -1056,6 +1056,47 @@ Kein Dateinamens-Suffix (wie bei `--band-hours` schon so gehandhabt).
 Getestet mit σ=1.0 (deutlich schärfer/lokaler) und σ=5.0 (deutlich
 weicher/verwaschener) gegen den Standard 3.0.
 
+## Phase 14x: Rust-Diskussion → Profiling → 50x schnelleres Hexagon-Rendering
+
+Nutzer fragte (Diskussion), wie aufwendig eine Rust-Portierung wäre und
+wie groß der Performancegewinn. Einschätzung: hoher Aufwand, geringer
+Nutzen - der Großteil der Rechenlast läuft schon durch kompilierten
+Code (scipy Dijkstra, BallTree, h3-py, Shapely/GEOS), und Cartopy/
+matplotlib (der eigentliche Rendering-Stack) hätte in Rust kein
+reifes Äquivalent. Empfehlung statt Rewrite: gezieltes Profiling des
+bestehenden Rendering-Pfads.
+
+Profiling (cProfile über `plot_h3_map()`, Standardauflösung 4, kein
+`--galton`, `--dpi 150`) förderte einen konkreten, überraschend
+dominanten Befund zutage: **215 Sekunden Gesamtlaufzeit, davon 96% in
+Cartopys `transform_path_non_affine`/`project_geometry`/`trace.pyx`.**
+Ursache: `PolyCollection(..., transform=ccrs.PlateCarree())` lässt
+Cartopy jedes der 282.030 Sechsecke einzeln über den generischen,
+Shapely-basierten Trace-Algorithmus reprojizieren (der eigentlich für
+beliebige, potenziell Antimeridian-kreuzende Geometrien gedacht ist) -
+pro Aufruf mit erheblichem Objekt-Overhead (Shapely-`LineString`-/
+`Polygon`-Konstruktion, `numpy.isclose`, etc.), macht bei 282k
+Sechsecken 21 Mio. Shapely-Decorator-Aufrufe.
+
+Fix: `_project_polygons()` in `plot_h3_map.py` - projiziert alle
+Kachel-Eckpunkte in einem einzigen vektorisierten
+`ax.projection.transform_points(ccrs.PlateCarree(), lons, lats)`-Aufruf
+statt Polygon für Polygon, und übergibt der `PolyCollection` direkt
+bereits projizierte Koordinaten (kein `transform=` mehr nötig - das
+ist dann schon der native Datenraum der Achse). H3-Kacheln sind klein
+und (dank der bestehenden Antimeridian-Korrektur in
+`_cell_polygon_lonlat`) nie selbst-überschneidend, brauchen also nicht
+Cartopys generischen, auf beliebige komplexe Geometrien ausgelegten
+Trace-Pfad.
+
+Ergebnis: **215s → ~4,1s (Faktor ~52)**, exakt gleiches Bild (577
+Pol-Kacheln nicht darstellbar, identisch zum Referenzwert vor dieser
+Änderung). Explizit gegen die Datumsgrenze getestet (Fidschi/Neuseeland-
+Region) unter Mercator UND Robinson - keine Wraparound-Artefakte, obwohl
+der spezialisierte Antimeridian-Trace-Pfad umgangen wird. `--galton`
+(nutzt `contourf` statt `PolyCollection`, war nie betroffen) unverändert
+getestet, keine Regression.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
