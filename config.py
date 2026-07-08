@@ -62,6 +62,23 @@ TRANSFER_HOURS = 1.5
 EARTH_RADIUS_MILES = 3958.8
 EARTH_RADIUS_KM = 6371.0088
 
+# --- --heli/--jetpack (friction_map_from_point.py): Luftlinie statt
+# Friction-Graph für die Einstiegs-Etappe Startpunkt -> Flughafen, dafür
+# mit begrenzter Reichweite (anders als das unbegrenzte Flugnetz). ---
+# Reisegeschwindigkeit angelehnt an leichte/mittlere Hubschrauber
+# (Bell 429, Airbus H145: real ca. 220-260 km/h), Reichweite eher
+# konservativ für diese Klasse ohne Zwischentanken (Robinson R44 ~560 km,
+# Bell 407 ~650 km).
+HELI_SPEED_KMH = 220
+HELI_RANGE_KM = 500
+
+# Reale treibstoffbetriebene Jetpacks (Jetpack Aviation JB-10, Bell
+# Rocket Belt) erreichen kurzzeitig ca. 100+ km/h, halten das aber nur
+# wenige Minuten durch (Flugdauer ca. 5-10 min) - daraus die Reichweite:
+# 100 km/h * 10 min ≈ 17 km, aufgerundet.
+JETPACK_SPEED_KMH = 100
+JETPACK_RANGE_KM = 20
+
 # --- Codeshare-Flüge als eigene Kanten in der Topologie mitzählen? ---
 INCLUDE_CODESHARE = True
 

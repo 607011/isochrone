@@ -20,6 +20,18 @@ Flughäfen ohne Landverbindung zum Startpunkt (z.B. auf Inseln, die der
 Friction-Graph nicht mit dem Festland verbindet) bekommen unendliche
 Bodenzeit und fallen dadurch automatisch aus den Kandidaten heraus, statt
 einen Fehler zu verursachen.
+
+--heli/--jetpack: alternative Einstiegs-Etappe Startpunkt -> Flughafen
+per Luftlinie (Haversine) mit fester Geschwindigkeit statt Friction-
+Graph, dafür mit begrenzter Reichweite (siehe HELI_SPEED_KMH/
+HELI_RANGE_KM/JETPACK_* in config.py). Beide zusammen (oder per
+--james-bond) verketten sich: erst so weit wie möglich per Heli, der
+Rest der Strecke bis zur Jetpack-Reichweite per Jetpack. Für jeden
+Flughafen gewinnt am Ende die schnellere der beiden Einstiegs-Optionen
+(Luft oder Boden) - in Reichweite eines Flughafens (civilisation) ist
+die Straße oft schneller als das langsame Jetpack, aus großer
+Entfernung schlägt die kreuz und quer über Gelände fliegende Luftlinie
+den umwegreichen Friction-Graphen.
 """
 
 import math
@@ -32,6 +44,7 @@ from sklearn.neighbors import BallTree
 import config
 import friction_surface_global as friction
 from data_loading import load_airports, load_routes
+from distance import haversine_km_vec
 from friction_map_from_airport import build_friction_land
 from graph_builder import build_graph
 from map_from_airport import build_sea
@@ -45,7 +58,34 @@ def slug_for_point(lat, lon):
     return f"point_{fmt(lat)}_{fmt(lon)}"
 
 
-def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_df):
+def _air_entry_hours(lat, lon, airports_df, heli, jetpack):
+    """Luftlinien-Reisezeit je Flughafen per Heli/Jetpack, np.inf außerhalb der Reichweite."""
+    hours = np.full(len(airports_df), np.inf)
+    if not (heli or jetpack):
+        return hours
+
+    dist_km = haversine_km_vec(lat, lon, airports_df["lat"].to_numpy(), airports_df["lon"].to_numpy())
+
+    if heli and jetpack:
+        # Erst Heli bis HELI_RANGE_KM, den Rest bis JETPACK_RANGE_KM weiter per Jetpack.
+        within_heli = dist_km <= config.HELI_RANGE_KM
+        hours = np.where(within_heli, dist_km / config.HELI_SPEED_KMH, hours)
+
+        remaining_km = dist_km - config.HELI_RANGE_KM
+        within_combo = (~within_heli) & (remaining_km <= config.JETPACK_RANGE_KM)
+        combo_hours = config.HELI_RANGE_KM / config.HELI_SPEED_KMH + remaining_km / config.JETPACK_SPEED_KMH
+        hours = np.where(within_combo, combo_hours, hours)
+    elif heli:
+        within = dist_km <= config.HELI_RANGE_KM
+        hours = np.where(within, dist_km / config.HELI_SPEED_KMH, hours)
+    elif jetpack:
+        within = dist_km <= config.JETPACK_RANGE_KM
+        hours = np.where(within, dist_km / config.JETPACK_SPEED_KMH, hours)
+
+    return hours
+
+
+def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_df, heli=False, jetpack=False):
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, start_idx = tree.query(np.radians([[lat, lon]]), k=1)
     start_idx = int(start_idx[0, 0])
@@ -54,13 +94,15 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
 
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
     ground_hours = dist_minutes[airport_node_idx.ravel()] / 60
+    air_hours = _air_entry_hours(lat, lon, airports_df, heli, jetpack)
+    best_hours = np.minimum(ground_hours, air_hours)
 
     entry_hours = {
-        iata: hours for iata, hours in zip(airports_df["iata"], ground_hours)
+        iata: hours for iata, hours in zip(airports_df["iata"], best_hours)
         if math.isfinite(hours)
     }
     if not entry_hours:
-        raise ValueError("Kein Flughafen ist vom Startpunkt aus über Land erreichbar.")
+        raise ValueError("Kein Flughafen ist vom Startpunkt aus über Land oder Luft erreichbar.")
 
     routes_df = load_routes(config.ROUTES_CSV, airports_df, include_codeshare=config.INCLUDE_CODESHARE)
     G = build_graph(airports_df, routes_df)
@@ -85,6 +127,7 @@ def main(
     resolution=config.H3_RESOLUTION, galton=False,
     band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
+    heli=False, jetpack=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
     slug = slug_for_point(lat, lon)
@@ -96,23 +139,31 @@ def main(
     title_suffix = "_title" if title else ""
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
     rivers_suffix = "_rivers" if rivers else ""
+    air_suffix = "_bond" if heli and jetpack else ("_heli" if heli else "_jetpack" if jetpack else "")
 
     airports_df = load_airports(config.AIRPORTS_CSV)
     graph, node_lat, node_lon = friction.load_graph()
-    travel_times_df = build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_df)
+    travel_times_df = build_travel_times_from_point(
+        lat, lon, graph, node_lat, node_lon, airports_df, heli=heli, jetpack=jetpack,
+    )
 
     land_result = build_friction_land(
         travel_times_df, graph, node_lat, node_lon,
-        minutes_path=f"friction_data/land_travel_minutes_from_{slug}{res_suffix}.npy",
+        minutes_path=f"friction_data/land_travel_minutes_from_{slug}{res_suffix}{air_suffix}.npy",
         resolution=resolution,
     )
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
 
-    travel_times_csv = f"travel_times_from_{slug}.csv"
-    h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
-    ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}.png"
+    # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
+    # travel_times_df/h3_df inhaltlich (andere Einstiegszeiten je Flughafen),
+    # ohne den Suffix würde ein --heli-Lauf sonst denselben Dateinamen wie
+    # der normale Lauf treffen und ihn stillschweigend überschreiben - siehe
+    # MEMO.md zur analogen --cmap galton/galton10-Kollision.
+    travel_times_csv = f"travel_times_from_{slug}{air_suffix}.csv"
+    h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
+    ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
+    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -184,6 +235,21 @@ if __name__ == "__main__":
         "--rivers", action="store_true",
         help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
     )
+    parser.add_argument(
+        "--heli", action="store_true",
+        help=f"Einstieg zum Flughafen per Hubschrauber-Luftlinie statt Friction-Graph "
+             f"({config.HELI_SPEED_KMH} km/h, Reichweite {config.HELI_RANGE_KM} km) - je Flughafen gewinnt die "
+             "schnellere der beiden Optionen",
+    )
+    parser.add_argument(
+        "--jetpack", action="store_true",
+        help=f"Wie --heli, aber mit Jetpack ({config.JETPACK_SPEED_KMH} km/h, Reichweite {config.JETPACK_RANGE_KM} km); "
+             "zusammen mit --heli verketten sich beide: erst Heli, dann Jetpack für den Rest der Strecke",
+    )
+    parser.add_argument(
+        "--james-bond", action="store_true",
+        help="Kurzform für --heli --jetpack zusammen",
+    )
     args = parser.parse_args()
 
     main(
@@ -191,4 +257,5 @@ if __name__ == "__main__":
         resolution=args.resolution, galton=args.galton, band_hours=args.band_hours, cmap_name=args.cmap,
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
         lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,
+        heli=args.heli or args.james_bond, jetpack=args.jetpack or args.james_bond,
     )

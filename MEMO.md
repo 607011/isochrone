@@ -1121,6 +1121,63 @@ Getestet: zeigt jetzt reproduzierbar "Dijkstra fertig in 1.4s" statt
 "0s", für beide Aufrufer (`friction_map_from_airport.py`,
 `friction_map_from_point.py`).
 
+## Phase 14z: --heli/--jetpack/--james-bond (Kollege will aus Жданиха fliehen)
+
+Diskussion, ausgelöst durch einen (augenzwinkernd formulierten) Wunsch
+eines Kollegen nach `--heli`/`--jetpack`, um "virtuell aus Жданиха zu
+fliehen". Erste Reaktion: eher Spielerei, da ein reiner
+Luftlinien-Modus die interessante, straßenbasierte Struktur der Karte
+durch einen langweiligen Kreis ersetzen würde. Nutzer korrigierte den
+Denkfehler: Heli/Jetpack sollen nicht das gesamte Modell ersetzen,
+sondern nur die Einstiegs-Etappe Startpunkt -> Flughafen - ab dem
+erreichten Flughafen läuft das normale, interessante Flugnetz weiter.
+Zweiter Einwand des Nutzers: die Reichweiten-Erweiterung (500km Heli +
+20km Jetpack = 520km) ist nicht bloß symbolisch, weil in der Nähe
+eines Flughafens ("Zivilisation") die Straße oft schon wieder
+schneller ist als das langsame Jetpack - das Modell muss also pro
+Flughafen zwischen Boden- und Luftroute abwägen, nicht stur eine
+Vorfahrtsregel für eine Option erzwingen.
+
+Werte (auf Wunsch an echten Vorbildern orientiert, nicht willkürlich):
+
+- **Heli**: 220 km/h, 500 km Reichweite - Reisegeschwindigkeit
+  leichter/mittlerer Hubschrauber (Bell 429, Airbus H145: real
+  220-260 km/h), Reichweite konservativ für diese Klasse ohne
+  Zwischentanken (Robinson R44 ~560 km, Bell 407 ~650 km).
+- **Jetpack**: 100 km/h, 20 km Reichweite - reale treibstoffbetriebene
+  Jetpacks (Jetpack Aviation JB-10, Bell Rocket Belt) erreichen
+  kurzzeitig ~100+ km/h, halten das aber nur 5-10 Minuten durch;
+  100 km/h * 10 min ≈ 17 km, aufgerundet.
+
+Beide in `config.py`: `HELI_SPEED_KMH`/`HELI_RANGE_KM`,
+`JETPACK_SPEED_KMH`/`JETPACK_RANGE_KM`.
+
+Umsetzung in `friction_map_from_point.py`:
+
+- `distance.py`: neue `haversine_km_vec()` (vektorisierte Variante von
+  `haversine_miles`, in km) - Distanz vom Startpunkt zu allen
+  Flughäfen auf einmal statt einzeln.
+- `_air_entry_hours(lat, lon, airports_df, heli, jetpack)`: Luftlinie
+  je Flughafen zu Reisezeit umgerechnet, `np.inf` außerhalb der
+  Reichweite. Bei `heli and jetpack` zusammen: stückweise Funktion -
+  bis `HELI_RANGE_KM` mit Heli-Geschwindigkeit, der Rest bis zu
+  weiteren `JETPACK_RANGE_KM` mit Jetpack-Geschwindigkeit obendrauf
+  (kombinierte maximale Reichweite 520 km), jenseits davon `np.inf`.
+- `build_travel_times_from_point()`: `best_hours = np.minimum(ground_hours,
+  air_hours)` - je Flughafen gewinnt die schnellere der beiden Optionen,
+  genau der vom Nutzer geforderte Wettbewerb statt einer festen
+  Rangfolge. Bestätigt im Test (Punkt im australischen Outback):
+  Erldunda Airport 4,10h normal (Straße) vs. 0,16h mit `--james-bond`
+  (Luftlinie ~35km/220km/h) - Anzahl erreichbarer Flughäfen bleibt
+  gleich (3361), nur die Zeiten ändern sich dort, wo Luft tatsächlich
+  gewinnt.
+- CLI: `--heli`, `--jetpack`, `--james-bond` (Kurzform für beide
+  zusammen, `heli=args.heli or args.james_bond` usw.). Dateinamen-Suffix
+  `_heli`/`_jetpack`/`_bond` - wichtig: auch in den CSV-Namen (nicht
+  nur im PNG), da `--heli` andere `travel_times_df`-Werte erzeugt und
+  sonst mit dem Suffix-losen Normal-Lauf kollidieren würde (dieselbe
+  Fehlerklasse wie die `--cmap galton`/`galton10`-Kollision aus Phase 14p).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
