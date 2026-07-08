@@ -133,8 +133,17 @@ MAX_PORT_DISTANCE_KM = 20_015
 # (per fonttools varLib.instancer erzeugt), nicht die Variable-Datei selbst.
 PLAYFAIR_BOLD_PATH = "fonts/PlayfairDisplay-Bold.ttf"
 TITLE_FONT_FALLBACK_FAMILY = "serif"  # falls die Playfair-Datei fehlt
-CONTINENT_FONT_FAMILY = "Baskerville"  # macOS-Systemschrift, nichts zu bundeln
-CITY_FONT_FAMILY = "Baskerville"
+# Echtes Baskerville ist keine freie Schrift und war zuvor nur über macOS'
+# Systeminstallation verfügbar (Nutzer auf anderen Betriebssystemen hätten
+# stillschweigend einen Fallback-Font bekommen). Libre Baskerville (Impallari
+# Type, SIL Open Font License, siehe fonts/LibreBaskerville-OFL.txt) ist eine
+# gemeinfrei nutzbare, dem Original nachempfundene Alternative - genau wie
+# bei Playfair Display statische Instanzen aus der Variable-Font-Datei
+# extrahiert (Bold aus der Roman-, Regular aus der Italic-Achse).
+CONTINENT_FONT_PATH = "fonts/LibreBaskerville-Bold.ttf"
+CITY_FONT_PATH = "fonts/LibreBaskerville-Italic.ttf"
+CONTINENT_FONT_FALLBACK_FAMILY = "serif"  # falls die Font-Datei fehlt
+CITY_FONT_FALLBACK_FAMILY = "serif"
 
 TITLE_FONT_SIZE = 18
 CONTINENT_FONT_SIZE = 14

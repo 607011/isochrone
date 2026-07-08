@@ -58,8 +58,8 @@ FRAME_GAP_PT = 3.0
 BACKGROUND_COLOR = "#dad4bb"
 
 # Typografie im Stil alter Kartendrucke: Playfair Display für die
-# Hauptüberschrift, Baskerville (macOS-Systemschrift) für Orts-/
-# Kontinentnamen - Kontinente fett, Städte kursiv. Schriftnamen und
+# Hauptüberschrift, Libre Baskerville (gebundelt, siehe config.py) für
+# Orts-/Kontinentnamen - Kontinente fett, Städte kursiv. Schriftnamen und
 # -größen stehen in config.py, damit man sie ohne Codeänderung anpassen
 # kann, siehe MEMO.md.
 if os.path.exists(config.PLAYFAIR_BOLD_PATH):
@@ -67,8 +67,16 @@ if os.path.exists(config.PLAYFAIR_BOLD_PATH):
     TITLE_FONT = fm.FontProperties(fname=config.PLAYFAIR_BOLD_PATH)
 else:
     TITLE_FONT = fm.FontProperties(family=config.TITLE_FONT_FALLBACK_FAMILY, weight="bold")
-CONTINENT_FONT = fm.FontProperties(family=config.CONTINENT_FONT_FAMILY, weight="bold")
-CITY_FONT = fm.FontProperties(family=config.CITY_FONT_FAMILY, style="italic")
+if os.path.exists(config.CONTINENT_FONT_PATH):
+    fm.fontManager.addfont(config.CONTINENT_FONT_PATH)
+    CONTINENT_FONT = fm.FontProperties(fname=config.CONTINENT_FONT_PATH)
+else:
+    CONTINENT_FONT = fm.FontProperties(family=config.CONTINENT_FONT_FALLBACK_FAMILY, weight="bold")
+if os.path.exists(config.CITY_FONT_PATH):
+    fm.fontManager.addfont(config.CITY_FONT_PATH)
+    CITY_FONT = fm.FontProperties(fname=config.CITY_FONT_PATH)
+else:
+    CITY_FONT = fm.FontProperties(family=config.CITY_FONT_FALLBACK_FAMILY, style="italic")
 
 # Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
 # je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
@@ -312,7 +320,9 @@ def plot_h3_map(
             gl.right_labels = True
             gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8}
             gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8}
-            plain_formatter = FuncFormatter(lambda v, pos: f"{v:g}")
+            # Wie im Original: keine Vorzeichen, West/Süd sind an der
+            # Position (Rand) erkennbar, nicht am Minus vor der Zahl.
+            plain_formatter = FuncFormatter(lambda v, pos: f"{abs(v):g}")
             gl.xformatter = plain_formatter
             gl.yformatter = plain_formatter
 

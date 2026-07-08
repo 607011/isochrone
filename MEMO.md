@@ -1308,6 +1308,43 @@ Regressionstest mit Paris (48.85, 2.35, ganz ohne `--heli`/`--jetpack`)
 bestätigt unverändertes Verhalten im Normalfall (Orly/Le Bourget/CDG
 weiterhin korrekt als nächste Flughäfen erkannt).
 
+## Phase 14zC: Vorzeichenlose Gradzahlen, Libre Baskerville statt macOS-Font
+
+Zwei kleine, unabhängige Nachbesserungen im Anschluss an den
+Heli/Jetpack-Fix:
+
+1. **Vorzeichenlose Achsenbeschriftung im `--galton`-Modus**: der
+   `FuncFormatter` für die Gradzahlen am Kartenrand
+   (`plot_h3_map.py`) gab bislang `f"{v:g}"` aus, also z.B. "-60" für
+   60° Süd - im Original von 1881 stehen dort nur nackte Zahlen ohne
+   Vorzeichen, West/Süd ist allein durch die Randposition erkennbar.
+   Fix: `f"{abs(v):g}"`.
+
+2. **Baskerville durch Libre Baskerville ersetzt**: `CONTINENT_FONT_FAMILY`/
+   `CITY_FONT_FAMILY` referenzierten bislang `"Baskerville"` als
+   matplotlib-Familiennamen - das ist eine macOS-Systemschrift, auf
+   anderen Betriebssystemen wäre das Skript lautlos auf einen
+   generischen Serifenfont zurückgefallen (Nutzer fragte gezielt nach
+   einer gemeinfreien Alternative zum Bundeln). Libre Baskerville
+   (Impallari Type, SIL Open Font License) ist eine für genau diesen
+   Zweck entwickelte freie Baskerville-Alternative, verfügbar über
+   Googles Font-Repository. Wie schon bei Playfair Display liegt dort
+   nur eine Variable-Font-Datei vor (`LibreBaskerville[wght].ttf` für
+   die Roman-, `LibreBaskerville-Italic[wght].ttf` für die
+   Italic-Achse) - matplotlib kann deren Gewichtsachse nicht
+   ansteuern, daher per `fonttools varLib.instancer` statische
+   Instanzen erzeugt: `LibreBaskerville-Bold.ttf` (wght=700, für
+   `CONTINENT_FONT`) und `LibreBaskerville-Italic.ttf` (wght=400, für
+   `CITY_FONT`). `config.py` bekam dafür `CONTINENT_FONT_PATH`/
+   `CITY_FONT_PATH` (statt `_FAMILY`) plus je einen
+   `_FALLBACK_FAMILY` ("serif"), `plot_h3_map.py` lädt die Dateien
+   jetzt genau wie schon bei `PLAYFAIR_BOLD_PATH` per
+   `fm.fontManager.addfont()` mit Existenzprüfung und Fallback.
+   Lizenztext liegt als `fonts/LibreBaskerville-OFL.txt` bei.
+   Verifiziert per Regenerierung der Paris-Testkarte: Kontinente/
+   Städte weiterhin fett/kursiv im passenden Serifenstil, keine
+   sichtbare Verschlechterung gegenüber echtem Baskerville.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
