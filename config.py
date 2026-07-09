@@ -46,12 +46,15 @@ PAPER_SIZES_IN = {
 SHOW_AIRPORTS = False
 SHOW_PORTS = False
 
-# --- "--galton"-Modus: geglättete, diskrete Farbbänder statt Kachel-Mosaik ---
-# Gesamtspanne der Farbskala in Stunden (CLI: --max-hours), von 0 bis hier
-# gleichmäßig in Bänder aufgeteilt - danach der dunkelste Farbton, statt die
-# Skala weiter zu strecken. Bewusst derselbe Default-Wert wie COLOR_CAP_HOURS
-# weiter unten (für den nicht-diskreten Modus), damit sich die
-# Standardausgabe durch die Einführung dieses Schalters nicht ändert.
+# Gesamtspanne der Farbskala in Stunden (CLI: --max-hours) - ab hier wird
+# der dunkelste Farbton vergeben, statt die Skala linear bis zum
+# tatsächlichen Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken -
+# wie bei Galtons Original mit diskreten Farbbändern und einer letzten
+# "und mehr"-Kategorie. Gilt für BEIDE Rendering-Modi: im normalen
+# Kachel-Mosaik direkt als oberes Ende von Normalize() (vorher fälschlich
+# fest auf die inzwischen entfernte Konstante COLOR_CAP_HOURS verdrahtet,
+# --max-hours blieb dadurch dort wirkungslos), unter --galton zusätzlich
+# gleichmäßig in Bänder aufgeteilt.
 GALTON_MAX_HOURS = 48
 
 # Nachbarschafts-Mittelung auf dem H3-Gitter selbst (1 Ring) glättet zu
@@ -83,12 +86,6 @@ RETRO_SKETCH_SCALE = 0.1       # Amplitude der Linienwellung, in Pixeln bei MAP_
 RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Pixeln bei MAP_DPI
 RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung (dimensionsloser Faktor)
 RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)
-
-# Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
-# die Skala linear bis zum tatsächlichen Maximum zu strecken - wie bei
-# Galtons Original mit diskreten Farbbändern und einer letzten
-# "und mehr"-Kategorie.
-COLOR_CAP_HOURS = 48
 
 # --- Startflughäfen. Die schnellste Verbindung über alle wird gewählt. ---
 ORIGIN_AIRPORTS = ["LHR", "LGW", "LCY", "STN", "LTN"]

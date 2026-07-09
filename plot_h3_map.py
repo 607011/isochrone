@@ -6,6 +6,7 @@ statt eine erfundene Reisezeit zu zeigen.
 
 import os
 import textwrap
+from functools import lru_cache
 
 if "SSL_CERT_FILE" not in os.environ:
     import certifi
@@ -38,19 +39,23 @@ from svgpath2mpl import parse_path
 
 import config
 
-# Kacheln, deren Eckpunkte-Breitengrade (nicht Längengrade!) mehr als das
-# hier überspannen, gelten als Pol-Kachel - dort laufen alle Längengrade
-# zusammen, das ist keine Antimeridian-Überquerung. Ein LÄNGENgrad-
-# Schwellwert (die ursprüngliche Version dieser Konstante) kann Pol- und
-# Antimeridian-Kacheln nicht unterscheiden: der naive Längengrad-Spann
-# (`max(lons) - min(lons)`, nicht wrap-aware) liegt für BEIDE Fälle bei
-# ~358-360°, egal ob die Kachel winzig ist (Antimeridian, z.B. Eckpunkte
-# bei -179,9° und 179,9°) oder tatsächlich am Pol liegt. Ein Breitengrad-
-# Schwellwert unterscheidet korrekt: eine echte Pol-Kachel hat auch bei
-# der gröbsten H3-Auflösung (0) Eckpunkt-Breiten von mindestens ~82°,
-# eine Antimeridian-Kachel dagegen ganz gewöhnliche Breiten irgendwo auf
-# der Welt.
-POLE_LAT_THRESHOLD_DEG = 80
+@lru_cache(maxsize=None)
+def _pole_cell_indices(resolution):
+    """Die zwei H3-Zellen dieser Auflösung, die den geografischen Nord-
+    bzw. Südpol enthalten - per direkter H3-Abfrage (`latlng_to_cell(±90,
+    ...)`), nicht per Schätzung aus Eckpunkt-Breiten/Längen. Ein
+    Breitengrad-Schwellwert (frühere Version) scheitert daran, dass die
+    Eckpunkt-Breite einer echten Pol-Kachel je nach Auflösung stark
+    schwankt - bei der gröbsten Auflösung (0) reicht sie nur bis ~69°
+    herunter, während gewöhnliche (nicht polare) Antimeridian-Kacheln bei
+    feineren Auflösungen durchaus bis ~83° hochreichen können. Kein fester
+    Schwellwert liegt dazwischen für alle Auflösungen zugleich richtig -
+    die tatsächliche Pol-Kachel direkt zu identifizieren umgeht das
+    Problem ganz. `lru_cache`, da pro Kartenrender nur eine Handvoll
+    verschiedener Auflösungen vorkommt, aber sehr viele Kacheln geprüft
+    werden.
+    """
+    return {h3.latlng_to_cell(90, 0, resolution), h3.latlng_to_cell(-90, 0, resolution)}
 
 # Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
 # am scharfen, gestochenen Druckbild von Galtons Original.
@@ -243,15 +248,16 @@ def _clip_polygon_x(vertices, x_bound, keep_le):
 
 def _cell_polygon_lonlat(h3_index):
     """Gibt eine Liste von Polygonen zurück - normalerweise genau eins,
-    zwei bei Kacheln auf dem Antimeridian (siehe unten), keins bei
-    Pol-Kacheln (nicht darstellbar, siehe POLE_LAT_THRESHOLD_DEG).
+    zwei bei Kacheln auf dem Antimeridian (siehe unten), keins bei den
+    beiden echten Pol-Kacheln (nicht darstellbar, siehe
+    _pole_cell_indices()).
     """
     boundary = h3.cell_to_boundary(h3_index)  # Tupel von (lat, lon)
     lons = [lon for _, lon in boundary]
     lats = [lat for lat, _ in boundary]
     span = max(lons) - min(lons)
     if span > 180:
-        if max(abs(lat) for lat in lats) > POLE_LAT_THRESHOLD_DEG:
+        if h3_index in _pole_cell_indices(h3.get_resolution(h3_index)):
             return []
         # Kachel liegt auf dem Antimeridian: NICHT (wie in einem früheren,
         # zurückgerollten Versuch, siehe MEMO.md Phase 14zZg) Eckpunkte per
@@ -1012,9 +1018,10 @@ def plot_h3_map(
             va="top", ha="right", zorder=6, clip_on=False,
         )
 
-    # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
-    # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
-    # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
+    # Wie bei Galtons Original: ab max_hours (--max-hours) wird der
+    # dunkelste Farbton vergeben, statt die Skala linear bis zum
+    # tatsächlichen Maximum (mehrere Tage Seezeit mitten im Ozean) zu
+    # strecken.
     if cmap_name == "galton5":
         # ListedColormap statt Interpolation: feste Farben, keine
         # Zwischentöne - eine direkte Palette statt Stützstellen für eine
@@ -1052,7 +1059,7 @@ def plot_h3_map(
         n_dropped = sum(1 for polys in polygon_lists if not polys)
         verts = _project_polygons(verts_lonlat, ax.projection)
 
-        norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)
+        norm = Normalize(vmin=0, vmax=max_hours, clip=False)
         mappable = PolyCollection(
             verts, array=values, cmap=cmap, norm=norm,
             edgecolors="none", antialiased=False, zorder=1,
@@ -1153,9 +1160,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
-        help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
-             "Farbton statt weiterer Streckung. Gleichmaessig in zehn Baender aufgeteilt "
-             "(bzw. fuenf feste bei --cmap galton5).",
+        help="Gesamtspanne der Farbskala in Stunden - ab hier der dunkelste Farbton statt "
+             "weiterer Streckung. Gilt fuer beide Rendering-Modi; unter --galton zusaetzlich "
+             "gleichmaessig in zehn Baender aufgeteilt (bzw. fuenf feste bei --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,

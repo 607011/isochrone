@@ -2578,6 +2578,62 @@ Verifiziert:
 - `--galton`-Modus unberührt (nutzt einen anderen Rendering-Pfad,
   `_build_galton_grid()`/`contourf` statt `_cell_polygon_lonlat()`).
 
+## Phase 14zZi: Zwei Restprobleme nach 14zZh - Eckenlücken und --max-hours
+
+Nutzer meldete zwei verbleibende Probleme mit
+`--cmap plasma_r -r 2 --paper a4 --dpi 200 --max-hours=288`:
+
+1. Zwei kleine, sechseckige Lücken oben links und oben rechts
+   (nahe des Kartenrands UND nahe der Datumsgrenze gleichzeitig).
+2. `--max-hours=288` änderte sichtbar nichts an der Farbskala/Legende.
+
+**Problem 1 - Eckenlücken:** Direkter Test zeigte zwei konkrete
+Kacheln (`820467fffffffff`, max. Eckpunkt-Breite 80,07°;
+`82054ffffffffff`, max. Eckpunkt-Breite 83,14°), die als "echte
+Pol-Kachel" fälschlich verworfen wurden - `POLE_LAT_THRESHOLD_DEG = 80`
+(aus 14zZh) war knapp zu niedrig angesetzt. Ein fester
+Breitengrad-Schwellwert erwies sich als grundsätzlich untauglich:
+Test über mehrere H3-Auflösungen zeigt, dass die ECHTE Nordpol-Kachel
+bei Auflösung 0 (gröbste Stufe) nur bis ~69° Breite herunterreicht,
+während gewöhnliche (nicht-polare) Antimeridian-Kacheln bei feineren
+Auflösungen durchaus bis ~83° hochreichen können - kein fester
+Schwellwert liegt für alle Auflösungen gleichzeitig richtig dazwischen.
+
+Fix: statt eines Schwellwerts wird jetzt direkt geprüft, ob die
+jeweilige Kachel EINE DER BEIDEN tatsächlichen Pol-Kacheln ist -
+`h3.latlng_to_cell(90, 0, resolution)` bzw. `(-90, 0, resolution)`
+liefert den exakten Index der Kachel, die den geografischen Pol
+enthält, für die jeweilige Auflösung der geprüften Kachel
+(`h3.get_resolution(h3_index)`). `_pole_cell_indices(resolution)`
+cached das Ergebnis (`lru_cache`), da pro Kartenrender nur wenige
+verschiedene Auflösungen vorkommen, aber sehr viele Kacheln geprüft
+werden. `POLE_LAT_THRESHOLD_DEG` entfernt.
+
+**Problem 2 - `--max-hours` wirkungslos ohne `--galton`:** Der
+Kachel-Mosaik-Pfad (nicht `--galton`) hatte schon immer eine eigene,
+fest verdrahtete `Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS)` -
+`--max-hours` (Parameter `max_hours`) floss dort nie ein, nur in den
+`--galton`-Pfad. `COLOR_CAP_HOURS` und `GALTON_MAX_HOURS` hatten
+absichtlich denselben Default (48), damit sich die Standardausgabe
+dadurch nicht änderte - aber der Split selbst war weder aus dem
+Flag-Namen (klingt generisch, nicht `--galton`-spezifisch) noch aus
+der Hilfe-Text ersichtlich. Fix: `config.COLOR_CAP_HOURS` entfernt,
+Zeile 1055 nutzt jetzt direkt `max_hours` - identisches
+Standardverhalten (beide Defaults waren 48), aber `--max-hours` wirkt
+jetzt in beiden Modi. Hilfetexte in allen vier Skripten entsprechend
+angepasst ("im --galton-Modus" -> "gilt fuer beide Rendering-Modi").
+
+Verifiziert:
+- Beide vormals fehlenden Eck-Kacheln (`820467fffffffff`,
+  `82054ffffffffff`) werden jetzt korrekt als gewöhnliche
+  Antimeridian-Kacheln behandelt (nicht mehr in `_pole_cell_indices`
+  enthalten), Testrender zeigt beide Ecken lückenlos gefüllt.
+- Testrender mit `--max-hours=288` zeigt jetzt eine Farbskala/Legende
+  von 0 bis ~290h statt der vorherigen fixen 0-48h.
+- Regressionstests: Standardauflösung ohne `-r 2`, `--galton`-Modus,
+  Standardaufruf ohne `--max-hours` (Default weiterhin 48h) - alle
+  unverändert korrekt.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

@@ -158,9 +158,9 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
-        help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
-             "Farbton statt weiterer Streckung. Gleichmaessig in zehn Baender aufgeteilt "
-             "(bzw. fuenf feste bei --cmap galton5).",
+        help="Gesamtspanne der Farbskala in Stunden - ab hier der dunkelste Farbton statt "
+             "weiterer Streckung. Gilt fuer beide Rendering-Modi; unter --galton zusaetzlich "
+             "gleichmaessig in zehn Baender aufgeteilt (bzw. fuenf feste bei --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
