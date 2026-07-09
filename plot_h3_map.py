@@ -378,6 +378,12 @@ def plot_h3_map(
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG,
 ):
+    # --galton impliziert --rivers/--grid - der Retro-Look zeigt Flüsse
+    # und das Gradnetz ohnehin wie im Original, ein separates Anfordern
+    # wäre nur eine unnötige zusätzliche Angabe.
+    rivers = rivers or galton
+    grid = grid or galton
+
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_point.py)
     # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
@@ -464,14 +470,13 @@ def plot_h3_map(
             gl.yformatter = plain_formatter
 
     if galton:
-        # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
-        # schon eine Linie (cartopys "geo"-Spine, direkt an der Landmasse/
-        # dem Kartenbild), eine zweite, kräftigere Linie (FRAME_LINEWIDTH)
-        # außen herum ergibt den charakteristischen Doppelstrich - und
-        # schließt dabei die Gradzahlen am Rand mit ein statt sie
-        # unbegrenzt draußen stehen zu lassen, wie im Original.
+        # Drei Linien insgesamt, wie im Original: ein dünner Doppelrahmen
+        # direkt an der Karte (Spine + ein knapp innen liegendes Rectangle,
+        # beide COASTLINE_LINEWIDTH), plus eine deutlich kräftigere äußere
+        # Linie (FRAME_LINEWIDTH), die zusätzlich die Gradzahlen am Rand
+        # umschließt statt sie unbegrenzt draußen stehen zu lassen.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
-        ax.spines["geo"].set_linewidth(FRAME_LINEWIDTH)
+        ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
         _sketch(ax.spines["geo"])
         fig.canvas.draw()
         # set_sketch_params() auf dem Gridliner-Objekt selbst wirkt nicht -
@@ -483,22 +488,30 @@ def plot_h3_map(
         # weiter oben (grid or galton) impliziert.
         for line_artist in list(gl.xline_artists) + list(gl.yline_artists):
             _sketch(line_artist)
+        renderer = fig.canvas.get_renderer()
+
+        # Innerer Rahmen: knapp innerhalb der Spine, ergibt den dünnen
+        # Doppelstrich direkt an der Karte.
+        bbox_px = ax.get_window_extent(renderer)
+        gap_px = FRAME_GAP_PT * fig.dpi / 72.0
+        inner_px = Bbox.from_extents(
+            bbox_px.x0 + gap_px, bbox_px.y0 + gap_px, bbox_px.x1 - gap_px, bbox_px.y1 - gap_px,
+        )
+        inner_axes = inner_px.transformed(ax.transAxes.inverted())
+        inner_rect = Rectangle(
+            (inner_axes.x0, inner_axes.y0), inner_axes.width, inner_axes.height,
+            transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
+        )
+        _sketch(inner_rect)
+        ax.add_patch(inner_rect)
 
         # Äußerer Rahmen: umschließt nicht nur die Kartenachse selbst,
         # sondern auch die Gradzahlen an ihrem Rand - deren tatsächliche
         # Ausdehnung ist erst nach dem Rendern bekannt (Schriftgröße,
         # Zeichenanzahl), daher per Bounding-Box-Vereinigung aller
         # Label-Artists statt eines geschätzten festen Abstands ermittelt.
-        # Der Gap zur Achse (FRAME_GAP_PT) wird wie beim alten Innenrahmen
-        # in Punkten statt Achsen-Bruchteilen berechnet, damit er
-        # horizontal und vertikal exakt gleich groß ist - ein fester
-        # Achsen-Bruchteil wäre das nicht, da die Karte nicht quadratisch
-        # ist.
-        renderer = fig.canvas.get_renderer()
-        bbox_px = ax.get_window_extent(renderer)
         for label_artist in gl.label_artists:
             bbox_px = Bbox.union([bbox_px, label_artist.get_window_extent(renderer)])
-        gap_px = FRAME_GAP_PT * fig.dpi / 72.0
         outer_px = Bbox.from_extents(
             bbox_px.x0 - gap_px, bbox_px.y0 - gap_px, bbox_px.x1 + gap_px, bbox_px.y1 + gap_px,
         )

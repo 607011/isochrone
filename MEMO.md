@@ -1695,6 +1695,42 @@ Verifiziert: Testrender mit `--galton --labels --grid` zeigt den
 kräftigeren Rahmen jetzt außen um die Gradzahlen; `--galton --robinson`
 (keine Labels) zeigt weiterhin einen eng anliegenden Rahmen ohne Fehler.
 
+## Phase 14zL: Doppelrahmen zurück, dicker Rahmen bleibt außen; --galton impliziert --rivers/--grid
+
+Zwei Nachbesserungen.
+
+**Rahmen**: der vorherige Umbau (Phase 14zK) hatte versehentlich den
+inneren, direkt an der Karte liegenden Doppelrahmen durch die neue
+kräftigere Linie ersetzt, statt sie zu ergänzen - der Nutzer wollte
+beides: den dünnen Doppelrahmen direkt an der Karte UND den neuen
+dickeren, die Gradzahlen umschließenden Rahmen zusätzlich. Fix: Spine
+wieder auf `COASTLINE_LINEWIDTH` zurückgesetzt, der alte innere
+`Rectangle` (knapp innerhalb der Spine, `COASTLINE_LINEWIDTH`) wieder
+eingefügt, der neue äußere `Rectangle` (der die Gradzahlen umschließt,
+`FRAME_LINEWIDTH`) bleibt zusätzlich bestehen - macht insgesamt drei
+Linien: dünn-dünn direkt an der Karte, dick außen um die Beschriftung.
+
+**`--galton` impliziert `--rivers`/`--grid`**: an einer zentralen Stelle
+umgesetzt (`plot_h3_map()` selbst, ganz am Anfang: `rivers = rivers or
+galton`, `grid = grid or galton`) statt in jedem der vier CLI-Skripte
+einzeln. Wichtige Ergänzung: dieselbe Verknüpfung musste zusätzlich in
+den drei aufrufenden Skripten (`friction_map_from_point.py`,
+`map_from_airport.py`, `friction_surface_map.py`) VOR der
+Dateinamens-Bildung wiederholt werden - die `_rivers`/`_grid`-Suffixe
+werden dort anhand der eigenen lokalen `rivers`/`grid`-Variable
+gebildet, bevor `plot_h3_map()` überhaupt aufgerufen wird, hätten sonst
+trotz tatsächlich gezeichneter Flüsse/Gitter gefehlt (dieselbe
+Fehlerklasse wie die schon mehrfach in diesem Projekt behobenen
+Dateinamen-Kollisionen). Bei `friction_map_from_point.py` zusätzlich
+vor der `-v`-Konfigurationsübersicht angewendet, damit die dort
+ausgegebene Overlay-Liste ebenfalls stimmt.
+
+Verifiziert: `-v`-Lauf nur mit `--galton` (ohne `--grid`/`--rivers`)
+zeigt "Overlays: labels, grid, rivers" und den korrekten
+`_grid_rivers`-Dateinamen; Zoom auf die Kartenecke bestätigt den
+dreiteiligen Rahmen; Regressionslauf ganz ohne `--galton` zeigt weiterhin
+"Overlays: (keine)" und den unveränderten schlichten Dateinamen.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

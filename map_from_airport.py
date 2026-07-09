@@ -90,6 +90,12 @@ def main(
     max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
+    # --galton impliziert --rivers/--grid (siehe plot_h3_map.py) - hier
+    # schon vor der Dateinamens-Bildung angewendet, damit der Dateiname
+    # zum tatsächlich gezeichneten Bild passt.
+    rivers = rivers or galton
+    grid = grid or galton
+
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
         raise ValueError(f"{origin_iata} ist im Flugnetz nicht erreichbar/vorhanden.")

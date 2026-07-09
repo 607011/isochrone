@@ -277,6 +277,12 @@ def main(
     heli=False, jetpack=False, verbose=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
+    # --galton impliziert --rivers/--grid (siehe plot_h3_map.py) - hier
+    # schon vor der Dateinamens-Bildung und der -v-Übersicht angewendet,
+    # damit Dateiname und Konsolenausgabe zum tatsächlich gezeichneten
+    # Bild passen, statt die implizierten Schalter zu verschweigen.
+    rivers = rivers or galton
+    grid = grid or galton
     if verbose:
         _print_config_overview(
             lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
