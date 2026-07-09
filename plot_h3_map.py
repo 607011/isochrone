@@ -240,7 +240,7 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS,
     show_ports=config.SHOW_PORTS, galton=False,
-    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG,
 ):
@@ -368,10 +368,13 @@ def plot_h3_map(
         lon_grid, lat_grid, galton_values = _build_galton_grid(covered, sigma_deg=galton_sigma)
         if cmap_name == "galton10":
             # Exakt zehn gleich breite Stufen - eine je Palettenfarbe -,
-            # unabhängig von --band-hours.
-            boundaries = np.linspace(0, config.COLOR_CAP_HOURS, len(GALTON10_COLORS) + 1)
+            # von 0 bis max_hours.
+            boundaries = np.linspace(0, max_hours, len(GALTON10_COLORS) + 1)
         else:
-            boundaries = np.arange(0, config.COLOR_CAP_HOURS + band_hours, band_hours)
+            # config.GALTON_NUM_BANDS gleich breite Stufen von 0 bis
+            # max_hours - kein eigener CLI-Schalter für die Bandanzahl,
+            # siehe Kommentar dort.
+            boundaries = np.linspace(0, max_hours, config.GALTON_NUM_BANDS + 1)
         mappable = ax.contourf(
             lon_grid, lat_grid, galton_values, levels=boundaries, cmap=cmap, extend="max",
             transform=ccrs.PlateCarree(), zorder=1,
@@ -417,7 +420,8 @@ def plot_h3_map(
         if galton and cmap_name == "galton10":
             detail = f"10 feste Stufen, geglättet (Gauß-Radius {galton_sigma}°)"
         elif galton:
-            detail = f"{band_hours}h-Bänder, geglättet (Gauß-Radius {galton_sigma}°)"
+            band_width = max_hours / config.GALTON_NUM_BANDS
+            detail = f"{band_width:g}h-Bänder, geglättet (Gauß-Radius {galton_sigma}°)"
         else:
             detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
         ax.set_title(
@@ -458,8 +462,10 @@ if __name__ == "__main__":
         help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
     )
     parser.add_argument(
-        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
-        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...), ignoriert von --cmap galton10",
+        "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
+        help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
+             "Farbton statt weiterer Streckung. Gleichmäßig in config.GALTON_NUM_BANDS Bänder "
+             "aufgeteilt (bzw. exakt zehn feste bei --cmap galton10).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
@@ -473,7 +479,7 @@ if __name__ == "__main__":
              "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
              "'galton': interpolierte, an das Original angelehnte Palette. "
              "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: exakt zehn Stufen statt --band-hours).",
+             "(zusammen mit --galton: exakt zehn statt config.GALTON_NUM_BANDS Stufen).",
     )
     parser.add_argument(
         "--labels", action="store_true",
@@ -506,7 +512,7 @@ if __name__ == "__main__":
         config.OUTPUT_H3_CSV, config.OUTPUT_CSV, config.OUTPUT_PORTS_CSV,
         config.OUTPUT_H3_MAP_PNG, config.ORIGIN_AIRPORTS,
         dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, galton=args.galton,
-        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
+        max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
         galton_sigma=args.galton_sigma,
     )

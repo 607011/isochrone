@@ -27,13 +27,21 @@ SHOW_AIRPORTS = False
 SHOW_PORTS = False
 
 # --- "--galton"-Modus: geglättete, diskrete Farbbänder statt Kachel-Mosaik ---
-# Bandbreite in Stunden (0-8, 8-16, 16-24, ...). Bei --cmap galton (10
-# Ankerfarben, interpoliert) ist ein zu kleiner Wert hier problematisch:
-# das Sampling der Ankerfarben liegt dann so dicht, dass die Bänder kaum
-# von --cmap galton10 (dieselben 10 Farben, aber fest statt interpoliert)
-# zu unterscheiden sind. 8h ergibt 6 Bänder, die klar als 5 ineinander
-# übergehende Farbfamilien lesbar sind - wie im Original.
-GALTON_BAND_HOURS = 8
+# Gesamtspanne der Farbskala in Stunden (CLI: --max-hours), von 0 bis hier
+# gleichmäßig in Bänder aufgeteilt - danach der dunkelste Farbton, statt die
+# Skala weiter zu strecken. Bewusst derselbe Default-Wert wie COLOR_CAP_HOURS
+# weiter unten (für den nicht-diskreten Modus), damit sich die
+# Standardausgabe durch die Einführung dieses Schalters nicht ändert.
+GALTON_MAX_HOURS = 48
+
+# Anzahl der Bänder bei --cmap galton (interpolierte Palette) - kein eigener
+# CLI-Schalter, da das eher zum Look der Palette gehört als zur Reichweite
+# der Skala. Bei --cmap galton10 ist die Anzahl ohnehin durch die zehn festen
+# Palettenfarben vorgegeben. 6 Bänder (bei GALTON_MAX_HOURS=48 also 8h breit)
+# sind klar als 5 ineinander übergehende Farbfamilien lesbar, wie im
+# Original - mehr Bänder würden das Sampling der zehn Ankerfarben so dicht
+# machen, dass sie kaum noch von --cmap galton10 zu unterscheiden wären.
+GALTON_NUM_BANDS = 6
 
 # Nachbarschafts-Mittelung auf dem H3-Gitter selbst (1 Ring) glättet zu
 # schwach, um Galtons handgezeichnete, glatte Bänder nachzubilden - das

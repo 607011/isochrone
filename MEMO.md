@@ -1374,6 +1374,55 @@ komplett gelöscht. Ein stehengebliebener Kommentarverweis in
 verifiziert: `friction_map_from_point.py` mit den THU-Koordinaten
 läuft weiterhin fehlerfrei und erzeugt dieselbe Karte.
 
+## Phase 14zE: --band-hours zu --max-hours, galton10 ignoriert es nicht mehr
+
+Nutzer meldete: `--cmap galton10 --band-hours=72` ließ die Farbskala
+weiterhin nur bis 48h (`COLOR_CAP_HOURS`) reichen, nicht bis 72h wie
+erwartet. Kein Bug im engeren Sinn, sondern exakt das dokumentierte,
+aber unerwartete Verhalten: `--band-hours` steuerte bei `--cmap
+galton10` nie die Gesamtspanne, sondern wurde dort komplett ignoriert
+(zehn feste Stufen fest über `COLOR_CAP_HOURS` gelegt) - Nutzer hatte
+`--band-hours` intuitiv als "Reichweite der Skala" verstanden statt
+als "Breite jedes einzelnen Bands".
+
+Erster Fixversuch: `galton10` respektiert `band_hours` wörtlich als
+Bandbreite (zehn feste Bänder × `band_hours`) - Ergebnis: bei
+`--band-hours=72` ging die Skala bis 720h (72×10), nicht bis 72h.
+Technisch korrekt gegenüber der ursprünglichen Bedeutung des Parameters,
+aber nicht das, was der Nutzer wollte oder erwartet hätte - dem Bild
+angesehen und zurückgemeldet, bevor weitergemacht wurde (siehe
+"Empirische Verifikationsdisziplin" in früheren Phasen: Ergebnis erst
+zeigen, dann fragen, nicht annehmen).
+
+Per Nachfrage geklärt: der Parameter soll umbenannt werden zu
+`--max-hours` und direkt als Gesamtspanne der Skala fungieren, nicht
+mehr als Bandbreite. Umgesetzt:
+
+- `config.GALTON_BAND_HOURS` (Bandbreite, Default 8) ersetzt durch
+  zwei getrennte Konstanten: `config.GALTON_MAX_HOURS` (Gesamtspanne,
+  Default 48 - bewusst identisch zum bisherigen `COLOR_CAP_HOURS`,
+  damit sich die Standardausgabe nicht ändert) und
+  `config.GALTON_NUM_BANDS` (Bandanzahl bei `--cmap galton`, Default
+  6 - kein eigener CLI-Schalter, da das eher zum Look der Palette
+  gehört als zur Reichweite).
+- `plot_h3_map()`: `band_hours`-Parameter zu `max_hours` umbenannt.
+  Beide Boundary-Berechnungen (galton und galton10) jetzt einheitlich
+  `np.linspace(0, max_hours, N+1)` - bei `galton10` `N = 10` (fest),
+  sonst `N = config.GALTON_NUM_BANDS`. Vorher: `galton10` ignorierte
+  den Parameter komplett (`np.linspace(0, COLOR_CAP_HOURS, 11)`),
+  `galton` nutzte `np.arange(0, COLOR_CAP_HOURS + band_hours,
+  band_hours)` - eine an `COLOR_CAP_HOURS` gekoppelte, nicht direkt
+  steuerbare Formel.
+- CLI-Schalter `--band-hours` zu `--max-hours` umbenannt, in allen vier
+  Karten-Skripten (`plot_h3_map.py`, `friction_map_from_point.py`,
+  `map_from_airport.py`, `friction_surface_map.py`) sowie der
+  `--cmap`-Hilfe und der `--title`-Legendenzeile (zeigt jetzt die
+  berechnete Bandbreite `max_hours / GALTON_NUM_BANDS`).
+
+Verifiziert mit dem ursprünglich gemeldeten Aufruf
+(`--cmap galton10 --max-hours=72`): Farbskala geht jetzt bis 72h in
+zehn gleich breiten 7,2h-Stufen, wie erwartet.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

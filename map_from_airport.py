@@ -87,7 +87,7 @@ def slug_for(iata, name):
 def main(
     origin_iata, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
-    band_hours=config.GALTON_BAND_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
     travel_times_df = build_travel_times([origin_iata])
@@ -119,7 +119,7 @@ def main(
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
         origin_label=origin_row["name"], dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
-        band_hours=band_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
+        max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, rivers=rivers, galton_sigma=galton_sigma,
     )
 
@@ -138,8 +138,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument(
-        "--band-hours", type=float, default=config.GALTON_BAND_HOURS,
-        help="Bandbreite in Stunden im --galton-Modus (0-4, 4-8, ...), ignoriert von --cmap galton10",
+        "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
+        help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
+             "Farbton statt weiterer Streckung. Gleichmäßig in config.GALTON_NUM_BANDS Bänder "
+             "aufgeteilt (bzw. exakt zehn feste bei --cmap galton10).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
@@ -153,7 +155,7 @@ if __name__ == "__main__":
              "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
              "'galton': interpolierte, an das Original angelehnte Palette. "
              "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: exakt zehn Stufen statt --band-hours).",
+             "(zusammen mit --galton: exakt zehn statt config.GALTON_NUM_BANDS Stufen).",
     )
     parser.add_argument(
         "--labels", action="store_true",
@@ -184,7 +186,7 @@ if __name__ == "__main__":
 
     main(
         args.iata, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, resolution=args.resolution, galton=args.galton,
-        band_hours=args.band_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
+        max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
         galton_sigma=args.galton_sigma,
     )
