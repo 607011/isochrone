@@ -64,7 +64,7 @@ GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 # angesetzt ergibt eine beinahe perfekte, rhythmische Sinuswelle statt
 # eines unregelmäßigen Zitterns - je höher, desto "zufälliger" wirkt die
 # Wellung statt gleichförmig zu schwingen.
-RETRO_SKETCH_SCALE = 0.3        # Amplitude der Linienwellung, in Punkten
+RETRO_SKETCH_SCALE = 0.05       # Amplitude der Linienwellung, in Punkten
 RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Punkten
 RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung
 RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)

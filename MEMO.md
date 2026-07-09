@@ -1520,6 +1520,42 @@ Drei Punkte.
 Verifiziert per erneutem Sichtvergleich (Legenden-Ausschnitt
 vergrößert geprüft) und Regressionslauf ohne `--galton`.
 
+## Phase 14zG: Zittern nochmal subtiler, -v für friction_map_from_point.py
+
+Zwei unabhängige Nachbesserungen.
+
+**Sketch-Amplitude weiter reduziert**: `RETRO_SKETCH_SCALE` von `0.6`
+auf `0.3` (Phase 14zF) reichte dem Nutzer immer noch nicht, um wie ein
+feines Zittern statt einer bewussten Wellung zu wirken. Per
+Sichtprobe auf `0.05` reduziert (Länge/Randomness unverändert bei
+`15`/`10`) - bei normaler Kartenansicht praktisch nicht mehr als
+Wellenlinie wahrnehmbar, nur noch als feine Unregelmäßigkeit,
+funktioniert aber weiterhin (kein no-op wie `scale=None`, das den
+Sketch-Filter komplett abschalten würde).
+
+**`-v`/`--verbose` nur für `friction_map_from_point.py`**: neue
+Hilfsfunktion `_print_config_overview()` gibt vor Beginn der
+eigentlichen Berechnung eine Zusammenfassung der für den Lauf
+wirksamen Konfiguration aus (Startpunkt, H3-Auflösung/DPI, Projektion,
+`--galton`-Einstellungen falls aktiv, aktive Overlays, Heli-/Jetpack-
+Geschwindigkeiten/Reichweiten falls aktiv) - fasst zusammen, was sonst
+über ein Dutzend einzelne CLI-Flags verstreut wäre. Zusätzlich vor
+jedem größeren Arbeitsschritt in `main()` eine `print()`-Zeile
+(Flughafendaten laden, Friction-Graph laden, kombinierte Boden-/Luft-
+Reisezeiten berechnen, Bodenzeit auf Landkacheln verteilen, See-Kacheln
+bauen, CSVs schreiben, Karte zeichnen) - jeweils per `if verbose:`
+gewacht, Standardverhalten ohne `-v` bleibt unverändert (nur die
+bereits vorher unbedingt ausgegebene "Dijkstra fertig"-Zeile aus
+`friction_surface_global.run_dijkstra()` und die finale "Karte
+gespeichert unter"-Zeile, beide unabhängig von diesem Schalter). Bewusst
+nur in diesem einen Skript, nicht in den anderen drei Karten-Skripten -
+explizit so gewünscht.
+
+Verifiziert: Testlauf mit `-v --james-bond --galton ...` zeigt
+Konfigurationsübersicht plus alle Zwischenschritte inklusive korrekter
+Flughafen-Erreichbarkeitszahl; Lauf ohne `-v` bleibt exakt so knapp wie
+zuvor (nur zwei Zeilen Ausgabe).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

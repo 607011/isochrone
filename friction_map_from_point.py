@@ -236,14 +236,52 @@ def _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon):
     return h3_df
 
 
+def _print_config_overview(
+    lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
+    labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack,
+):
+    """Übersicht der für diesen Lauf wirksamen Konfiguration, nur unter -v -
+    fasst zusammen, was sonst über ein Dutzend einzelner CLI-Flags verstreut
+    wäre, bevor die eigentliche (teils mehrere Sekunden dauernde) Berechnung
+    losläuft."""
+    print(f"Startpunkt: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
+    print(f"H3-Auflösung: {resolution}, DPI: {dpi}")
+    print(f"Projektion: {'Robinson' if robinson else 'Mercator'}"
+          + ("" if robinson or lat_limits is None else f", lat-limits {lat_limits[0]:g}/{lat_limits[1]:g}"))
+    if galton:
+        print(f"Darstellung: --galton (cmap={cmap_name}, max-hours={max_hours:g}, "
+              f"galton-sigma={galton_sigma:g}°)")
+    else:
+        print(f"Darstellung: Kachel-Mosaik (cmap={cmap_name})")
+    overlays = [name for name, on in [
+        ("labels", labels), ("grid", grid), ("title", title), ("rivers", rivers),
+        ("airports", show_airports), ("ports", show_ports),
+    ] if on]
+    print(f"Overlays: {', '.join(overlays) if overlays else '(keine)'}")
+    if heli or jetpack:
+        parts = []
+        if heli:
+            parts.append(f"Heli ({config.HELI_SPEED_KMH} km/h, {config.HELI_RANGE_KM} km Reichweite)")
+        if jetpack:
+            parts.append(f"Jetpack ({config.JETPACK_SPEED_KMH} km/h, {config.JETPACK_RANGE_KM} km Reichweite)")
+        print(f"Einstiegs-Etappe: {' + '.join(parts)}")
+    else:
+        print("Einstiegs-Etappe: nur Friction-Surface (kein --heli/--jetpack)")
+
+
 def main(
     lat, lon, label=None, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
-    heli=False, jetpack=False,
+    heli=False, jetpack=False, verbose=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
+    if verbose:
+        _print_config_overview(
+            lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
+            labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack,
+        )
     slug = slug_for_point(lat, lon)
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
     galton_suffix = ("_galton10" if cmap_name == "galton10" else "_galton") if galton else ""
@@ -255,21 +293,38 @@ def main(
     rivers_suffix = "_rivers" if rivers else ""
     air_suffix = "_bond" if heli and jetpack else ("_heli" if heli else "_jetpack" if jetpack else "")
 
+    if verbose:
+        print("Lade Flughafendaten...")
     airports_df = load_airports(config.AIRPORTS_CSV)
+    if verbose:
+        print("Lade Friction-Graph...")
     graph, node_lat, node_lon = friction.load_graph()
+    if verbose:
+        print("Berechne kombinierte Boden-/Luft-Reisezeiten zu jedem Flughafen...")
     travel_times_df, combo_minutes = build_travel_times_from_point(
         lat, lon, graph, node_lat, node_lon, airports_df, heli=heli, jetpack=jetpack,
     )
+    if verbose:
+        print(f"{len(travel_times_df)} Flughäfen erreichbar.")
 
+    if verbose:
+        print("Verteile Bodenzeit auf alle Land-Kacheln...")
     land_result = build_friction_land(
         travel_times_df, graph, node_lat, node_lon,
         minutes_path=f"friction_data/land_travel_minutes_from_{slug}{res_suffix}{air_suffix}.npy",
         resolution=resolution,
     )
+    if verbose:
+        print("Baue See-Kacheln/Häfen...")
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
+    if verbose:
+        print("Wende Fliegen-dann-Laufen-Bodenzeit auf Land-Kacheln an...")
     h3_df = _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon)
-    h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
+    if heli or jetpack:
+        if verbose:
+            print("Färbe Heli-/Jetpack-Reichweite direkt auf alle Kacheln ein...")
+        h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
     # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
     # travel_times_df/h3_df inhaltlich (andere Einstiegszeiten je Flughafen),
@@ -281,10 +336,14 @@ def main(
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
     png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}.png"
 
+    if verbose:
+        print(f"Schreibe {travel_times_csv}, {h3_csv}, {ports_csv}...")
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
     ports_df.to_csv(ports_csv, index=False)
 
+    if verbose:
+        print(f"Zeichne Karte nach {png}...")
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [],
         origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
@@ -369,6 +428,10 @@ if __name__ == "__main__":
         "--james-bond", action="store_true",
         help="Kurzform für --heli --jetpack zusammen",
     )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="Konfigurationsübersicht beim Start sowie Zwischenstandsmeldungen im Verlauf ausgeben",
+    )
     args = parser.parse_args()
 
     main(
@@ -376,5 +439,5 @@ if __name__ == "__main__":
         resolution=args.resolution, galton=args.galton, max_hours=args.max_hours, cmap_name=args.cmap,
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
         lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,
-        heli=args.heli or args.james_bond, jetpack=args.jetpack or args.james_bond,
+        heli=args.heli or args.james_bond, jetpack=args.jetpack or args.james_bond, verbose=args.verbose,
     )
