@@ -176,14 +176,16 @@ CITY_FONT_FALLBACK_FAMILY = "serif"
 BODY_FONT_FALLBACK_FAMILY = "serif"
 
 # Für die Überschrift der --galton-Erklärungsbox (_draw_galton_explanation):
-# im Original eine kräftige, serifenlose Groteskschrift, ganz anders als der
-# Rest der Kartentypografie (Playfair/Libre Baskerville, beides Serifen).
-# Anton (Google Fonts, SIL Open Font License, siehe fonts/Anton-OFL.txt) ist
-# von viktorianischen/frühen Plakat- und Zeitungs-Groteskschriften
-# inspiriert - altertümlicher im Auftritt als das zunächst gewählte, eher
-# moderne Archivo Black. Liegt als statische Datei vor, kein
-# Variable-Font-Umweg nötig.
-EXPLANATION_TITLE_FONT_PATH = "fonts/Anton-Regular.ttf"
+# im Original eine kräftige, serifenlose Groteskschrift, breit statt eng
+# laufend, ganz anders als der Rest der Kartentypografie (Playfair/Libre
+# Baskerville, beides Serifen). Archivo (Google Fonts, SIL Open Font
+# License, siehe fonts/Archivo-OFL.txt) hat eine Breiten- UND eine
+# Gewichtsachse - per fonttools varLib.instancer eine statische Instanz bei
+# maximaler Breite (wdth=125) und maximalem Gewicht (wght=900) erzeugt,
+# dadurch breiter laufend als die eigenständige (schmalere) statische
+# "Archivo Black"-Schnittdatei und näher am Original als das zwischenzeitlich
+# probierte, zu eng laufende Anton.
+EXPLANATION_TITLE_FONT_PATH = "fonts/ArchivoExpanded-Black.ttf"
 EXPLANATION_TITLE_FONT_FALLBACK_FAMILY = "sans-serif"
 
 TITLE_FONT_SIZE = 18
@@ -192,14 +194,20 @@ CITY_FONT_SIZE = 7.5
 CITY_MARKER_SIZE = 2
 
 # --- Erklärungstext im --galton-Modus (siehe plot_h3_map.py:_draw_galton_explanation) ---
-# Wie bei Galtons Original: ein knapper Erklärungstext unten links auf der
-# Karte selbst (nicht Teil der Farberklärung darunter), direkt über der
-# Ursprungs-Legende (dem Stern) gestapelt, mit hellerem Hintergrund für
-# besseren Kontrast vor der Karte.
-EXPLANATION_TITLE_FONT_SIZE = 13
-EXPLANATION_SUBTITLE_FONT_SIZE = 9
-EXPLANATION_BODY_FONT_SIZE = 8.5
-EXPLANATION_BODY_WRAP_CHARS = 48
+# Wie bei Galtons Original: ein knapper Erklärungstext auf der Karte selbst
+# (nicht Teil der Farberklärung darunter), mit hellerem Hintergrund für
+# besseren Kontrast vor der Karte. Ursprünglich unten links über der
+# Ursprungs-Legende platziert, verdeckte dort aber Pazifik-Inseln (Samoa) -
+# jetzt stattdessen im Indischen Ozean zwischen Madagaskar und Australien
+# verankert (EXPLANATION_ANCHOR_LON/_LAT), wo deutlich mehr freie
+# Wasserfläche ist. Etwas kleinere Schrift/Zeilenbreite als beim ersten
+# Versuch, damit die Box in diese schmalere Lücke passt.
+EXPLANATION_ANCHOR_LON = 80.0
+EXPLANATION_ANCHOR_LAT = -42.0
+EXPLANATION_TITLE_FONT_SIZE = 10
+EXPLANATION_SUBTITLE_FONT_SIZE = 7.5
+EXPLANATION_BODY_FONT_SIZE = 7
+EXPLANATION_BODY_WRAP_CHARS = 34
 EXPLANATION_BG_COLOR = "#f2ede0"  # heller als BACKGROUND_COLOR (#dad4bb)
 EXPLANATION_BG_ALPHA = 0.85
 EXPLANATION_BG_PAD_PT = 5.0

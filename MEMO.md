@@ -1894,6 +1894,62 @@ Attribution, zentrierte Zeilen mit linksbündigem, aber als Block
 zentriertem Absatz); Regressionslauf ganz ohne `--galton` zeigt weiterhin
 keine Box.
 
+## Phase 14zQ: Box in den Indischen Ozean verlegt, Titel korrigiert, breitere Schrift
+
+Zwei weitere Nachbesserungen.
+
+**Position**: die Box (bislang über der Ursprungs-Legende unten links)
+verdeckte Samoa - der Nutzer bemerkte, dass eine Mercator-Karte in der
+unteren linken Ecke nahe der Datumsgrenze liegt, wo einige pazifische
+Inseln sitzen. Vorschlag: in den Indischen Ozean zwischen Madagaskar
+und Australien verlegen, die größte zusammenhängende freie
+Wasserfläche in diesem Breitenband. Umgesetzt:
+
+- Neue Konfigurationswerte `EXPLANATION_ANCHOR_LON`/`_LAT` (nach
+  mehreren Sichtproben bei 80°O/-42°S gelandet - erste Versuche bei
+  75°O/-30°S und 78°O/-33°S überlappten noch mit Afrikas Ostküste bzw.
+  Singapur/Jakarta, da die Box durch den schmaleren Zeilenumbruch mehr
+  Zeilen und dadurch mehr Höhe brauchte als gedacht).
+- `_draw_galton_explanation()` verankert die Box jetzt an diesem
+  Lon/Lat-Punkt statt an der Legende: `ax.projection.transform_point()`
+  + `ax.transData.transform()` übersetzen ihn in Pixel-Koordinaten -
+  dieselbe Umrechnung, die Cartopy für `transform=ccrs.PlateCarree()`-
+  Elemente intern vornimmt, hier aber explizit für eigene
+  Layout-Berechnungen statt nur zum Zeichnen.
+- Da jetzt auch die Gesamthöhe vorab unbekannt ist (nicht nur die
+  Breite wie bei der Farberklärung), werden alle Zeilen zunächst ab
+  einer vorläufigen Basislinie y=0 gestapelt, danach der gesamte Block
+  als Ganzes so verschoben, dass der Ankerpunkt seine vertikale Mitte
+  trifft - derselbe "erst platzieren, dann verschieben"-Trick wie bei
+  der horizontalen Zentrierung, nur zusätzlich vertikal angewendet.
+- Schriftgrößen und Zeilenumbruchbreite verkleinert
+  (`EXPLANATION_TITLE_FONT_SIZE` 13→10, `_SUBTITLE` 9→7.5, `_BODY`
+  8.5→7, `_WRAP_CHARS` 48→32), damit die Box in die schmalere Lücke
+  passt - der Nutzer hatte kleinere Schrift explizit erlaubt.
+- Funktionssignatur verliert den `legend`-Parameter (nicht mehr
+  gebraucht), Aufrufstelle entsprechend angepasst.
+
+**Titel korrigiert**: "ISOCHRONIC TRAVEL-TIME CHART" war semantisch
+unstimmig - Nutzerhinweis: "Isochronic Passage" (Original) ergibt
+Sinn, aber "Isochronic Travel-time" nicht; "Travel-time" ist zudem
+überflüssig, da direkt darunter schon "FOR TRAVELLERS," steht. Neu:
+"ISOCHRONE CHART".
+
+**Breitere Groteskschrift**: Anton (Phase 14zP) war zu eng laufend -
+Nutzerwunsch: "eine Grotesk, die breiter läuft, passend zum Original".
+Archivo (dieselbe Familie wie der ursprüngliche erste Versuch, Archivo
+Black) hat eine Variable-Font-Breitenachse (`wdth`, 62-125) zusätzlich
+zur Gewichtsachse - eine statische Instanz bei `wght=900`/`wdth=125`
+(fonttools `varLib.instancer`) ist sowohl fett als auch spürbar breiter
+als die eigenständige "Archivo Black"-Schnittdatei. `fonts/Anton-*`
+entfernt, `fonts/ArchivoExpanded-Black.ttf` (+ `Archivo-OFL.txt`) neu.
+
+Verifiziert: Testrender zeigt die Box sauber im Indischen Ozean ohne
+Überlappung mit Madagaskar, Afrika oder Indonesien/Australien, sowohl
+unter Mercator als auch `--robinson`; `--cmap galton10` (gepaarte
+Farbfelder) und der Regressionslauf ganz ohne `--galton` funktionieren
+unverändert.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

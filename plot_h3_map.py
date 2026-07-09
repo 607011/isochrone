@@ -376,11 +376,14 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
     footer.set_position((ax_center - footer_width / 2, y - 0.028))
 
 
-def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
+def _draw_galton_explanation(fig, ax, origin_label, heli, jetpack):
     """Erklärungstext im Stil von Galtons Original (1881, siehe MEMO.md) -
-    unten links auf der Karte selbst, direkt über der Ursprungs-Legende
-    (dem Stern) gestapelt, nicht zu verwechseln mit der separaten
-    Farberklärung unterhalb der Karte (_draw_galton_color_legend).
+    verankert im Indischen Ozean zwischen Madagaskar und Australien
+    (EXPLANATION_ANCHOR_LON/_LAT in config.py), nicht zu verwechseln mit
+    der separaten Farberklärung unterhalb der Karte
+    (_draw_galton_color_legend). Ursprünglich unten links über der
+    Ursprungs-Legende platziert, verdeckte dort aber pazifische Inseln
+    (Samoa) - der Indische Ozean bietet deutlich mehr freie Wasserfläche.
 
     Anders als Galtons pauschales "showing the shortest number of days
     journey from London by the quickest through routes and using such
@@ -395,28 +398,35 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     an die Stelle von Galtons vagem "local preparations have been made
     and other circumstances are favourable".
 
-    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert (der
-    horizontalen Mitte der Ursprungs-Legende), bis auf den Fließtext-
-    Absatz: matplotlib kennt keinen echten Blocksatz (der bräuchte
-    Wort-für-Wort-Platzierung mit dynamisch berechnetem Wortabstand) -
-    der Absatz bleibt daher pro Zeile linksbündig, aber als Ganzes
-    (anhand seiner breitesten Zeile) auf dieselbe Mittelachse zentriert,
-    statt komplett linksbündig wie zuvor.
+    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert, bis auf
+    den Fließtext-Absatz: matplotlib kennt keinen echten Blocksatz (der
+    bräuchte Wort-für-Wort-Platzierung mit dynamisch berechnetem
+    Wortabstand) - der Absatz bleibt daher pro Zeile linksbündig, aber
+    als Ganzes (anhand seiner breitesten Zeile) auf dieselbe Mittelachse
+    zentriert, statt komplett linksbündig wie zuvor.
 
-    Positionierung wie bei der Farberklärung: Text wird zunächst
-    unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
-    gerenderten Breiten/Höhen zu kennen (fig.canvas.draw() +
-    get_window_extent(), da diese von Schriftart/-größe abhängen), dann
-    an die endgültige Position verschoben. Die Zeilen werden von unten
-    nach oben in umgekehrter Lesereihenfolge gestapelt (Attribution
-    zuerst, Titel zuletzt), weil jede neue Zeile über der vorherigen
-    erscheint.
+    Positionierung: der Ankerpunkt (Lon/Lat) wird über
+    ax.projection.transform_point() + ax.transData in Pixel-Koordinaten
+    übersetzt - dieselbe Umrechnung, die Cartopy für mit
+    transform=ccrs.PlateCarree() gezeichnete Elemente intern vornimmt,
+    hier aber explizit, da wir die Position für eigene Layout-Berechnungen
+    brauchen, nicht nur zum Zeichnen. Alle Textzeilen werden zunächst ab
+    einer vorläufigen Basislinie y=0 gestapelt (von unten nach oben, in
+    umgekehrter Lesereihenfolge: Attribution zuerst, Titel zuletzt, weil
+    jede neue Zeile über der vorherigen erscheint), dann wird der gesamte
+    Block als Ganzes um den Ankerpunkt vertikal zentriert verschoben -
+    derselbe "erst platzieren, dann verschieben"-Trick wie bei der
+    horizontalen Zentrierung der Farberklärung, hier nur vertikal
+    angewendet, da die Gesamthöhe erst nach dem Platzieren aller Zeilen
+    bekannt ist.
     """
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
-    legend_bbox = legend.get_window_extent(renderer)
-    center_x_px = (legend_bbox.x0 + legend_bbox.x1) / 2
+    proj_x, proj_y = ax.projection.transform_point(
+        config.EXPLANATION_ANCHOR_LON, config.EXPLANATION_ANCHOR_LAT, ccrs.PlateCarree(),
+    )
+    anchor_x_px, anchor_y_px = ax.transData.transform((proj_x, proj_y))
 
     body = (
         f"showing the shortest number of hours’ journey from {origin_label} "
@@ -447,10 +457,10 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         fig.canvas.draw()
         max_body_width_px = max(max_body_width_px, t.get_window_extent(renderer).width)
         body_artists.append(t)
-    para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
+    para_x = (anchor_x_px - max_body_width_px / 2) / fig_w_px
 
-    x_center = center_x_px / fig_w_px
-    y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
+    x_center = anchor_x_px / fig_w_px
+    y = 0.0  # vorläufige Basislinie - der ganze Block wird am Ende vertikal verschoben
     line_gap_px = 2.0 * fig.dpi / 72.0
     para_gap_px = 4.0 * fig.dpi / 72.0
     all_artists = list(body_artists)
@@ -483,7 +493,17 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         "FOR TRAVELLERS,", CONTINENT_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE,
         extra_gap_px=para_gap_px,
     )
-    place_centered("ISOCHRONIC TRAVEL-TIME CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+    place_centered("ISOCHRONE CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+
+    # y steht jetzt am oberen Ende des Titels - die bislang ab y=0
+    # gestapelten Zeilen als Ganzes so verschieben, dass der Block um den
+    # Ankerpunkt vertikal zentriert erscheint, statt an einer festen
+    # Unterkante zu beginnen.
+    total_height_px = y * fig_h_px
+    vertical_shift = (anchor_y_px - total_height_px / 2) / fig_h_px
+    for artist in all_artists:
+        px, py = artist.get_position()
+        artist.set_position((px, py + vertical_shift))
 
     # Hellerer Hintergrund für besseren Kontrast vor der (teils dunklen)
     # Karte - eine Fläche hinter allen Textelementen, anhand deren
@@ -785,7 +805,7 @@ def plot_h3_map(
             handle.set_sizes(handle.get_sizes() / 4)
 
     if galton:
-        _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack)
+        _draw_galton_explanation(fig, ax, origin_label, heli, jetpack)
 
     if labels:
         _draw_labels(ax)
