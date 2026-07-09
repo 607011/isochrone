@@ -2411,6 +2411,52 @@ mit unverändertem `_a3`-Dateinamens-Suffix; `--paper nonsense` bricht
 mit einer klaren argparse-Fehlermeldung ab statt eines rohen
 Tracebacks.
 
+## Phase 14zZf: Lücke am Kartenrand (Datumsgrenze) im Kachel-Mosaik
+
+Nutzer zeigte einen Screenshot mit `--cmap magma_r` (Kachel-Mosaik,
+nicht `--galton`): breite, gezackte Lücken am linken UND rechten
+Kartenrand, wo eigentlich Ozean-Kacheln sein sollten - gegen den
+dunklen magma_r-Hintergrund gut sichtbar (heller Ozean-Grundfill
+`#d9e8f5` scheint durch, keine Kachelfarbe).
+
+Ursachensuche: Testrender mit `friction_map_from_point.py 52.3859856
+9.8103063 --cmap magma_r -r 2 ...` reproduziert. Direkter Test von
+`h3.cell_to_boundary()` für Kacheln nahe der Datumsgrenze zeigt: der
+naive `max(lons) - min(lons)`-Spann liegt für GEWÖHNLICHE, kleine
+Antimeridian-Kacheln (Eckpunkte z.B. bei -179,9° und 179,9°) genauso
+bei ~358-360° wie für echte Pol-Kacheln - Längengrad ist an der
+Datumsgrenze nicht wrap-aware, das Überqueren sieht rechnerisch aus
+wie einmal um die ganze Welt. `POLE_DEGENERACY_THRESHOLD_DEG = 300`
+(reiner Längengrad-Schwellwert) erkannte damit zwar echte Pol-Kacheln
+korrekt, verwarf aber genauso jede gewöhnliche Antimeridian-Kachel
+komplett (`return None`/`[]`) - bei einem Test mit 87 Kandidaten-
+Kacheln nahe der Datumsgrenze waren nur 6 tatsächlich Pol-Kacheln
+(Breite > 85°), 82 wurden fälschlich mitverworfen.
+
+Fix in zwei Teilen:
+1. `POLE_LAT_THRESHOLD_DEG = 80` (BREITEN- statt Längengrad-Schwellwert)
+   ersetzt `POLE_DEGENERACY_THRESHOLD_DEG` - echte Pol-Kacheln haben auch
+   bei der gröbsten H3-Auflösung (0) Eckpunkt-Breiten von mindestens
+   ~82°, Antimeridian-Kacheln dagegen gewöhnliche Breiten irgendwo auf
+   der Welt. Damit werden beide Fälle korrekt unterschieden.
+2. `_cell_polygon_lonlat()` verschob Antimeridian-Kacheln bisher NUR
+   auf die Ostseite (`lon + 360` für negative Längen) - eine einzelne,
+   komplett verschobene Kachel liegt dann aber, je nach sichtbarem
+   Kartenausschnitt (`ax.set_extent` geht nur bis ±179,9°, siehe
+   `plot_h3_map()`), entweder ganz außerhalb oder nur teilweise im
+   Bild. Gibt jetzt ZWEI Kopien zurück (Ost: `+360`, West: `-360`) -
+   `plot_h3_map()` dupliziert den zugehörigen `reisezeit_stunden`-Wert
+   entsprechend, matplotlib clippt beim Rendern automatisch die jeweils
+   nicht sichtbare Kopie weg.
+
+Verifiziert: Vorher/Nachher-Crop derselben Kartenränder zeigt bei `-r 2`
+(sehr grobe Auflösung) jetzt Kachel-Fragmente statt einer durchgehenden
+Lücke über die volle Bildhöhe; bei Standardauflösung reicht die
+Kachelabdeckung jetzt lückenlos bis an beide Kartenränder. Die bei `-r 2`
+verbleibende, ungleichmäßige horizontale Bänderung ist eine
+vorbestehende Eigenschaft der groben Auflösung selbst (über die GANZE
+Karte sichtbar, nicht nur am Rand), keine neue Auffälligkeit.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
