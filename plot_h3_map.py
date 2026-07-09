@@ -366,7 +366,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
         # z.B. --max-hours=40 bei fünf Bändern (8h je Band) "more than 32h."
         # zeigen statt "more than 40h.", obwohl die Skala selbst bis 40h
         # geht und erst darüber (extend="max") derselbe Farbton greift.
-        label = f"more than {upper_h}h." if is_last else f"{lower_h}-{upper_h}h."
+        label = f"more than {upper_h}h." if is_last else f"{lower_h}-{upper_h} hours."
         place_text(label)
 
     total_width = x - gap / fig_w_px
@@ -390,14 +390,20 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
 
 def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     """Erklärungstext im Stil von Galtons Original (1881, siehe MEMO.md) -
-    unten links auf der Karte selbst, direkt über der Ursprungs-Legende
-    (dem Stern) gestapelt, nicht zu verwechseln mit der separaten
-    Farberklärung unterhalb der Karte (_draw_galton_color_legend). War
-    zwischenzeitlich (Phase 14zQ) im Indischen Ozean verankert, weil die
-    damals noch breitere Box an dieser Stelle pazifische Inseln (Samoa)
-    verdeckte - seit die Attribution auf zwei Zeilen umbricht (Phase
-    14zR) ist die Box schmal genug, um wieder links auf der Karte zu
-    passen, ohne dorthin zu ragen.
+    fest unten links in der Kartenecke verankert (Phase 14zY), nicht zu
+    verwechseln mit der separaten Farberklärung unterhalb der Karte
+    (_draw_galton_color_legend). Die Ursprungs-Legende (der Stern) wird
+    stattdessen HIER, am Ende dieser Funktion, über den Kasten gestapelt
+    (`legend.set_bbox_to_anchor()`) - umgekehrt zur früheren Anordnung, wo
+    der Kasten über der an ihrer festen Ecke verbleibenden Legende
+    stand. Grund: der Kasten soll immer an derselben, vorhersagbaren
+    Stelle stehen, während die Legende (deren Höhe je nach Airport-/Port-
+    Anzeige variiert) sich flexibel daran ausrichtet - nicht umgekehrt.
+    War zwischenzeitlich (Phase 14zQ) im Indischen Ozean verankert, weil
+    die damals noch breitere Box an dieser Stelle pazifische Inseln
+    (Samoa) verdeckte - seit die Attribution auf zwei Zeilen umbricht
+    (Phase 14zR) ist die Box schmal genug, um wieder links auf der Karte
+    zu passen, ohne dorthin zu ragen.
 
     Anders als Galtons pauschales "showing the shortest number of days
     journey from London by the quickest through routes and using such
@@ -420,11 +426,12 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     zentriert, statt komplett linksbündig wie zuvor. Die Mittelachse
     selbst liegt so, dass der HINTERGRUND der Box (nicht nur der Text -
     siehe pad_px-Verschiebung unten) als Ganzes linksbündig mit der
-    sichtbaren Ursprungs-Legende abschließt, statt die Legenden-Mitte zu
-    treffen - sonst würde die Box über den linken Legendenrand hinaus in
-    die Gradzahlen am Kartenrand hineinragen (Textblock) bzw. sogar bis
-    an den Kartenrahmen selbst reichen (Hintergrund, dessen eigenes
-    Padding sonst über den Legendenrand hinausragen würde).
+    Kartenecke abschließt, an der die Legende ursprünglich (vor dem
+    Verschieben, siehe unten) stand - sonst würde die Box über deren
+    linken Rand hinaus in die Gradzahlen am Kartenrand hineinragen
+    (Textblock) bzw. sogar bis an den Kartenrahmen selbst reichen
+    (Hintergrund, dessen eigenes Padding sonst darüber hinausragen
+    würde).
 
     Positionierung wie bei der Farberklärung: Text wird zunächst
     unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
@@ -493,7 +500,12 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
 
     x_center = center_x_px / fig_w_px
-    y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
+    # Startet an der festen Kartenecke (legend_bbox.y0, die Legende stand
+    # dort ursprünglich per loc="lower left") statt oberhalb der Legende -
+    # der Kasten übernimmt jetzt deren Eckposition, siehe Docstring. Wie
+    # beim linken Rand: +pad_px, damit der Hintergrund nach seiner eigenen
+    # Erweiterung um pad_px wieder exakt auf legend_bbox.y0 landet.
+    y = (legend_bbox.y0 + pad_px) / fig_h_px
     line_gap_px = 2.0 * fig.dpi / 72.0
     para_gap_px = 4.0 * fig.dpi / 72.0
     all_artists = list(body_artists) + [title_artist, subtitle_artist, attr1_artist, attr2_artist]
@@ -543,6 +555,16 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         alpha=config.EXPLANATION_BG_ALPHA, zorder=5, clip_on=False,
     )
     ax.add_patch(bg_rect)
+
+    # Ursprungs-Legende jetzt über den Kasten schieben, statt an ihrer
+    # ursprünglichen Eckposition zu belassen - loc="lower left" bleibt
+    # dabei aktiv, nur der Ankerpunkt wandert auf die Kastenoberkante,
+    # sodass die Legende weiterhin mit ihrer eigenen Unterkante links dort
+    # andockt (set_bbox_to_anchor akzeptiert auch nur einen Punkt statt
+    # einer vollen Bbox, interpretiert per loc).
+    gap_axes = config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0 / ax.get_window_extent(renderer).height
+    legend.set_bbox_to_anchor((bg_axes.x0, bg_axes.y1 + gap_axes), transform=ax.transAxes)
+    fig.canvas.draw()
 
 
 def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):

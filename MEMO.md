@@ -2158,6 +2158,40 @@ Verifiziert: Zoom auf die linke Kartenkante zeigt jetzt einen
 einheitlichen kleinen Abstand zum Rahmen für Erklärungskasten UND
 Ursprungs-Legende, beide Hintergründe schließen links exakt bündig ab.
 
+## Phase 14zY: Erklärungskasten fest in der Kartenecke, Legende darüber
+
+Nutzerwunsch: der Erklärungskasten soll immer fest unten links in der
+Kartenecke stehen (bisher stand dort die Ursprungs-Legende, der Kasten
+stapelte sich darüber - abhängig von der variablen Legendenhöhe, die
+mit `--airports`/`--ports` wächst). Stattdessen soll die Legende sich
+jetzt oberhalb des Kastens anordnen.
+
+Umsetzung: `legend_bbox` (aus `legend.get_window_extent()`) liefert
+weiterhin die ursprüngliche Eckposition der Legende (`loc="lower
+left"` plus deren eigenes Padding) - genau die Position, die jetzt der
+KASTEN übernehmen soll. Der Textblock-Stapel in
+`_draw_galton_explanation()` startet daher jetzt bei `legend_bbox.y0 +
+pad_px` (statt `legend_bbox.y1 + GALTON_LEGEND_GAP_PT`) und baut sich
+wie zuvor von unten nach oben auf - nur dass "unten" jetzt die
+Kartenecke selbst ist, nicht mehr oberhalb der Legende. Am Ende der
+Funktion, nachdem `bg_axes` (Hintergrund-Bbox in Achsen-Koordinaten)
+feststeht, wird die Legende explizit verschoben:
+`legend.set_bbox_to_anchor((bg_axes.x0, bg_axes.y1 + gap_axes),
+transform=ax.transAxes)` - `loc="lower left"` bleibt dabei aktiv, nur
+der Ankerpunkt wandert von der Achsenecke auf die Kastenoberkante, die
+Legende dockt also weiterhin mit ihrer eigenen linken Unterkante genau
+dort an. `bg_axes.x0` wird direkt als neuer X-Anker wiederverwendet
+(kein separater Abgleich nötig, da Kasten und Legende ohnehin denselben
+linken Rand teilen sollen). `gap_axes` folgt demselben Punkt-zu-Achsen-
+Bruchteil-Muster wie bei den Signaturzeilen (Phase 14zT): Umrechnung
+über die Achsenhöhe in Pixeln (`ax.get_window_extent(renderer).height`),
+nicht die Figure-Höhe.
+
+Verifiziert: Testrender ohne und mit `--airports --ports` (dreizeilige
+statt einzeilige Legende) zeigt in beiden Fällen den Kasten unverändert
+an derselben Eckposition, die Legende wächst/verschiebt sich korrekt
+darüber, beide Hintergründe bleiben linksbündig zueinander.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
