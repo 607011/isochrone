@@ -68,16 +68,20 @@ GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 # Rahmen) leicht "handgezeichnet" wackeln lassen statt sie geometrisch perfekt
 # zu ziehen (matplotlibs eingebauter Artist.set_sketch_params(), derselbe
 # Mechanismus wie hinter plt.xkcd()), plus ein gealtertes Papier-Rauschen als
-# Postprocessing-Schritt übers fertige PNG. Werte per Sichtprobe kalibriert:
-# genug Wackeln/Körnung, um wie gestochen statt digital gezeichnet zu wirken,
-# ohne die Lesbarkeit zu beeinträchtigen - siehe MEMO.md.
+# Postprocessing-Schritt übers fertige PNG. Werte per Sichtprobe bei
+# config.MAP_DPI kalibriert: genug Wackeln/Körnung, um wie gestochen statt
+# digital gezeichnet zu wirken, ohne die Lesbarkeit zu beeinträchtigen -
+# siehe MEMO.md.
 # randomness deutlich über matplotlibs eigenem Default (16) zu niedrig
 # angesetzt ergibt eine beinahe perfekte, rhythmische Sinuswelle statt
 # eines unregelmäßigen Zitterns - je höher, desto "zufälliger" wirkt die
 # Wellung statt gleichförmig zu schwingen.
-RETRO_SKETCH_SCALE = 0.1       # Amplitude der Linienwellung, in Punkten
-RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Punkten
-RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung
+# scale/length sind laut matplotlib-Doku Pixel, nicht Punkte - werden in
+# _sketch() (plot_h3_map.py) mit dpi/MAP_DPI skaliert, damit die Wellung bei
+# einem anderen --dpi als hier kalibriert optisch gleich groß bleibt.
+RETRO_SKETCH_SCALE = 0.1       # Amplitude der Linienwellung, in Pixeln bei MAP_DPI
+RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Pixeln bei MAP_DPI
+RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung (dimensionsloser Faktor)
 RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)
 
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt

@@ -272,19 +272,32 @@ def parse_lat_limits(s):
     return float(north_str), float(south_str)
 
 
-def _sketch(artist):
+def _sketch(artist, dpi):
     """Lässt einen Linien-/Patch-Artist leicht 'handgezeichnet' wackeln statt
     geometrisch perfekt zu wirken - matplotlibs eingebauter Mechanismus
     hinter plt.xkcd(), hier gezielt nur auf einzelne Artists angewendet
     statt global. Wirkt auf jeden Artist mit set_sketch_params (Cartopys
-    FeatureArtist/Gridliner und matplotlib-Patches gleichermaßen)."""
+    FeatureArtist/Gridliner und matplotlib-Patches gleichermaßen).
+
+    scale/length sind laut matplotlib-Doku Pixel, keine Punkte (Kommentar
+    bei RETRO_SKETCH_SCALE/_LENGTH in config.py ist insofern irreführend) -
+    und wirken erst beim tatsächlichen Rendern in fig.savefig(dpi=dpi), nicht
+    zum hier üblichen Zwischen-fig.dpi (rcParams-Default, unabhängig vom
+    --dpi-Schalter). Ein fester Pixelwert sähe bei höherem --dpi also
+    zunehmend feiner/unauffälliger aus (derselbe Pixelbetrag entspricht
+    einer kleineren physischen Länge) und bei niedrigerem --dpi gröber -
+    deshalb hier mit dpi/config.MAP_DPI (dem Kalibrierungswert der
+    Konstanten) skaliert, damit die Wellung unabhängig von --dpi optisch
+    gleich groß bleibt. randomness ist dagegen ein dimensionsloser
+    Skalierungsfaktor (keine Pixelgröße) und bleibt unskaliert."""
+    scale_factor = dpi / config.MAP_DPI
     artist.set_sketch_params(
-        scale=config.RETRO_SKETCH_SCALE, length=config.RETRO_SKETCH_LENGTH,
+        scale=config.RETRO_SKETCH_SCALE * scale_factor, length=config.RETRO_SKETCH_LENGTH * scale_factor,
         randomness=config.RETRO_SKETCH_RANDOMNESS,
     )
 
 
-def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
+def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
     """Farberklärung im Stil von Galtons Original (1881): eine einzelne
     knappe, horizontal zentrierte Zeile 'Explanation of colours.' gefolgt
     von Farbfeld+Bereich je Band ('0-8h.', '8-16h.', ..., 'more than 48h.'
@@ -338,7 +351,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
             transform=fig.transFigure, facecolor=color, edgecolor=ANTHRACITE,
             linewidth=COASTLINE_LINEWIDTH, zorder=10,
         )
-        _sketch(r)
+        _sketch(r, dpi)
         fig.add_artist(r)
         artists.append(r)
         x += swatch_w / fig_w_px
@@ -366,7 +379,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
         # z.B. --max-hours=40 bei fünf Bändern (8h je Band) "more than 32h."
         # zeigen statt "more than 40h.", obwohl die Skala selbst bis 40h
         # geht und erst darüber (extend="max") derselbe Farbton greift.
-        label = f"more than {upper_h}h." if is_last else f"{lower_h}-{upper_h} hours."
+        label = f"more than {upper_h} hours." if is_last else f"{lower_h}–{upper_h}h."
         place_text(label)
 
     total_width = x - gap / fig_w_px
@@ -380,7 +393,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
 
     footer_fontsize = config.GALTON_LEGEND_FONT_SIZE * 2 / 3
     footer = fig.text(
-        0, y - 0.028, "Published by heise Medien, 2026.", fontproperties=CITY_FONT,
+        0, y - 0.028, "Published by heise Medien / c’t, 2026.", fontproperties=CITY_FONT,
         fontsize=footer_fontsize, color=ANTHRACITE, va="center", ha="left",
     )
     fig.canvas.draw()
@@ -688,7 +701,7 @@ def plot_h3_map(
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
     coast = ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
     if galton:
-        _sketch(coast)
+        _sketch(coast, dpi)
 
     if rivers:
         # Natural-Earth-Layer für die großen, weltweit bedeutsamen Flüsse
@@ -697,7 +710,7 @@ def plot_h3_map(
         # Galtons Original, das auch nur die prominenten Flüsse zeigt.
         river_feature = ax.add_feature(cfeature.RIVERS, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)
         if galton:
-            _sketch(river_feature)
+            _sketch(river_feature, dpi)
 
     if grid or galton:
         # Im --galton-Modus sollen wie im Original 1881 die Gradzahlen
@@ -743,7 +756,7 @@ def plot_h3_map(
         # umschließt statt sie unbegrenzt draußen stehen zu lassen.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
         ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
-        _sketch(ax.spines["geo"])
+        _sketch(ax.spines["geo"], dpi)
         fig.canvas.draw()
         # set_sketch_params() auf dem Gridliner-Objekt selbst wirkt nicht -
         # die tatsächlich gezeichneten Linien sind eigene LineCollection-
@@ -753,7 +766,7 @@ def plot_h3_map(
         # (Bedingung dieses Blocks) die Bedingung des gridlines()-Blocks
         # weiter oben (grid or galton) impliziert.
         for line_artist in list(gl.xline_artists) + list(gl.yline_artists):
-            _sketch(line_artist)
+            _sketch(line_artist, dpi)
         renderer = fig.canvas.get_renderer()
 
         # Innerer Rahmen: knapp innerhalb der Spine, ergibt den dünnen
@@ -768,7 +781,7 @@ def plot_h3_map(
             (inner_axes.x0, inner_axes.y0), inner_axes.width, inner_axes.height,
             transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
         )
-        _sketch(inner_rect)
+        _sketch(inner_rect, dpi)
         ax.add_patch(inner_rect)
 
         # Äußerer Rahmen: umschließt nicht nur die Kartenachse selbst,
@@ -787,7 +800,7 @@ def plot_h3_map(
             transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=FRAME_LINEWIDTH, zorder=5,
             clip_on=False,
         )
-        _sketch(outer_rect)
+        _sketch(outer_rect, dpi)
         ax.add_patch(outer_rect)
 
         # Signaturzeile wie im Original, das sich dort mit Kartograph
@@ -879,7 +892,7 @@ def plot_h3_map(
             swatch_colors = GALTON_COLORS
         else:
             swatch_colors = [cmap((i + 0.5) / n_bands) for i in range(n_bands)]
-        _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton")
+        _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton", dpi=dpi)
     else:
         cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
         cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")

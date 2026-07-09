@@ -2253,6 +2253,38 @@ Verifiziert: Testrender zeigt Breitengrad-Beschriftungen jetzt bei
 0, 20, 40, 60 (im aktuellen 80°N/60°S-Ausschnitt sichtbar) statt den
 vorherigen unregelmäßigen Werten.
 
+## Phase 14zZb: Sketch-Wellung an --dpi/--paper koppeln
+
+Nutzerbeobachtung: "die Zittrigkeit der Linien" müsse an die Auflösung
+angepasst werden. Ursache: `set_sketch_params(scale, length, ...)` (matplotlib-
+Doku bestätigt) erwartet Pixelwerte, keine Punkte - der Kommentar in
+config.py war insofern irreführend. `RETRO_SKETCH_SCALE`/`_LENGTH` waren als
+feste Pixelzahlen definiert und bei `config.MAP_DPI` (150) per Augenmaß
+kalibriert; sie wirken aber erst beim tatsächlichen Rendern in
+`fig.savefig(dpi=dpi)`, nicht beim bisher meist verwendeten
+Zwischen-`fig.dpi` (rcParams-Default, unabhängig vom `--dpi`-Schalter, der
+erst beim Speichern übergeben wird). Bei höherem `--dpi` (oder `--paper` mit
+hohem `--dpi`) blieb derselbe Pixelwert also eine kleinere physische Länge
+- die Wellung wurde zunehmend unsichtbar; bei niedrigerem `--dpi` dagegen
+eine größere physische Länge - die Wellung wurde grob/klobig.
+
+Fix: `_sketch(artist, dpi)` bekommt jetzt den tatsächlichen Ausgabe-`dpi`
+übergeben (nicht `fig.dpi`) und skaliert `scale`/`length` mit
+`dpi / config.MAP_DPI`, bevor sie an `set_sketch_params()` gehen - die
+Wellung bleibt dadurch unabhängig vom gewählten `--dpi` optisch gleich
+groß (gleicher Bruchteil eines Zolls). `randomness` ist laut Doku ein
+dimensionsloser Skalierungsfaktor, keine Pixelgröße, bleibt daher
+unskaliert. `dpi` musste dafür bis in `_draw_galton_color_legend()`
+durchgereicht werden (neuer Parameter), alle anderen `_sketch()`-Aufrufe
+liegen bereits direkt in `plot_h3_map()`, wo `dpi` als lokaler Parameter
+verfügbar ist.
+
+Verifiziert: derselbe geografische Kartenausschnitt bei `--dpi 75` und
+`--dpi 300` (Faktor 4), beide auf dieselbe Pixelgröße gebracht (Vergleich
+per direktem Crop-Nebeneinander) - die Küstenlinien-Wellung wirkt jetzt in
+beiden Fällen gleich stark/gleich fein, statt bei 300dpi kaum sichtbar
+und bei 75dpi deutlich gröber zu sein.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
