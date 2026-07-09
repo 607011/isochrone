@@ -16,7 +16,7 @@ import config
 from h3_grid import build_grid
 from land_mask import is_land
 from main_h3 import _output_path_for
-from plot_h3_map import parse_lat_limits, plot_h3_map
+from plot_h3_map import parse_lat_limits, parse_paper, plot_h3_map
 
 TRAVEL_MINUTES_NPY = "friction_data/land_travel_minutes.npy"
 NODE_LATLON_NPY = "friction_data/land_node_latlon.npy"
@@ -94,11 +94,13 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument(
-        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        "--paper", type=parse_paper, default=None, metavar="FORMAT|BREITExHOEHE",
         help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
              "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
              "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
+             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
     )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")

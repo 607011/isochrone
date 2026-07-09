@@ -61,7 +61,7 @@ from graph_builder import build_graph
 from h3_grid import build_grid
 from land_mask import is_land
 from map_from_airport import build_sea
-from plot_h3_map import parse_lat_limits, plot_h3_map
+from plot_h3_map import parse_lat_limits, parse_paper, plot_h3_map
 from travel_time import compute_shortest_times
 
 
@@ -372,11 +372,13 @@ if __name__ == "__main__":
     parser.add_argument("--label", default=None, help="Beschriftung für Titel/Legende (Standard: 'lat°, lon°')")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument(
-        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        "--paper", type=parse_paper, default=None, metavar="FORMAT|BREITExHOEHE",
         help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
              "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
              "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
+             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
     )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")

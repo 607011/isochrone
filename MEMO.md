@@ -2378,6 +2378,39 @@ und mit `--airports --ports` (höhere Legende) zeigen das Logo jeweils
 korrekt unten rechts, in etwa auf Höhe der "Published by..."-Zeile
 (wo vorhanden), ohne andere Elemente zu überlappen.
 
+## Phase 14zZe: `--paper` auch mit freien Zentimeter-Massen
+
+Nutzerbeobachtung: Poster-Druckereien bieten oft gar keine DIN-Formate
+an, nur eigene/freie Größen. Wunsch: `--paper` soll neben den Namen aus
+`config.PAPER_SIZES_IN` auch `BREITExHÖHE` in Zentimetern akzeptieren,
+z.B. `--paper 50.0x60.0`.
+
+Umsetzung: neue `parse_paper(s)`-Funktion in plot_h3_map.py, nach
+demselben Muster wie das bereits bestehende `parse_lat_limits()` (dort
+definiert, von den drei anderen Skripten importiert und in deren
+eigenen `add_argument()`-Aufrufen als `type=` wiederverwendet). Prüft,
+ob `s` (klein geschrieben) ein bekannter Name ist, sonst ob es sich in
+zwei durch "x" getrennte Fließkommazahlen zerlegen lässt (validiert
+per `float()`, `ValueError` bei Unsinn wird von argparse automatisch zu
+einer sauberen Fehlermeldung) - gibt in beiden Fällen den STRING
+unverändert zurück, nicht die aufgelösten Maße. Dadurch bleibt der
+bisherige Dateinamens-Suffix-Mechanismus (`paper_suffix = f"_{paper}"`)
+in allen vier Skripten unverändert nutzbar, auch für die neuen
+Freiform-Maße (z.B. `_50x60`), ohne dort etwas anfassen zu müssen.
+
+Die eigentliche Umrechnung (Zentimeter -> Zoll, `/2.54`) passiert erst
+in `_apply_paper_size()`, dem einzigen Ort, der tatsächlich Zoll
+braucht: `if paper in config.PAPER_SIZES_IN: ... else: Zentimeter aus
+dem String parsen`. `--paper`s CLI-Definition in allen vier Skripten
+von `choices=sorted(config.PAPER_SIZES_IN)` auf `type=parse_paper`
+umgestellt (choices wäre mit Freiform-Eingaben inkompatibel gewesen).
+
+Verifiziert: `--paper 50x60 --dpi 150` liefert exakt 3543×2953px
+(Seitenverhältnis 1,2 = 60/50, wie erwartet); `--paper a3` weiterhin
+mit unverändertem `_a3`-Dateinamens-Suffix; `--paper nonsense` bricht
+mit einer klaren argparse-Fehlermeldung ab statt eines rohen
+Tracebacks.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

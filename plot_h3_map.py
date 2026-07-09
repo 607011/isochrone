@@ -312,6 +312,25 @@ def parse_lat_limits(s):
     return max(north, south), min(north, south)
 
 
+def parse_paper(s):
+    """CLI-Parser für --paper: entweder ein Name aus config.PAPER_SIZES_IN
+    (z.B. 'a3') oder eigene Maße in Zentimetern als 'BREITExHÖHE' (z.B.
+    '50x60' oder '50.0x60.0') - Poster-Druckereien bieten oft keine
+    DIN-Formate an, sondern eigene/freie Größen.
+
+    Gibt den (klein geschriebenen) String unverändert zurück statt bereits
+    aufgelöster Zoll-Maße - die eigentliche Umrechnung passiert erst in
+    _apply_paper_size(), der String dient bis dahin unverändert auch als
+    Dateinamens-Suffix (wie schon bisher bei den DIN-/US-Namen).
+    """
+    key = s.strip().lower()
+    if key in config.PAPER_SIZES_IN:
+        return key
+    width_str, height_str = key.split("x")
+    float(width_str), float(height_str)  # nur Validierung, ValueError bei Unsinn
+    return key
+
+
 def _sketch(artist, dpi):
     """Lässt einen Linien-/Patch-Artist leicht 'handgezeichnet' wackeln statt
     geometrisch perfekt zu wirken - matplotlibs eingebauter Mechanismus
@@ -661,8 +680,16 @@ def _apply_paper_size(png_path, paper, dpi):
     wahrnehmbar. Wird vor _apply_retro_noise aufgerufen (siehe
     plot_h3_map()), damit die Papiermaserung auch den neu hinzugekommenen
     Leerraum mit einschließt, statt dort unnatürlich glatt zu bleiben.
+
+    paper (per parse_paper() validiert) ist entweder ein Name aus
+    config.PAPER_SIZES_IN oder eigene Zentimeter-Maße als 'BREITExHÖHE' -
+    Poster-Druckereien bieten oft keine DIN-Formate an.
     """
-    width_in, height_in = config.PAPER_SIZES_IN[paper]
+    if paper in config.PAPER_SIZES_IN:
+        width_in, height_in = config.PAPER_SIZES_IN[paper]
+    else:
+        width_cm, height_cm = (float(v) for v in paper.split("x"))
+        width_in, height_in = width_cm / 2.54, height_cm / 2.54
     page_w_px, page_h_px = round(max(width_in, height_in) * dpi), round(min(width_in, height_in) * dpi)
 
     img = Image.open(png_path).convert("RGB")
@@ -1047,11 +1074,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
     parser.add_argument(
-        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        "--paper", type=parse_paper, default=None,
+        metavar="FORMAT|BREITExHOEHE",
         help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
              "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
              "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
+             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
     )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
