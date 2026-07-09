@@ -2413,6 +2413,12 @@ Tracebacks.
 
 ## Phase 14zZf: Lücke am Kartenrand (Datumsgrenze) im Kachel-Mosaik
 
+**Zurückgerollt in Phase 14zZg** - der hier beschriebene Fix hat sich
+als schlimmer als das ursprüngliche Problem herausgestellt (neue,
+großflächige horizontale Bildfehler statt der schmalen Kantenlücke).
+Dieser Abschnitt bleibt als Dokumentation des (gescheiterten) Versuchs
+stehen, siehe Phase 14zZg für die Ursache und den Rückbau.
+
 Nutzer zeigte einen Screenshot mit `--cmap magma_r` (Kachel-Mosaik,
 nicht `--galton`): breite, gezackte Lücken am linken UND rechten
 Kartenrand, wo eigentlich Ozean-Kacheln sein sollten - gegen den
@@ -2456,6 +2462,66 @@ Kachelabdeckung jetzt lückenlos bis an beide Kartenränder. Die bei `-r 2`
 verbleibende, ungleichmäßige horizontale Bänderung ist eine
 vorbestehende Eigenschaft der groben Auflösung selbst (über die GANZE
 Karte sichtbar, nicht nur am Rand), keine neue Auffälligkeit.
+
+## Phase 14zZg: Antimeridian-Fix aus 14zZf zurückgerollt - Ursache gefunden
+
+Nutzer zeigte einen neuen Screenshot mit `--cmap plasma_r -r 2 --paper
+a4 --dpi 200`: breite, gezackte HORIZONTALE Streifen quer über die
+GESAMTE Karte (nicht nur am Rand), und praktisch alle Land-Kacheln
+fehlten. Nutzer wies korrekt darauf hin, dass das erst mit dem letzten
+Entwicklungsschritt (Phase 14zZf) aufgetreten war.
+
+Bisektion: `git show <14zZf-Parent>:plot_h3_map.py` testweise
+zurückgespielt und denselben Testfall gerendert - sauber, keine
+Streifen, volle Landabdeckung. Also eindeutig durch 14zZf verursacht.
+Weitere Bisektion (Testfunktionen mit nur EINEM der beiden Fixteile aus
+14zZf) zeigte: schon die reine Breitengrad-Pol-Erkennung ALLEIN (ohne
+die Ost-/West-Doppel-Kachel) reproduziert den Fehler - es reicht, dass
+mehr Kacheln als vorher sein `lon + 360`-verschobenes Polygon
+tatsächlich zurückbekommen (statt wie zuvor als "Pol" verworfen zu
+werden).
+
+Ursache (mit `cartopy.crs.Mercator().transform_points()` direkt
+verifiziert): Cartopys Mercator-Projektion normalisiert Längengrade
+jenseits von ±180° kommentarlos in den Standardbereich zurück - `181°`
+projiziert exakt genauso wie `-179°`, `200°` wie `-160°` usw. Die in
+14zZf eingeführte "+360 auf negative Längen"-Korrektur hat dadurch
+GENAU AN DER STELLE, wo sie wirken soll (beim tatsächlichen
+Projizieren), schlicht KEINE Wirkung. Für eine sechseckige Kachel mit
+nur einem Eckpunkt jenseits der Datumsgrenze (z.B. `-178,51°`, nach
+Korrektur `181,49°`) bedeutet das: fünf Eckpunkte projizieren normal
+auf eine Seite der Karte (~+19,9 Mio Meter in Mercator-Koordinaten),
+der sechste (fälschlich für "korrigiert" gehaltene) landet exakt dort,
+wo er OHNE Korrektur auch gelandet wäre - auf der GEGENÜBERLIEGENDEN
+Seite (~-19,9 Mio Meter). Das "Polygon" wird dadurch zu einem
+bogenbreiten Riesenschlauch, der (bei `antialiased=False`) als massiver
+horizontaler Streifen quer über die halbe Kartenbreite gerastert wird -
+genau auf Höhe der jeweils betroffenen Kachel. Da Antimeridian-Kacheln
+über viele verschiedene Breitengrade verteilt vorkommen, ergab das
+viele einzelne, an unterschiedlichen Breiten liegende Streifen -
+exakt das beobachtete Bild. Direkt verifiziert mit einem
+Einzel-Kachel-Test (`_project_polygons` auf eine einzelne
+Antimeridian-Kachel angewendet, ein Eckpunkt landet bei `x ≈
+-19.871.820`, die übrigen fünf bei `x ≈ +19.2 bis 20 Mio`).
+
+Fix: 14zZf vollständig zurückgerollt - `_cell_polygon_lonlat()`,
+`POLE_DEGENERACY_THRESHOLD_DEG` (statt `POLE_LAT_THRESHOLD_DEG`) und
+die Aufrufer-Stelle in `plot_h3_map()` wieder auf den Stand vor 14zZf
+gebracht (verifiziert per `diff` gegen den Parent-Commit - inhaltlich
+identisch, nur der erklärende Kommentar bei der Konstante wurde um die
+hier gewonnene Erkenntnis erweitert, damit niemand denselben
+Lösungsansatz - Verschieben statt Clippen - versehentlich noch einmal
+versucht). Die schmale Lücke an der Datumsgrenze aus 14zZf bleibt damit
+bestehen - ein echter Fix bräuchte richtiges Clipping der Kachel-
+Polygone AM Antimeridian (in zwei Teile schneiden, je einen pro
+Kartenseite), nicht bloß eine Eckpunkt-Verschiebung, die sich auf
+Cartopys Mercator-Projektion verlässt, longitudes jenseits ±180°
+linear (statt zyklisch) zu behandeln - das tut sie nicht.
+
+Verifiziert: derselbe vom Nutzer gemeldete Befehl
+(`--cmap plasma_r -r 2 --paper a4 --dpi 200`) zeigt nach dem Rückbau
+wieder volle, unauffällige Landabdeckung ohne horizontale Streifen,
+identisch zum Rendering vor Phase 14zZf.
 
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
