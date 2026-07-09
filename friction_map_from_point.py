@@ -407,7 +407,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
         help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
-             "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
+             "ohne Angabe: 80,-60 (Galtons eigener Zuschnitt, unabhängig von --galton)",
     )
     parser.add_argument(
         "--rivers", action="store_true",

@@ -1641,6 +1641,24 @@ Doppelfelder mit gemeinsamer Bereichsangabe und "more than 38.4h." als
 letztem Eintrag; `--cmap galton` zeigt weiterhin sechs einzelne,
 zentrierte Felder; Regressionslauf ohne `--galton` unverändert.
 
+## Phase 14zJ: 80°N/60°S-Zuschnitt jetzt immer Standard
+
+`--lat-limits=80,-60` war bislang nur der Standard unter `--galton`,
+sonst galt der generische symmetrische Wert 85/-85. Nutzerwunsch: der
+asymmetrische Galton-Zuschnitt soll immer Standard sein, unabhängig von
+`--galton`. In `plot_h3_map.py` die bedingte Fallunterscheidung
+(`(80, -60) if galton else (85, -85)`) durch einen unbedingten Default
+`(80, -60)` ersetzt - betrifft nur den ungenutzten Fall, dass
+`--lat-limits` nicht gesetzt ist, `--lat-limits` selbst überschreibt es
+weiterhin in beiden Modi. Hilfetexte in allen vier Karten-Skripten
+entsprechend angepasst. Nebeneffekt (positiv): schneidet jetzt auch im
+Nicht-`--galton`-Modus die stark verzerrte, wenig aussagekräftige
+Antarktis größtenteils ab. Wer den alten symmetrischen Zuschnitt will,
+kann ihn weiterhin explizit per `--lat-limits=85,-85` anfordern.
+
+Verifiziert: Testrender ohne `--galton` zeigt jetzt denselben 80°N/60°S-
+Zuschnitt wie zuvor nur unter `--galton`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

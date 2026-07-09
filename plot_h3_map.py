@@ -404,14 +404,13 @@ def plot_h3_map(
         # Breitenbereich begrenzen statt ax.set_global(). Erklärt auch
         # den Original-Effekt, dass Grönland/Spitzbergen überproportional
         # groß wirken - eine bekannte Mercator-Verzerrung, kein Fehler.
-        # Im --galton-Modus exakt Galtons eigener Zuschnitt (80°N/60°S,
-        # asymmetrisch - die Karte reichte nach Norden weiter als nach
-        # Süden), sonst ein symmetrischer Standardwert.
+        # Standardmäßig Galtons eigener Zuschnitt (80°N/60°S, asymmetrisch -
+        # die Karte reichte nach Norden weiter als nach Süden), unabhängig
+        # von --galton - nicht nur eine Stileigenheit des Retro-Looks,
+        # sondern auch praktisch: schneidet das ohnehin stark verzerrte,
+        # wenig aussagekräftige Antarktis großteils ab.
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
-        if lat_limits is not None:
-            lat_max, lat_min = lat_limits
-        else:
-            lat_max, lat_min = (80, -60) if galton else (85, -85)
+        lat_max, lat_min = lat_limits if lat_limits is not None else (80, -60)
         # -180/180 exakt lässt Cartopys Mercator-Randberechnung auf NaN
         # laufen, daher ein winziges Inset.
         ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
@@ -655,7 +654,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
         help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
-             "ohne Angabe: 80,-60 unter --galton, sonst 85,-85",
+             "ohne Angabe: 80,-60 (Galtons eigener Zuschnitt, unabhängig von --galton)",
     )
     parser.add_argument(
         "--rivers", action="store_true",
