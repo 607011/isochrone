@@ -19,6 +19,26 @@ COLORMAP = "viridis_r"  # _r: dunkel = weit weg, hell = nah
 # Renderzeit skalieren etwa quadratisch mit.
 MAP_DPI = 150
 
+# --paper: Papierformate in Zoll (Breite, Höhe), Hochformat-Maße - die
+# Karte selbst bleibt im eigenen, breiten Seitenverhältnis (siehe
+# figsize in plot_h3_map.py) und wird nachträglich mittig auf eine
+# Seite in diesem Format gesetzt (Querformat, da unsere Karten breiter
+# als hoch sind), mit Leerraum in BACKGROUND_COLOR oben/unten statt
+# verzerrt/zugeschnitten zu werden - siehe MEMO.md. DIN-Maße nach
+# ISO 216, US-Maße nach ANSI/ASME Y14.1.
+PAPER_SIZES_IN = {
+    "a0": (33.11, 46.81),
+    "a1": (23.39, 33.11),
+    "a2": (16.54, 23.39),
+    "a3": (11.69, 16.54),
+    "a4": (8.27, 11.69),
+    "a5": (5.83, 8.27),
+    "a6": (4.13, 5.83),
+    "letter": (8.5, 11.0),
+    "legal": (8.5, 14.0),
+    "tabloid": (11.0, 17.0),
+}
+
 # Flughafen-/Hafen-Punkte standardmäßig einblenden? Aus, da sonst auch
 # Flughäfen ohne jeden Flugnetz-Nutzen (z.B. ohne einzige Route in
 # routes.csv, siehe MEMO.md) unkommentiert als Punkt erscheinen -

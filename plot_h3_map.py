@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 from adjustText import adjust_text
 from global_land_mask import globe
-from PIL import Image
+from PIL import Image, ImageColor
 from scipy.ndimage import gaussian_filter
 from sklearn.neighbors import BallTree
 
@@ -588,13 +588,48 @@ def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
     Image.fromarray(arr).save(png_path)
 
 
+def _apply_paper_size(png_path, paper, dpi):
+    """Setzt die fertig gerenderte (per bbox_inches="tight" eng
+    zugeschnittene) Karte mittig auf eine Seite im gewählten Papierformat
+    (--paper), statt sie zu verzerren oder zuzuschneiden - Leerraum oben
+    und unten in BACKGROUND_COLOR, da unsere Karten deutlich breiter als
+    hoch sind, Normseiten (DIN/US) aber ein viel schmaleres
+    Seitenverhältnis haben. Reine Rasternachbearbeitung übers fertige PNG,
+    wie schon _apply_retro_noise - vermeidet, die bestehende, bereits fein
+    austarierte figsize/bbox_inches="tight"-Logik anzufassen, die sich
+    automatisch an alle Inhalte (Titel, Legende, Erklärungskasten,
+    Rahmen) anpasst, egal welche Flags gesetzt sind.
+
+    Skaliert das zugeschnittene Bild dafür auf die volle Papierbreite
+    (Querformat, da die Karte selbst breiter als hoch ist) - ein leichtes
+    Hoch-/Herunterskalieren gegenüber der organisch gewachsenen
+    Originalbreite ist unvermeidlich, sobald eine exakte Papiergröße
+    erzwungen wird, aber bei den hier üblichen Auflösungen visuell nicht
+    wahrnehmbar. Wird vor _apply_retro_noise aufgerufen (siehe
+    plot_h3_map()), damit die Papiermaserung auch den neu hinzugekommenen
+    Leerraum mit einschließt, statt dort unnatürlich glatt zu bleiben.
+    """
+    width_in, height_in = config.PAPER_SIZES_IN[paper]
+    page_w_px, page_h_px = round(max(width_in, height_in) * dpi), round(min(width_in, height_in) * dpi)
+
+    img = Image.open(png_path).convert("RGB")
+    scale = page_w_px / img.width
+    resized = img.resize((page_w_px, round(img.height * scale)), Image.LANCZOS)
+
+    bg_rgb = ImageColor.getrgb(BACKGROUND_COLOR)
+    page = Image.new("RGB", (page_w_px, page_h_px), bg_rgb)
+    paste_y = max(0, (page_h_px - resized.height) // 2)
+    page.paste(resized, (0, paste_y))
+    page.save(png_path)
+
+
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS,
     show_ports=config.SHOW_PORTS, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
-    galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False,
+    galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False, paper=None,
 ):
     # --galton impliziert --rivers/--grid/--labels - der Retro-Look zeigt
     # Flüsse, das Gradnetz und die Kontinent-/Stadtbeschriftung ohnehin wie
@@ -874,6 +909,8 @@ def plot_h3_map(
         _draw_labels(ax)
 
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
+    if paper:
+        _apply_paper_size(png_path, paper, dpi)
     if galton:
         _apply_retro_noise(png_path)
     print(f"Map saved as {png_path}")
@@ -884,6 +921,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument(
+        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
+             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
+             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+    )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument(
@@ -945,5 +989,5 @@ if __name__ == "__main__":
         dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, galton=args.galton,
         max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
-        galton_sigma=args.galton_sigma,
+        galton_sigma=args.galton_sigma, paper=args.paper,
     )

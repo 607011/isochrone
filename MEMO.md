@@ -2192,6 +2192,48 @@ statt einzeilige Legende) zeigt in beiden Fällen den Kasten unverändert
 an derselben Eckposition, die Legende wächst/verschiebt sich korrekt
 darüber, beide Hintergründe bleiben linksbündig zueinander.
 
+## Phase 14zZ: `--paper` - echte Papierformate statt beliebigem Zuschnitt
+
+Nutzerbeobachtung: `--dpi` allein ist "Quatsch, wenn man das Medium
+nicht definiert, für das er gelten soll" - `figsize=(16, 9)` ist ein
+willkürliches internes Maß, `bbox_inches="tight"` schneidet beim Speichern
+ohnehin eng um den tatsächlichen Inhalt zu, "dots per inch" bezieht sich
+also auf gar keine reale Papiergröße. Vorschlag: `--paper` mit DIN-/US-
+Normformaten einführen. Zweiter Vorschlag (nach Hinweis auf die
+Seitenverhältnis-Diskrepanz: A-Serie ~1,41:1 quer, unsere Karten aber
+durchgehend breiter, ~1,6-1,8:1): die Karte NICHT verzerren/zuschneiden,
+sondern Leerraum in `BACKGROUND_COLOR` oben/unten stehen lassen -
+zugleich als Platz für eine später denkbare große Überschrift.
+
+Umsetzung als reine Rasternachbearbeitung übers fertig gespeicherte PNG
+(`_apply_paper_size()`, wie schon `_apply_retro_noise()`), NICHT durch
+Anfassen der bestehenden `figsize`/`bbox_inches="tight"`-Logik - die
+passt sich bereits automatisch an jede Kombination aus Titel, Legende,
+Erklärungskasten, Rahmen usw. an, unabhängig von den gesetzten Flags.
+Eine feste physische `figsize` einzuführen hätte diese Automatik
+aufgegeben und manuell budgetierte Ränder für jedes einzelne Element
+erfordert. `_apply_paper_size()`: lädt das fertige (bereits eng
+zugeschnittene) PNG, skaliert es (PIL, `Image.LANCZOS`) auf die volle
+Seitenbreite im gewählten Format (immer Querformat, `max()`/`min()` der
+beiden Papiermaße), erzeugt eine neue, papiergroße Leinwand in
+`BACKGROUND_COLOR` und fügt das skalierte Bild dort vertikal zentriert
+ein. Aufruf VOR `_apply_retro_noise()` in `plot_h3_map()`, damit die
+Papiermaserung auch die neu hinzugekommenen Ränder erfasst, statt sie
+unnatürlich glatt zu lassen.
+
+`config.PAPER_SIZES_IN`: Hochformat-Maße in Zoll für a0-a6 (ISO 216),
+letter/legal/tabloid (ANSI/ASME Y14.1). `--paper` (Default `None`, kein
+Effekt, altes Verhalten unverändert) in allen vier Skripten ergänzt,
+inkl. `_{paper}`-Dateinamens-Suffix (Kollisionsvermeidung wie bei jedem
+anderen Flag, das den Bildinhalt ändert).
+
+Verifiziert: `--galton --paper=a3` liefert exakt das A3-Querformat-
+Seitenverhältnis (16,54/11,69 = 1,4149, Testbild ebenso), Karte mittig
+mit gleichmäßigem, texturiertem Leerraum oben/unten; `--paper=letter`
+ohne `--galton` liefert ebenfalls exaktes Letter-Seitenverhältnis, Rand
+dort erwartungsgemäß glatt (keine Papiermaserung außerhalb `--galton`).
+Ohne `--paper` unverändertes Verhalten (enger Zuschnitt, kein Rand).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

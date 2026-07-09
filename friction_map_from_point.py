@@ -274,7 +274,7 @@ def main(
     resolution=config.H3_RESOLUTION, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
-    heli=False, jetpack=False, verbose=False,
+    heli=False, jetpack=False, verbose=False, paper=None,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
     # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
@@ -301,6 +301,7 @@ def main(
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
     rivers_suffix = "_rivers" if rivers else ""
     air_suffix = "_bond" if heli and jetpack else ("_heli" if heli else "_jetpack" if jetpack else "")
+    paper_suffix = f"_{paper}" if paper else ""
 
     if verbose:
         print("Loading airport data ...")
@@ -343,7 +344,7 @@ def main(
     travel_times_csv = f"travel_times_from_{slug}{air_suffix}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}{paper_suffix}.png"
 
     if verbose:
         print(f"Writing {travel_times_csv}, {h3_csv}, {ports_csv} ...")
@@ -358,7 +359,7 @@ def main(
         origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
-        galton_sigma=galton_sigma, heli=heli, jetpack=jetpack,
+        galton_sigma=galton_sigma, heli=heli, jetpack=jetpack, paper=paper,
     )
 
 
@@ -370,6 +371,13 @@ if __name__ == "__main__":
     parser.add_argument("lon", type=float, help="Längengrad des Startpunkts")
     parser.add_argument("--label", default=None, help="Beschriftung für Titel/Legende (Standard: 'lat°, lon°')")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument(
+        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
+             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
+             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+    )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
@@ -451,4 +459,5 @@ if __name__ == "__main__":
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
         lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,
         heli=args.heli or args.james_bond, jetpack=args.jetpack or args.james_bond, verbose=args.verbose,
+        paper=args.paper,
     )

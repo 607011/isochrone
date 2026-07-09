@@ -30,6 +30,7 @@ def main(
     show_ports=config.SHOW_PORTS, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
+    paper=None,
 ):
     # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
     # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung angewendet,
@@ -65,10 +66,11 @@ def main(
     title_suffix = "_title" if title else ""
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
     rivers_suffix = "_rivers" if rivers else ""
+    paper_suffix = f"_{paper}" if paper else ""
     output_csv = OUTPUT_CSV.replace(".csv", f"{res_suffix}.csv")
     output_png = OUTPUT_PNG.replace(
         ".png",
-        f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}.png",
+        f"{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{paper_suffix}.png",
     )
     combined.to_csv(output_csv, index=False)
 
@@ -81,7 +83,7 @@ def main(
         output_csv, config.OUTPUT_CSV, ports_csv_in, output_png, config.ORIGIN_AIRPORTS,
         dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton, max_hours=max_hours, cmap_name=cmap_name,
         labels=labels, robinson=robinson, grid=grid, title=title, lat_limits=lat_limits, rivers=rivers,
-        galton_sigma=galton_sigma,
+        galton_sigma=galton_sigma, paper=paper,
     )
 
 
@@ -91,6 +93,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument(
+        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
+             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
+             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+    )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument(
@@ -150,5 +159,5 @@ if __name__ == "__main__":
         resolution=args.resolution, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, galton=args.galton,
         max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
-        galton_sigma=args.galton_sigma,
+        galton_sigma=args.galton_sigma, paper=args.paper,
     )

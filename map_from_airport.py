@@ -89,6 +89,7 @@ def main(
     resolution=config.H3_RESOLUTION, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
+    paper=None,
 ):
     # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
     # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung angewendet,
@@ -112,13 +113,14 @@ def main(
     title_suffix = "_title" if title else ""
     lat_suffix = f"_lat{lat_limits[0]:g}_{lat_limits[1]:g}" if lat_limits is not None else ""
     rivers_suffix = "_rivers" if rivers else ""
+    paper_suffix = f"_{paper}" if paper else ""
 
     h3_df, ports_df = build_h3(travel_times_df, resolution)
 
     travel_times_csv = f"travel_times_from_{slug}.csv"
     h3_csv = f"h3_travel_times_from_{slug}{res_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}{res_suffix}.csv"
-    png = f"h3_travel_times_map_from_{slug}{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}.png"
+    png = f"h3_travel_times_map_from_{slug}{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{paper_suffix}.png"
 
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
@@ -128,7 +130,7 @@ def main(
         h3_csv, travel_times_csv, ports_csv, png, [origin_iata],
         origin_label=origin_row["name"], dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
-        title=title, lat_limits=lat_limits, rivers=rivers, galton_sigma=galton_sigma,
+        title=title, lat_limits=lat_limits, rivers=rivers, galton_sigma=galton_sigma, paper=paper,
     )
 
 
@@ -138,6 +140,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("iata", nargs="?", default="THU", help="IATA-Code des Start-Flughafens")
     parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument(
+        "--paper", choices=sorted(config.PAPER_SIZES_IN), default=None,
+        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
+             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
+             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
+             "den tatsaechlichen Inhalt (bbox_inches=\"tight\").",
+    )
     parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
     parser.add_argument(
@@ -198,5 +207,5 @@ if __name__ == "__main__":
         args.iata, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, resolution=args.resolution, galton=args.galton,
         max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
-        galton_sigma=args.galton_sigma,
+        galton_sigma=args.galton_sigma, paper=args.paper,
     )
