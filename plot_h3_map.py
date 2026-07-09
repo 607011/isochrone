@@ -257,6 +257,24 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
     is_land_grid = globe.is_land(lat_grid, lon_grid)
     sigma_px = sigma_deg / grid_deg
 
+    # globe.is_land() klassifiziert einzelne Pixel stellenweise erkennbar
+    # ungenau statt entlang einer sauberen Küstenlinie zu wechseln - vor
+    # allem bei kleinen, vergletscherten Archipelen wie Spitzbergen sieht
+    # die rohe Maske selbst kleinräumig gesprenkelt aus (mit print()
+    # visuell geprüft: einzelne "Land"-Pixel mitten im offenen Meer und
+    # umgekehrt), nicht durch fehlende H3-Abdeckung dort verursacht. Da
+    # diese Maske nur bestimmt, in welchen der beiden GLÄTTUNGS-Kanäle
+    # (Land/See) der WERT einer Rasterzelle einfließt - nicht die
+    # tatsächlich gezeichnete Küstenlinie, die weiterhin unverändert aus
+    # Natural Earth kommt -, wird sie hier mit demselben Gauß-Radius wie
+    # die Werte selbst geglättet und bei 0.5 neu geschwellt: einzelne
+    # Fehlklassifizierungs-Sprenkel verschwinden, ohne die eigentliche
+    # Kartendarstellung zu beeinflussen. Das behebt die zuvor sichtbaren
+    # Ausfransungen in der Hintergrundfarbe innerhalb kleiner Inseln.
+    is_land_grid = _nan_gaussian_filter(
+        np.where(is_land_grid, 1.0, 0.0), sigma_px,
+    ) >= 0.5
+
     land_grid = np.where(is_land_grid, nearest_values, np.nan)
     sea_grid = np.where(is_land_grid, np.nan, nearest_values)
     land_smoothed = _nan_gaussian_filter(land_grid, sigma_px)
@@ -393,7 +411,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
 
     footer_fontsize = config.GALTON_LEGEND_FONT_SIZE * 2 / 3
     footer = fig.text(
-        0, y - 0.028, "Published by heise Medien / c’t, 2026.", fontproperties=CITY_FONT,
+        0, y - 0.028, "Published by heise Medien / c’t, 2026. Flight network: OpenFlights, 2014. Friction surface: Malaria Atlas Project, 2020.", fontproperties=CITY_FONT,
         fontsize=footer_fontsize, color=ANTHRACITE, va="center", ha="left",
     )
     fig.canvas.draw()

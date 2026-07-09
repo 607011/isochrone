@@ -2285,6 +2285,42 @@ per direktem Crop-Nebeneinander) - die Küstenlinien-Wellung wirkt jetzt in
 beiden Fällen gleich stark/gleich fein, statt bei 300dpi kaum sichtbar
 und bei 75dpi deutlich gröber zu sein.
 
+## Phase 14zZc: Ausgefranste Ränder an kleinen Inseln im hohen Norden
+
+Nutzer zeigte einen Kartenausschnitt hoch im Norden (Spitzbergen-Region):
+trotz der Gauß-Glättung sahen kleine Inseln dort gesprenkelt/ausgefranst
+aus statt gleichmäßig gefüllt.
+
+Reproduziert mit `friction_map_from_point.py 55.0 20.0 --galton --dpi 250`,
+Crop auf die Spitzbergen-Region. Ursachensuche: `_build_galton_grid()`
+trennt Land/See-Werte VOR der Glättung anhand von `globe.is_land()`
+(`global_land_mask`), pixelgenau auf dem GALTON_GRID_DEG-Raster
+ausgewertet. Direkter Test (`globe.is_land()` über Spitzbergen als
+ASCII-Grid ausgegeben) zeigt: die rohe Maske selbst ist dort sichtbar
+gesprenkelt - einzelne "Land"-Pixel mitten im offenen Meer und
+umgekehrt, keine saubere Küstenlinie. Nicht durch fehlende
+H3-Abdeckung verursacht (die war dort vollständig), sondern eine
+echte Ungenauigkeit der `global_land_mask`-Bibliothek bei kleinen,
+vergletscherten Archipelen.
+
+Da diese Maske nur bestimmt, in welchen der beiden
+Glättungs-Kanäle (Land/See) der WERT einer Rasterzelle einfließt -
+nicht die tatsächlich gezeichnete Küstenlinie, die weiterhin
+unverändert und akkurat aus Natural Earth kommt -, ist ein Aufweichen
+dieser Maske selbst unproblematisch. Fix: `is_land_grid` wird jetzt
+vor der Verwendung selbst durch `_nan_gaussian_filter()` geglättet
+(gleicher Radius wie die Werte, `sigma_px`) und bei 0.5 neu
+geschwellt - einzelne Fehlklassifizierungs-Sprenkel verschwinden,
+ohne die Kartendarstellung selbst zu beeinflussen. `_nan_gaussian_filter()`
+eignet sich hier direkt, obwohl die Eingabe (0.0/1.0, keine NaN) den
+NaN-Sonderfall gar nicht braucht - die "nearest"/"wrap"-Randbehandlung
+ist trotzdem exakt die richtige.
+
+Verifiziert: Vorher/Nachher-Crop derselben Spitzbergen-Region zeigt die
+Insel jetzt einheitlich in der erwarteten Bandfarbe gefüllt, keine
+Sprenkel/Fransen mehr; Sichtprüfung der übrigen Karte (Indonesien,
+Japan, Philippinen) zeigt keine neuen Auffälligkeiten.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
