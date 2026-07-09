@@ -708,8 +708,15 @@ def plot_h3_map(
         # --galton. Cartopys Gridliner-Labels funktionieren nur bei
         # rechteckigen Projektionen (Mercator), nicht bei Robinson.
         draw_labels = galton and not robinson
+        # ylocs: range(-90, 91, ...) würde NICHT am Äquator beginnen, da
+        # 90 kein Vielfaches von GRID_STEP_DEG ist - die Schritte liefen
+        # dann versetzt (z.B. bei 20°: -90,-70,...,-10,10,...,90, also nie
+        # 0). Stattdessen vom größten Vielfachen von GRID_STEP_DEG <= 90
+        # aus symmetrisch um den Äquator zählen, sodass 0° immer ein
+        # eigener Gitterpunkt ist, wie im Original.
+        lat_max = (90 // GRID_STEP_DEG) * GRID_STEP_DEG
         gl = ax.gridlines(
-            xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-90, 91, GRID_STEP_DEG),
+            xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-lat_max, lat_max + 1, GRID_STEP_DEG),
             linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, linestyle="-",
             alpha=0.8 if grid else 0, zorder=2, draw_labels=draw_labels,
         )

@@ -2234,6 +2234,25 @@ ohne `--galton` liefert ebenfalls exaktes Letter-Seitenverhältnis, Rand
 dort erwartungsgemäß glatt (keine Papiermaserung außerhalb `--galton`).
 Ohne `--paper` unverändertes Verhalten (enger Zuschnitt, kein Rand).
 
+## Phase 14zZa: Breitengrad-Gitter startete nicht am Äquator
+
+Bug-Report: die Breitengrade sollten symmetrisch vom Äquator aus in
+20°-Schritten nach Norden/Süden zählen. Ursache: `ylocs=range(-90, 91,
+GRID_STEP_DEG)` sieht analog zu `xlocs=range(-180, 181, GRID_STEP_DEG)`
+aus, ist es aber nicht - 180 ist ein Vielfaches von 20, `xlocs` trifft
+dadurch automatisch die 0°-Linie, aber 90 ist KEIN Vielfaches von 20:
+`range(-90, 91, 20)` beginnt bei -90 und zählt in 20er-Schritten weiter
+- landet auf -90,-70,-50,-30,-10,10,30,50,70,90, nie auf 0.
+
+Fix: `lat_max = (90 // GRID_STEP_DEG) * GRID_STEP_DEG` (größtes
+Vielfaches von `GRID_STEP_DEG` <= 90), dann `ylocs=range(-lat_max,
+lat_max + 1, GRID_STEP_DEG)` - dadurch immer symmetrisch um den
+Äquator, unabhängig von der konkreten Schrittweite.
+
+Verifiziert: Testrender zeigt Breitengrad-Beschriftungen jetzt bei
+0, 20, 40, 60 (im aktuellen 80°N/60°S-Ausschnitt sichtbar) statt den
+vorherigen unregelmäßigen Werten.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
