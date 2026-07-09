@@ -53,6 +53,11 @@ GRID_STEP_DEG = 20
 # Seitenverhältnis der Karte.
 FRAME_GAP_PT = 3.0
 
+# Strichstärke des --galton-Rahmens (beide Linien) - kräftiger als die
+# übrige Linienführung (COASTLINE_LINEWIDTH), wie im Original, dessen
+# Rahmen deutlich dicker als die Küstenlinien wirkt.
+FRAME_LINEWIDTH = 1.4
+
 # Papierfarbe, wie sie ein gealterter Druck von 1881 hätte - liegt
 # zwischen den zwei vom Nutzer vorgegebenen Werten rgb(220,212,183) und
 # rgb(215,212,191).
@@ -460,14 +465,13 @@ def plot_h3_map(
 
     if galton:
         # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
-        # schon eine Linie (cartopys "geo"-Spine), eine zweite ergibt den
-        # charakteristischen Doppelstrich drumherum. Der Abstand zwischen
-        # beiden wird in Punkten statt Achsen-Bruchteilen berechnet (über
-        # die Pixel-Bounding-Box der Achse), damit er horizontal und
-        # vertikal exakt gleich groß ist - ein fester Achsen-Bruchteil
-        # wäre das nicht, da die Karte nicht quadratisch ist.
+        # schon eine Linie (cartopys "geo"-Spine, direkt an der Landmasse/
+        # dem Kartenbild), eine zweite, kräftigere Linie (FRAME_LINEWIDTH)
+        # außen herum ergibt den charakteristischen Doppelstrich - und
+        # schließt dabei die Gradzahlen am Rand mit ein statt sie
+        # unbegrenzt draußen stehen zu lassen, wie im Original.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
-        ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
+        ax.spines["geo"].set_linewidth(FRAME_LINEWIDTH)
         _sketch(ax.spines["geo"])
         fig.canvas.draw()
         # set_sketch_params() auf dem Gridliner-Objekt selbst wirkt nicht -
@@ -479,18 +483,33 @@ def plot_h3_map(
         # weiter oben (grid or galton) impliziert.
         for line_artist in list(gl.xline_artists) + list(gl.yline_artists):
             _sketch(line_artist)
-        bbox_px = ax.get_window_extent(fig.canvas.get_renderer())
+
+        # Äußerer Rahmen: umschließt nicht nur die Kartenachse selbst,
+        # sondern auch die Gradzahlen an ihrem Rand - deren tatsächliche
+        # Ausdehnung ist erst nach dem Rendern bekannt (Schriftgröße,
+        # Zeichenanzahl), daher per Bounding-Box-Vereinigung aller
+        # Label-Artists statt eines geschätzten festen Abstands ermittelt.
+        # Der Gap zur Achse (FRAME_GAP_PT) wird wie beim alten Innenrahmen
+        # in Punkten statt Achsen-Bruchteilen berechnet, damit er
+        # horizontal und vertikal exakt gleich groß ist - ein fester
+        # Achsen-Bruchteil wäre das nicht, da die Karte nicht quadratisch
+        # ist.
+        renderer = fig.canvas.get_renderer()
+        bbox_px = ax.get_window_extent(renderer)
+        for label_artist in gl.label_artists:
+            bbox_px = Bbox.union([bbox_px, label_artist.get_window_extent(renderer)])
         gap_px = FRAME_GAP_PT * fig.dpi / 72.0
-        inner_px = Bbox.from_extents(
-            bbox_px.x0 + gap_px, bbox_px.y0 + gap_px, bbox_px.x1 - gap_px, bbox_px.y1 - gap_px,
+        outer_px = Bbox.from_extents(
+            bbox_px.x0 - gap_px, bbox_px.y0 - gap_px, bbox_px.x1 + gap_px, bbox_px.y1 + gap_px,
         )
-        inner_axes = inner_px.transformed(ax.transAxes.inverted())
-        inner_rect = Rectangle(
-            (inner_axes.x0, inner_axes.y0), inner_axes.width, inner_axes.height,
-            transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
+        outer_axes = outer_px.transformed(ax.transAxes.inverted())
+        outer_rect = Rectangle(
+            (outer_axes.x0, outer_axes.y0), outer_axes.width, outer_axes.height,
+            transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=FRAME_LINEWIDTH, zorder=5,
+            clip_on=False,
         )
-        _sketch(inner_rect)
-        ax.add_patch(inner_rect)
+        _sketch(outer_rect)
+        ax.add_patch(outer_rect)
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen

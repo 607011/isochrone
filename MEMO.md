@@ -1659,6 +1659,42 @@ kann ihn weiterhin explizit per `--lat-limits=85,-85` anfordern.
 Verifiziert: Testrender ohne `--galton` zeigt jetzt denselben 80°N/60°S-
 Zuschnitt wie zuvor nur unter `--galton`.
 
+## Phase 14zK: Rahmen umschließt jetzt auch die Gradzahlen, kräftiger
+
+Nutzer zeigte einen Ausschnitt aus Galtons Original: dessen Rahmen ist
+sichtbar dicker als die restliche Linienführung UND umschließt die
+Gradzahlen am Kartenrand mit, statt sie außerhalb stehen zu lassen. Bei
+uns saßen bislang beide Rahmenlinien (Spine + innerer Rectangle, siehe
+Phase davor) eng am Kartenrand, mit denselben Vorzeichenlosen
+Gradzahlen (Phase 14z...) komplett außerhalb beider Linien.
+
+Zwei Änderungen in `plot_h3_map.py`:
+
+1. Neue Modulkonstante `FRAME_LINEWIDTH = 1.4` (vs. `COASTLINE_LINEWIDTH
+   = 0.7`) - beide Rahmenlinien (Spine und äußeres Rectangle) nutzen
+   jetzt diese kräftigere Strichstärke statt der für Küsten/Gitter
+   verwendeten.
+
+2. Der zweite Rahmen-Rectangle liegt nicht mehr INNERHALB der Spine
+   (`FRAME_GAP_PT` nach innen verschoben), sondern AUSSERHALB, groß
+   genug, um die Gradzahlen-Labels mit einzuschließen. Da deren
+   tatsächliche Ausdehnung (Schriftgröße, Zeichenanzahl, DPI) erst nach
+   dem Rendern bekannt ist, wird die Bounding-Box aus der Vereinigung
+   der Achsen-eigenen Pixel-Bounding-Box und aller Label-Artists
+   (`gl.label_artists`, per `Bbox.union()`) gebildet, plus `FRAME_GAP_PT`
+   zusätzlichem Rand darüber hinaus - derselbe "erst rendern, dann
+   vermessen"-Trick wie schon beim alten Innenrahmen und der
+   Legendenzeile. Unter `--robinson` (keine Gradzahlen, `draw_labels=
+   False`) ist `gl.label_artists` leer, der Rahmen liegt dann einfach
+   eng an der Achse wie zuvor - kein Sonderfall nötig. Das äußere
+   Rectangle braucht `clip_on=False`, da es jetzt legitim über die
+   eigene `[0, 1]`-Bounding-Box der Achse hinausragt, um die Labels zu
+   erreichen.
+
+Verifiziert: Testrender mit `--galton --labels --grid` zeigt den
+kräftigeren Rahmen jetzt außen um die Gradzahlen; `--galton --robinson`
+(keine Labels) zeigt weiterhin einen eng anliegenden Rahmen ohne Fehler.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
