@@ -107,7 +107,7 @@ else:
 # "<10 Tage"-Kategorie bei uns die gesamte Welt abdeckt (unser Maximum
 # liegt bei 48h = 2 Tagen).
 GALTON_COLORS = [
-    "#697f75", "#91a99f",  # Grün dunkel/hell
+    "#697f75", "#9db5ab",  # Grün dunkel/hell
     "#d1c498", "#dcd4b7",  # Gelb dunkel/hell
     "#ba9ca7", "#dfc6c0",  # Pink dunkel/hell
     "#8b98a9", "#aeb5be",  # Blau dunkel/hell
@@ -418,10 +418,13 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     Wortabstand) - der Absatz bleibt daher pro Zeile linksbündig, aber
     als Ganzes (anhand seiner breitesten Zeile) auf dieselbe Mittelachse
     zentriert, statt komplett linksbündig wie zuvor. Die Mittelachse
-    selbst liegt so, dass die BOX als Ganzes (ihre breiteste Zeile)
-    linksbündig mit der Ursprungs-Legende abschließt, statt die Legenden-
-    Mitte zu treffen - sonst würde die Box über den linken Legendenrand
-    hinaus in die Gradzahlen am Kartenrand hineinragen.
+    selbst liegt so, dass der HINTERGRUND der Box (nicht nur der Text -
+    siehe pad_px-Verschiebung unten) als Ganzes linksbündig mit der
+    sichtbaren Ursprungs-Legende abschließt, statt die Legenden-Mitte zu
+    treffen - sonst würde die Box über den linken Legendenrand hinaus in
+    die Gradzahlen am Kartenrand hineinragen (Textblock) bzw. sogar bis
+    an den Kartenrahmen selbst reichen (Hintergrund, dessen eigenes
+    Padding sonst über den Legendenrand hinausragen würde).
 
     Positionierung wie bei der Farberklärung: Text wird zunächst
     unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
@@ -480,7 +483,13 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     )
 
     max_width_px = max(max_body_width_px, title_width_px, subtitle_width_px, attr1_width_px, attr2_width_px)
-    center_x_px = legend_bbox.x0 + max_width_px / 2
+    # Der Textblock selbst startet um pad_px NACH legend_bbox.x0 - der
+    # Hintergrund (bg_rect weiter unten) wird um denselben pad_px wieder
+    # nach außen erweitert, sodass am Ende dessen sichtbarer linker Rand
+    # exakt bei legend_bbox.x0 landet, statt pad_px darüber hinaus in
+    # Richtung Kartenrand zu ragen.
+    pad_px = config.EXPLANATION_BG_PAD_PT * fig.dpi / 72.0
+    center_x_px = legend_bbox.x0 + pad_px + max_width_px / 2
     para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
 
     x_center = center_x_px / fig_w_px
@@ -524,7 +533,6 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     for artist in all_artists:
         artist_bbox = artist.get_window_extent(renderer)
         bg_bbox = artist_bbox if bg_bbox is None else Bbox.union([bg_bbox, artist_bbox])
-    pad_px = config.EXPLANATION_BG_PAD_PT * fig.dpi / 72.0
     bg_px = Bbox.from_extents(
         bg_bbox.x0 - pad_px, bg_bbox.y0 - pad_px, bg_bbox.x1 + pad_px, bg_bbox.y1 + pad_px,
     )

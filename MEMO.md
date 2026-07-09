@@ -2133,6 +2133,31 @@ Farbton.
 Verifiziert: `--galton --cmap galton5 --max-hours=40` zeigt jetzt
 korrekt "more than 40h." als letztes Legendenfeld.
 
+## Phase 14zX: Erklärungskasten-Hintergrund berührte den Kartenrahmen
+
+Nutzer bemerkte: der Erklärungskasten grenzte links direkt an den
+Kartenrahmen, statt wie die Ursprungs-Legende darunter einen kleinen
+Abstand zu wahren - obwohl der Code (Phase 14zS) den Kasten bereits
+linksbündig mit `legend_bbox.x0` ausrichtet. Ursache: das war nur für
+den TEXTBLOCK korrekt: `EXPLANATION_BG_PAD_PT` erweitert den
+Hintergrund (`bg_rect`) danach noch symmetrisch nach außen, sodass der
+sichtbare linke Rand des Hintergrunds um `pad_px` weiter links als
+`legend_bbox.x0` landete - während `legend_bbox` selbst schon das
+eigene Padding der Legende einschließt (deren sichtbarer Rand also
+exakt bei `legend_bbox.x0` liegt). Die beiden sichtbaren weißen/
+beigen Kästen teilten sich dadurch keinen gemeinsamen linken Rand mehr.
+
+Fix: `center_x_px = legend_bbox.x0 + pad_px + max_width_px / 2` statt
+`legend_bbox.x0 + max_width_px / 2` - der Textblock startet jetzt
+bewusst `pad_px` weiter rechts, damit ihn die spätere Hintergrund-
+Erweiterung um denselben `pad_px` exakt wieder auf `legend_bbox.x0`
+zurückbringt. `pad_px` wird dafür einmalig vor `center_x_px` berechnet
+statt wie zuvor erst kurz vor dem `bg_rect`-Aufbau.
+
+Verifiziert: Zoom auf die linke Kartenkante zeigt jetzt einen
+einheitlichen kleinen Abstand zum Rahmen für Erklärungskasten UND
+Ursprungs-Legende, beide Hintergründe schließen links exakt bündig ab.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
