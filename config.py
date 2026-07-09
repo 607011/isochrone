@@ -196,14 +196,10 @@ CITY_MARKER_SIZE = 2
 # --- Erklärungstext im --galton-Modus (siehe plot_h3_map.py:_draw_galton_explanation) ---
 # Wie bei Galtons Original: ein knapper Erklärungstext auf der Karte selbst
 # (nicht Teil der Farberklärung darunter), mit hellerem Hintergrund für
-# besseren Kontrast vor der Karte. Ursprünglich unten links über der
-# Ursprungs-Legende platziert, verdeckte dort aber Pazifik-Inseln (Samoa) -
-# jetzt stattdessen im Indischen Ozean zwischen Madagaskar und Australien
-# verankert (EXPLANATION_ANCHOR_LON/_LAT), wo deutlich mehr freie
-# Wasserfläche ist. Etwas kleinere Schrift/Zeilenbreite als beim ersten
-# Versuch, damit die Box in diese schmalere Lücke passt.
-EXPLANATION_ANCHOR_LON = 80.0
-EXPLANATION_ANCHOR_LAT = -42.0
+# besseren Kontrast vor der Karte, direkt über der Ursprungs-Legende (dem
+# Stern) gestapelt. War zwischenzeitlich (zu breit für diese Position) im
+# Indischen Ozean verankert - seit die Attribution auf zwei Zeilen umbricht
+# wieder schmal genug für die ursprüngliche Position links.
 EXPLANATION_TITLE_FONT_SIZE = 10
 EXPLANATION_SUBTITLE_FONT_SIZE = 7.5
 EXPLANATION_BODY_FONT_SIZE = 7

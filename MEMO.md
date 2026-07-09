@@ -1950,6 +1950,34 @@ unter Mercator als auch `--robinson`; `--cmap galton10` (gepaarte
 Farbfelder) und der Regressionslauf ganz ohne `--galton` funktionieren
 unverändert.
 
+## Phase 14zR: Attribution zweizeilig, Box zurück links auf die Karte
+
+Nutzervorschlag: die Attributionszeile "In the manner of Francis
+Galton, F.R.S. (1881)." auf zwei Zeilen umbrechen ("In the manner of" /
+"Francis Galton, F.R.S. (1881)."). Sie war als einzelne, nicht
+umgebrochene Zeile die mit Abstand breiteste im ganzen Block (breiter
+als jede umgebrochene Absatzzeile), bestimmte also maßgeblich die
+Gesamtbreite der Box. Durch den Umbruch schrumpft die maximale
+Zeilenbreite spürbar - genug, damit die Box wieder an ihrer
+ursprünglichen Position links über der Ursprungs-Legende passt, ohne
+wie zuvor bis zu den pazifischen Inseln nahe der Datumsgrenze zu
+reichen.
+
+Umsetzung: die Indischer-Ozean-Verankerung aus Phase 14zQ wieder
+rückgängig gemacht - `_draw_galton_explanation()` bekommt den
+`legend`-Parameter zurück, Positionierung wieder wie vor Phase 14zQ
+(horizontal an der Legenden-Mitte zentriert, vertikal direkt darüber
+gestapelt, kein Anker-Projektions-/Vertikalverschiebungs-Code mehr
+nötig). `config.EXPLANATION_ANCHOR_LON`/`_LAT` entfernt, da nicht mehr
+gebraucht. Die Attribution wird jetzt über zwei `place_centered()`-
+Aufrufe statt einem gesetzt, in umgekehrter Zeilenfolge platziert
+("Francis Galton..." zuerst/unten, "In the manner of" darüber) wie
+alle anderen Zeilen auch.
+
+Verifiziert: Testrender zeigt die Box wieder links über der Legende,
+schmaler als vor Phase 14zQ und ohne erkennbare Überlappung mit
+pazifischen Inseln; Regressionslauf ganz ohne `--galton` unverändert.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
