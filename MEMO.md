@@ -1597,6 +1597,50 @@ galton10` (10 Bänder, passt trotz mehr Einträgen noch auf eine Zeile,
 selbst) zeigen die einzeilige Legende wie gewünscht; Regressionslauf
 ganz ohne `--galton` bestätigt den unveränderten stufenlosen Farbbalken.
 
+## Phase 14zI: Legenden-Feinschliff - Farbpaare, Zentrierung, Sprache
+
+Vier kleine Nachbesserungen an der neuen Farberklärung aus Phase 14zH,
+alle als Reaktion auf den direkten Vergleich mit einem Originalausschnitt.
+
+1. **Farbtöne bei `--cmap galton10` paarweise zusammenfassen**: im
+   Original werden nicht zehn Einzeltöne gezeigt, sondern fünf benannte
+   Farbfamilien (Grün/Gelb/Rosa/Blau/Braun), von denen jede selbst ein
+   dunkel/hell-Paar ist (siehe `GALTON_COLORS`-Reihenfolge in
+   `plot_h3_map.py`). `_draw_galton_color_legend()` bekam einen neuen
+   `paired`-Parameter (`True` nur bei `--cmap galton10`, von der
+   Aufrufstelle anhand von `cmap_name` gesetzt): zwei aufeinanderfolgende
+   Farben werden als ein zusammenhängendes Doppelfeld ohne Zwischenraum
+   gezeichnet, mit einer gemeinsamen Bereichsangabe (`boundaries[i]` bis
+   `boundaries[i+2]`, überspringt also einen Schritt). `--cmap galton`
+   (kontinuierlich, `GALTON_NUM_BANDS` Bänder ohne diese Paarstruktur)
+   bleibt unpaarig.
+
+2. **Legende und Publikationszeile horizontal zentrieren**: bislang
+   linksbündig ab `ax_bbox.x0`. Zweistufiges Vorgehen: alle Text-/
+   Feld-Artists werden zunächst bei `x=0` sequentiell platziert (wie
+   bisher, nur mit anderem Startpunkt), aus der resultierenden
+   Gesamtbreite ein Versatz berechnet (`ax_center - total_width/2`) und
+   anschließend jeder Artist um diesen Versatz verschoben
+   (`set_x()`/`set_position()` je nach Artist-Typ) - vermeidet ein
+   zweites, teureres Renderdurchlauf nur zur Breitenmessung. Die
+   Publikationszeile wird separat anhand ihrer eigenen (kürzeren) Breite
+   zentriert, nicht an der Legendenzeile ausgerichtet.
+
+3. **Publikationszeile kleiner**: neue Schriftgröße
+   `config.GALTON_LEGEND_FONT_SIZE * 2 / 3` statt derselben Größe wie die
+   Legende selbst - kein eigener Konfigurationswert, da es sich um ein
+   Verhältnis zur Legendengröße handelt, nicht um einen unabhängig
+   sinnvollen Wert.
+
+4. **"mehr als" zu "more than"**: passt zur Überschrift "Explanation of
+   colours.", die ohnehin schon englisch ist - vorher unpassend
+   gemischtsprachig.
+
+Verifiziert: Testrender mit `--cmap galton10` zeigt fünf zentrierte
+Doppelfelder mit gemeinsamer Bereichsangabe und "more than 38.4h." als
+letztem Eintrag; `--cmap galton` zeigt weiterhin sechs einzelne,
+zentrierte Felder; Regressionslauf ohne `--galton` unverändert.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
