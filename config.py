@@ -208,6 +208,13 @@ EXPLANATION_BG_COLOR = "#e8e0cb"  # etwas dunkler als der erste Versuch (#f2ede0
 EXPLANATION_BG_ALPHA = 0.85
 EXPLANATION_BG_PAD_PT = 5.0
 
+# --- Signaturzeile im --galton-Modus (siehe plot_h3_map.py:_draw_credits) ---
+# Wie im Original, das sich unten links (Kartograph "H. Sharbau, F.G.S.
+# del.") und unten rechts (Lithograph "E. Weller. lith.") direkt unter dem
+# Kartenrahmen verewigt.
+CREDITS_FONT_SIZE = 7.0
+CREDITS_GAP_PT = 4.0
+
 # --- Farberklärung im --galton-Modus (siehe plot_h3_map.py:_draw_galton_color_legend) ---
 # Wie im Original von 1881: eine einzelne, knappe Zeile "Explanation of
 # colours." gefolgt von Farbfeld+Bereich je Band, statt eines stufenlosen

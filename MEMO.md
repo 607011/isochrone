@@ -2012,6 +2012,36 @@ Verifiziert: Zoom auf die linke Kartenkante zeigt die Box jetzt exakt
 linksbündig mit der Legende, keine Überlappung mit den Gradzahlen mehr;
 Regressionslauf ganz ohne `--galton` unverändert.
 
+## Phase 14zT: Signaturzeile wie im Original (Kartograph/Lithograph)
+
+Nutzer zeigte den Ausschnitt unten links auf Galtons Original: dort
+verewigt sich Kartograph Henry Sharbau ("H. Sharbau. F.G.S. del.")
+direkt unter dem Kartenrahmen; unten rechts steht analog der
+Lithograph ("E. Weller. lith."). Wunsch: an derselben Stelle "O. Lau,
+editor, c't" (unten links) und "Claude, generative AI model,
+Anthropic" (unten rechts).
+
+Umsetzung: neue Konfigurationswerte `CREDITS_FONT_SIZE`/`_GAP_PT` in
+`config.py`. Direkt im Anschluss an den äußeren Rahmen in
+`plot_h3_map.py` (derselbe `if galton:`-Block, direkt nach
+`ax.add_patch(outer_rect)`) - nutzt die dort bereits berechnete
+`outer_axes`-Bounding-Box (linker/rechter Rand des äußeren Rahmens in
+`ax.transAxes`-Koordinaten) weiter, statt sie neu zu berechnen. Der
+Abstand darunter (`CREDITS_GAP_PT`, in Punkten) wird über die
+Achsenhöhe in Pixeln in Achsen-Bruchteile umgerechnet, nicht über die
+Figure-Höhe - `outer_axes` selbst liegt in `ax.transAxes`-Koordinaten,
+eine Umrechnung über die Figure-Höhe hätte einen falschen (zu kleinen,
+da die Achse kleiner als die ganze Figure ist) Abstand ergeben.
+`ax.text(..., transform=ax.transAxes, clip_on=False)` mit `ha="left"`/
+`"right"` an `outer_axes.x0`/`x1` - kein Zentrierungs- oder
+Mehrzeilen-Aufwand nötig, da es zwei unabhängige, kurze Einzeilen sind.
+Kursiv wie die Publikationszeile (`CITY_FONT`).
+
+Verifiziert: Testrender zeigt beide Signaturen an der erwarteten
+Stelle, direkt unter dem Rahmen auf Höhe der Farberklärungszeile;
+Regressionslauf ganz ohne `--galton` zeigt weiterhin keine
+Signaturzeile.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

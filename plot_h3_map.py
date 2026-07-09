@@ -700,6 +700,26 @@ def plot_h3_map(
         _sketch(outer_rect)
         ax.add_patch(outer_rect)
 
+        # Signaturzeile wie im Original, das sich dort mit Kartograph
+        # ("H. Sharbau, F.G.S. del.", unten links) und Lithograph
+        # ("E. Weller. lith.", unten rechts) verewigt - direkt unter dem
+        # äußeren Rahmen, in Achsen-Bruchteilen relativ zur Achsenhöhe
+        # (nicht zur Figure-Höhe) umgerechnet, da outer_axes bereits in
+        # ax.transAxes-Koordinaten vorliegt.
+        ax_height_px = ax.get_window_extent(renderer).height
+        gap_axes = (config.CREDITS_GAP_PT * fig.dpi / 72.0) / ax_height_px
+        credits_y = outer_axes.y0 - gap_axes
+        ax.text(
+            outer_axes.x0, credits_y, "O. Lau, editor, c’t", transform=ax.transAxes,
+            fontproperties=CITY_FONT, fontsize=config.CREDITS_FONT_SIZE, color=ANTHRACITE,
+            va="top", ha="left", zorder=6, clip_on=False,
+        )
+        ax.text(
+            outer_axes.x1, credits_y, "Claude, generative AI model, Anthropic", transform=ax.transAxes,
+            fontproperties=CITY_FONT, fontsize=config.CREDITS_FONT_SIZE, color=ANTHRACITE,
+            va="top", ha="right", zorder=6, clip_on=False,
+        )
+
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
     # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
