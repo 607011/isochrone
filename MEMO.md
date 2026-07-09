@@ -1478,6 +1478,48 @@ ohne Lesbarkeit einzubüßen; dieselbe Karte ganz ohne `--galton`
 unverändert (keine Wackellinien, kein Rauschen) - Regression
 ausgeschlossen.
 
+**Nachbesserung** auf Nutzerfeedback ("Galton hatte kein Parkinson"):
+Drei Punkte.
+
+1. **Zu starkes, rhythmisches statt zufälliges Wackeln**: `randomness=2`
+   lag weit unter matplotlibs eigenem Default (16) - je niedriger,
+   desto gleichmäßiger/wellenförmiger die Sinuskurve, mit der der
+   Sketch-Filter intern arbeitet; hohe Randomness variiert
+   Länge/Amplitude stärker und lässt es dadurch unregelmäßiger, weniger
+   rhythmisch wirken. Per Sichtvergleich mehrerer Kombinationen neu
+   kalibriert: `scale=0.3, length=15, randomness=10` - deutlich
+   subtiler als der erste Versuch (`1.5/20/2`), liest sich als Zittern,
+   nicht als Welle.
+
+2. **Gitterlinien blieben gerade**: `gl.set_sketch_params()` (auf dem
+   `Gridliner`-Objekt selbst) bewirkt nichts - die tatsächlich
+   gezeichneten Meridian-/Parallelen-Linien sind eigene interne
+   `LineCollection`-Artists (`gl.xline_artists`/`gl.yline_artists`),
+   die cartopy erst beim ersten `fig.canvas.draw()` anlegt. Fix: den
+   ohnehin schon vorhandenen frühen `fig.canvas.draw()`-Aufruf (bislang
+   nur zur Pixel-Vermessung des Doppelrahmens da) mitnutzen, danach
+   `_sketch()` auf jeden Artist in `gl.xline_artists`/`yline_artists`
+   einzeln anwenden.
+
+3. **Gradzahlen/Legendenzahlen sollen denselben Font wie Städtenamen
+   haben**: `gl.xlabel_style`/`ylabel_style` und die Colorbar-
+   Tick-Labels (`cbar.ax.get_xticklabels()`) bekommen jetzt
+   `fontproperties=CITY_FONT` (dasselbe kursive Libre Baskerville wie
+   die Stadtbeschriftungen) statt der matplotlib-Standardschrift.
+
+4. **Legenden-Trennlinien sollen (wenn möglich) auch zittern**:
+   stellte sich als eigentlich nicht existent heraus - die
+   Farbfeldgrenzen in der Legende wirkten nur durch den Farbkontrast
+   wie eine Linie, `cbar.dividers` (eine `LineCollection`) war leer, da
+   `drawedges` standardmäßig `False` ist. Für `--galton` jetzt
+   `drawedges=True` gesetzt, `cbar.dividers` und `cbar.outline` (der
+   Rahmen um die ganze Farbskala) bekommen Farbe/Strichstärke wie die
+   übrige Linienführung und werden ebenfalls per `_sketch()`
+   gewackelt - vorher unsichtbare, jetzt echte, zitternde Trennlinien.
+
+Verifiziert per erneutem Sichtvergleich (Legenden-Ausschnitt
+vergrößert geprüft) und Regressionslauf ohne `--galton`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

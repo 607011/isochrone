@@ -356,15 +356,13 @@ def plot_h3_map(
             gl.bottom_labels = True
             gl.left_labels = True
             gl.right_labels = True
-            gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8}
-            gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8}
+            gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8, "fontproperties": CITY_FONT}
+            gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8, "fontproperties": CITY_FONT}
             # Wie im Original: keine Vorzeichen, West/Süd sind an der
             # Position (Rand) erkennbar, nicht am Minus vor der Zahl.
             plain_formatter = FuncFormatter(lambda v, pos: f"{abs(v):g}")
             gl.xformatter = plain_formatter
             gl.yformatter = plain_formatter
-        if galton:
-            _sketch(gl)
 
     if galton:
         # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
@@ -378,6 +376,15 @@ def plot_h3_map(
         ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
         _sketch(ax.spines["geo"])
         fig.canvas.draw()
+        # set_sketch_params() auf dem Gridliner-Objekt selbst wirkt nicht -
+        # die tatsächlich gezeichneten Linien sind eigene LineCollection-
+        # Artists (xline_artists/yline_artists), die erst beim ersten
+        # canvas.draw() entstehen (siehe oben) und daher erst hier
+        # erreichbar sind. gl existiert immer an dieser Stelle, da galton
+        # (Bedingung dieses Blocks) die Bedingung des gridlines()-Blocks
+        # weiter oben (grid or galton) impliziert.
+        for line_artist in list(gl.xline_artists) + list(gl.yline_artists):
+            _sketch(line_artist)
         bbox_px = ax.get_window_extent(fig.canvas.get_renderer())
         gap_px = FRAME_GAP_PT * fig.dpi / 72.0
         inner_px = Bbox.from_extents(
@@ -453,10 +460,23 @@ def plot_h3_map(
         transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
     )
 
-    cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
+    # drawedges=True zeichnet echte Trennlinien zwischen den Farbfeldern
+    # (cbar.dividers) statt sie nur durch den Farbkontrast erahnen zu lassen -
+    # nötig, damit im --galton-Modus überhaupt etwas da ist, das wackeln kann.
+    cbar = fig.colorbar(
+        mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max", drawedges=galton,
+    )
     cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
     if galton:
         cbar.ax.xaxis.label.set_fontproperties(TITLE_FONT)
+        for tick_label in cbar.ax.get_xticklabels():
+            tick_label.set_fontproperties(CITY_FONT)
+        cbar.dividers.set_edgecolor(ANTHRACITE)
+        cbar.dividers.set_linewidth(COASTLINE_LINEWIDTH)
+        _sketch(cbar.dividers)
+        cbar.outline.set_edgecolor(ANTHRACITE)
+        cbar.outline.set_linewidth(COASTLINE_LINEWIDTH)
+        _sketch(cbar.outline)
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"

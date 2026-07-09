@@ -60,9 +60,13 @@ GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 # Postprocessing-Schritt übers fertige PNG. Werte per Sichtprobe kalibriert:
 # genug Wackeln/Körnung, um wie gestochen statt digital gezeichnet zu wirken,
 # ohne die Lesbarkeit zu beeinträchtigen - siehe MEMO.md.
-RETRO_SKETCH_SCALE = 1.5        # Amplitude der Linienwellung, in Punkten
-RETRO_SKETCH_LENGTH = 20.0      # Wellenlänge der Linienwellung, in Punkten
-RETRO_SKETCH_RANDOMNESS = 2.0   # Zufälligkeit der Wellung
+# randomness deutlich über matplotlibs eigenem Default (16) zu niedrig
+# angesetzt ergibt eine beinahe perfekte, rhythmische Sinuswelle statt
+# eines unregelmäßigen Zitterns - je höher, desto "zufälliger" wirkt die
+# Wellung statt gleichförmig zu schwingen.
+RETRO_SKETCH_SCALE = 0.3        # Amplitude der Linienwellung, in Punkten
+RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Punkten
+RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung
 RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)
 
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
