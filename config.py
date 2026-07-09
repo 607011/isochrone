@@ -166,17 +166,24 @@ TITLE_FONT_FALLBACK_FAMILY = "serif"  # falls die Playfair-Datei fehlt
 # extrahiert (Bold aus der Roman-, Regular aus der Italic-Achse).
 CONTINENT_FONT_PATH = "fonts/LibreBaskerville-Bold.ttf"
 CITY_FONT_PATH = "fonts/LibreBaskerville-Italic.ttf"
+# Regular-Schnitt (nicht kursiv, nicht fett) - für den Fließtext der
+# --galton-Erklärungsbox, die anders als Kontinent-/Städtenamen keine
+# Auszeichnung braucht. Aus derselben Roman-Achse wie CONTINENT_FONT_PATH
+# extrahiert, nur bei wght=400 statt 700.
+BODY_FONT_PATH = "fonts/LibreBaskerville-Regular.ttf"
 CONTINENT_FONT_FALLBACK_FAMILY = "serif"  # falls die Font-Datei fehlt
 CITY_FONT_FALLBACK_FAMILY = "serif"
+BODY_FONT_FALLBACK_FAMILY = "serif"
 
 # Für die Überschrift der --galton-Erklärungsbox (_draw_galton_explanation):
 # im Original eine kräftige, serifenlose Groteskschrift, ganz anders als der
-# Rest der Kartentypografie (Playfair/Libre Baskerville, beides Serifen) -
-# Archivo Black (Omnibus-Type, SIL Open Font License, siehe
-# fonts/ArchivoBlack-OFL.txt) trifft diesen viktorianischen Headline-Look
-# gut und liegt bereits als statische Datei vor (kein Variable-Font-Umweg
-# wie bei Playfair/Libre Baskerville nötig).
-EXPLANATION_TITLE_FONT_PATH = "fonts/ArchivoBlack-Regular.ttf"
+# Rest der Kartentypografie (Playfair/Libre Baskerville, beides Serifen).
+# Anton (Google Fonts, SIL Open Font License, siehe fonts/Anton-OFL.txt) ist
+# von viktorianischen/frühen Plakat- und Zeitungs-Groteskschriften
+# inspiriert - altertümlicher im Auftritt als das zunächst gewählte, eher
+# moderne Archivo Black. Liegt als statische Datei vor, kein
+# Variable-Font-Umweg nötig.
+EXPLANATION_TITLE_FONT_PATH = "fonts/Anton-Regular.ttf"
 EXPLANATION_TITLE_FONT_FALLBACK_FAMILY = "sans-serif"
 
 TITLE_FONT_SIZE = 18
@@ -187,11 +194,15 @@ CITY_MARKER_SIZE = 2
 # --- Erklärungstext im --galton-Modus (siehe plot_h3_map.py:_draw_galton_explanation) ---
 # Wie bei Galtons Original: ein knapper Erklärungstext unten links auf der
 # Karte selbst (nicht Teil der Farberklärung darunter), direkt über der
-# Ursprungs-Legende (dem Stern) gestapelt.
+# Ursprungs-Legende (dem Stern) gestapelt, mit hellerem Hintergrund für
+# besseren Kontrast vor der Karte.
 EXPLANATION_TITLE_FONT_SIZE = 13
 EXPLANATION_SUBTITLE_FONT_SIZE = 9
 EXPLANATION_BODY_FONT_SIZE = 8.5
 EXPLANATION_BODY_WRAP_CHARS = 48
+EXPLANATION_BG_COLOR = "#f2ede0"  # heller als BACKGROUND_COLOR (#dad4bb)
+EXPLANATION_BG_ALPHA = 0.85
+EXPLANATION_BG_PAD_PT = 5.0
 
 # --- Farberklärung im --galton-Modus (siehe plot_h3_map.py:_draw_galton_color_legend) ---
 # Wie im Original von 1881: eine einzelne, knappe Zeile "Explanation of

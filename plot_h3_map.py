@@ -85,6 +85,11 @@ if os.path.exists(config.CITY_FONT_PATH):
     CITY_FONT = fm.FontProperties(fname=config.CITY_FONT_PATH)
 else:
     CITY_FONT = fm.FontProperties(family=config.CITY_FONT_FALLBACK_FAMILY, style="italic")
+if os.path.exists(config.BODY_FONT_PATH):
+    fm.fontManager.addfont(config.BODY_FONT_PATH)
+    BODY_FONT = fm.FontProperties(fname=config.BODY_FONT_PATH)
+else:
+    BODY_FONT = fm.FontProperties(family=config.BODY_FONT_FALLBACK_FAMILY)
 if os.path.exists(config.EXPLANATION_TITLE_FONT_PATH):
     fm.fontManager.addfont(config.EXPLANATION_TITLE_FONT_PATH)
     EXPLANATION_TITLE_FONT = fm.FontProperties(fname=config.EXPLANATION_TITLE_FONT_PATH)
@@ -390,31 +395,28 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     an die Stelle von Galtons vagem "local preparations have been made
     and other circumstances are favourable".
 
-    Positionierung wie bei der Farberklärung: erst bei x=legend.x0
-    platzieren und den tatsächlich gerenderten Zeilenhöhen folgend nach
-    oben stapeln (fig.canvas.draw() + get_window_extent() je Zeile),
-    da diese von Schriftart/-größe abhängen. Die Zeilen werden in
-    umgekehrter Lesereihenfolge (Attribution zuerst, Titel zuletzt)
-    platziert, weil jede neue Zeile über der vorherigen erscheint.
+    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert (der
+    horizontalen Mitte der Ursprungs-Legende), bis auf den Fließtext-
+    Absatz: matplotlib kennt keinen echten Blocksatz (der bräuchte
+    Wort-für-Wort-Platzierung mit dynamisch berechnetem Wortabstand) -
+    der Absatz bleibt daher pro Zeile linksbündig, aber als Ganzes
+    (anhand seiner breitesten Zeile) auf dieselbe Mittelachse zentriert,
+    statt komplett linksbündig wie zuvor.
+
+    Positionierung wie bei der Farberklärung: Text wird zunächst
+    unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
+    gerenderten Breiten/Höhen zu kennen (fig.canvas.draw() +
+    get_window_extent(), da diese von Schriftart/-größe abhängen), dann
+    an die endgültige Position verschoben. Die Zeilen werden von unten
+    nach oben in umgekehrter Lesereihenfolge gestapelt (Attribution
+    zuerst, Titel zuletzt), weil jede neue Zeile über der vorherigen
+    erscheint.
     """
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
     legend_bbox = legend.get_window_extent(renderer)
-
-    x = legend_bbox.x0 / fig_w_px
-    y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
-    line_gap_px = 2.0 * fig.dpi / 72.0
-    para_gap_px = 4.0 * fig.dpi / 72.0
-
-    def place(text_str, fontproperties, fontsize, extra_gap_px=0.0):
-        nonlocal y
-        t = fig.text(
-            x, y, text_str, fontproperties=fontproperties, fontsize=fontsize,
-            color=ANTHRACITE, va="bottom", ha="left",
-        )
-        fig.canvas.draw()
-        y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
+    center_x_px = (legend_bbox.x0 + legend_bbox.x1) / 2
 
     body = (
         f"showing the shortest number of hours’ journey from {origin_label} "
@@ -429,20 +431,79 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
             " Where a helicopter or jetpack is used for departure, its "
             "higher speed and limited range are accounted for."
         )
-
-    place("In the manner of Francis Galton, F.R.S. (1881).", CITY_FONT, config.EXPLANATION_BODY_FONT_SIZE)
     body_lines = textwrap.wrap(body, width=config.EXPLANATION_BODY_WRAP_CHARS)
-    for i, wrapped_line in enumerate(reversed(body_lines)):
-        is_top_line = i == len(body_lines) - 1
-        place(
-            wrapped_line, CITY_FONT, config.EXPLANATION_BODY_FONT_SIZE,
-            extra_gap_px=para_gap_px if is_top_line else 0.0,
+
+    # Body-Zeilen vorab an Platzhalter-Position erzeugen, nur um ihre
+    # gerenderte Breite zu kennen - die breiteste bestimmt, wie weit der
+    # ganze (linksbündige) Absatzblock von der Mittelachse aus nach links
+    # verschoben werden muss, damit der Block als Ganzes zentriert wirkt.
+    body_artists = []
+    max_body_width_px = 0.0
+    for line_str in body_lines:
+        t = fig.text(
+            0, 0, line_str, fontproperties=BODY_FONT, fontsize=config.EXPLANATION_BODY_FONT_SIZE,
+            color=ANTHRACITE, va="bottom", ha="left", zorder=6,
         )
-    place(
-        "FOR TRAVELLERS,", EXPLANATION_TITLE_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE,
+        fig.canvas.draw()
+        max_body_width_px = max(max_body_width_px, t.get_window_extent(renderer).width)
+        body_artists.append(t)
+    para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
+
+    x_center = center_x_px / fig_w_px
+    y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
+    line_gap_px = 2.0 * fig.dpi / 72.0
+    para_gap_px = 4.0 * fig.dpi / 72.0
+    all_artists = list(body_artists)
+
+    def place_centered(text_str, fontproperties, fontsize, extra_gap_px=0.0):
+        nonlocal y
+        t = fig.text(
+            x_center, y, text_str, fontproperties=fontproperties, fontsize=fontsize,
+            color=ANTHRACITE, va="bottom", ha="center", zorder=6,
+        )
+        fig.canvas.draw()
+        all_artists.append(t)
+        y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
+
+    # Fett statt kursiv (CONTINENT_FONT statt CITY_FONT) - liest sich eher
+    # wie eine Signaturzeile.
+    place_centered("In the manner of Francis Galton, F.R.S. (1881).", CONTINENT_FONT, config.EXPLANATION_BODY_FONT_SIZE)
+
+    for i, t in enumerate(reversed(body_artists)):
+        is_top_line = i == len(body_artists) - 1
+        t.set_position((para_x, y))
+        fig.canvas.draw()
+        extra_gap_px = para_gap_px if is_top_line else 0.0
+        y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
+
+    # "FOR TRAVELLERS," mit Serifen (CONTINENT_FONT) statt der serifenlosen
+    # Titel-Groteskschrift - wie im Original, wo nur die Hauptüberschrift
+    # serifenlos ist.
+    place_centered(
+        "FOR TRAVELLERS,", CONTINENT_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE,
         extra_gap_px=para_gap_px,
     )
-    place("ISOCHRONIC TRAVEL-TIME CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+    place_centered("ISOCHRONIC TRAVEL-TIME CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+
+    # Hellerer Hintergrund für besseren Kontrast vor der (teils dunklen)
+    # Karte - eine Fläche hinter allen Textelementen, anhand deren
+    # Gesamt-Bounding-Box bemessen.
+    fig.canvas.draw()
+    bg_bbox = None
+    for artist in all_artists:
+        artist_bbox = artist.get_window_extent(renderer)
+        bg_bbox = artist_bbox if bg_bbox is None else Bbox.union([bg_bbox, artist_bbox])
+    pad_px = config.EXPLANATION_BG_PAD_PT * fig.dpi / 72.0
+    bg_px = Bbox.from_extents(
+        bg_bbox.x0 - pad_px, bg_bbox.y0 - pad_px, bg_bbox.x1 + pad_px, bg_bbox.y1 + pad_px,
+    )
+    bg_axes = bg_px.transformed(ax.transAxes.inverted())
+    bg_rect = Rectangle(
+        (bg_axes.x0, bg_axes.y0), bg_axes.width, bg_axes.height,
+        transform=ax.transAxes, facecolor=config.EXPLANATION_BG_COLOR, edgecolor="none",
+        alpha=config.EXPLANATION_BG_ALPHA, zorder=5, clip_on=False,
+    )
+    ax.add_patch(bg_rect)
 
 
 def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):

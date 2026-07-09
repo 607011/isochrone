@@ -1833,6 +1833,67 @@ Stern-Legende, mit korrektem `origin_label` und `TRANSFER_HOURS`-Wert;
 `--james-bond`-Lauf zeigt den zusätzlichen Heli-/Jetpack-Satz;
 Regressionslauf ganz ohne `--galton` zeigt keine Box.
 
+## Phase 14zP: Erklärungsbox-Feinschliff - Kontrast, Schriftschnitte, Zentrierung
+
+Fünf Nachbesserungen an der neuen Erklärungsbox aus Phase 14zO, alle
+nach genauem Vergleich mit dem Original.
+
+1. **Hellerer Hintergrund**: neue Konfigurationswerte
+   `EXPLANATION_BG_COLOR` (`#f2ede0`, heller als `BACKGROUND_COLOR`
+   `#dad4bb`), `_ALPHA` (0.85), `_PAD_PT`. Eine `Rectangle`-Fläche wird
+   NACH allen Textelementen anhand der Vereinigung ihrer
+   Bounding-Boxen (plus Padding) platziert, mit niedrigerem `zorder`
+   als der Text (5 vs. 6) - dieselbe Funktion, die der matplotlib-
+   Standard-Legende (Stern) automatisch schon einen hellen Hintergrund
+   gibt, hier von Hand nachgebaut.
+
+2. **"FOR TRAVELLERS," mit Serifen**: statt der serifenlosen
+   Titel-Groteskschrift jetzt `CONTINENT_FONT` (fettes Libre
+   Baskerville) - wie im Original, wo nur die Hauptüberschrift
+   serifenlos ist, die Unterzeile aber Serifen hat.
+
+3. **Fließtext nicht mehr kursiv**: neue Schriftdatei
+   `fonts/LibreBaskerville-Regular.ttf` (Roman-Achse, wght=400 statt
+   700 wie `CONTINENT_FONT_PATH`) - bislang wurden nur Bold- und
+   Italic-Schnitte extrahiert, kein regulärer. Neue Konstante
+   `config.BODY_FONT_PATH`, geladen in `plot_h3_map.py` als
+   `BODY_FONT` nach demselben Existenzprüfung+Fallback-Muster wie die
+   anderen Schriften.
+
+4. **"In the manner of ..." fett statt kursiv**: nutzt jetzt ebenfalls
+   `CONTINENT_FONT` statt `CITY_FONT` - liest sich eher wie eine
+   Signaturzeile.
+
+5. **Alle Zeilen zentriert statt linksbündig, Fließtext im
+   "Blocksatz, sonst linksbündig"**: matplotlib hat keinen echten
+   Blocksatz (bräuchte Wort-für-Wort-Platzierung mit berechnetem
+   Wortabstand) - laut Nutzervorgabe daher der explizit erlaubte
+   Rückfall auf linksbündig für die einzelnen Absatzzeilen. Der Absatz
+   als Ganzes wird aber trotzdem zentriert: die Body-Zeilen werden
+   zunächst unsichtbar bei Position (0,0) erzeugt, nur um ihre
+   gerenderte Breite zu kennen (`fig.canvas.draw()` +
+   `get_window_extent()`), die breiteste bestimmt den linken Rand des
+   gesamten Absatzblocks relativ zur gemeinsamen Mittelachse (der
+   horizontalen Mitte der Stern-Legende) - danach werden dieselben
+   Artists nur noch per `set_position()` an ihre endgültige Position
+   verschoben, statt neu erzeugt zu werden. Titel/Untertitel/
+   Attribution sind einzeilig und werden trivial per `ha="center"` auf
+   dieselbe Mittelachse zentriert.
+
+**Schriftwahl für die Überschrift überdacht**: Nutzer erlaubte
+ausdrücklich eine "noch altertümlichere" Alternative zu Archivo Black.
+Ersetzt durch Anton (Google Fonts, OFL) - von viktorianischen/frühen
+Plakat-Groteskschriften inspiriert, wirkt im direkten Vergleich weniger
+zeitgenössisch als Archivo Black. `fonts/ArchivoBlack-*` wieder
+entfernt, `config.EXPLANATION_TITLE_FONT_PATH` zeigt jetzt auf
+`fonts/Anton-Regular.ttf`.
+
+Verifiziert: Zoom auf die Box bestätigt alle fünf Punkte (heller
+Hintergrund, serifige Unterzeile, aufrechter Fließtext, fette
+Attribution, zentrierte Zeilen mit linksbündigem, aber als Block
+zentriertem Absatz); Regressionslauf ganz ohne `--galton` zeigt weiterhin
+keine Box.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
