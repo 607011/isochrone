@@ -18,6 +18,7 @@ pyarrow = "*"
 rasterio = "*"
 scikit-image = "*"
 pillow = "*"
+adjusttext = "*"
 
 [dev-packages]
 # Nur für fix_ports_coordinates.py (einmaliges Korrekturskript, siehe

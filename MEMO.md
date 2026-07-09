@@ -1749,6 +1749,33 @@ Verifiziert: `--cmap galton10` zeigt jetzt "0-10h., 10-19h., 19-29h.,
 29-38h., more than 38h." statt der Dezimalwerte; `--cmap galton`
 weiterhin unverändert "0-8h., 8-16h., ..., more than 40h.".
 
+## Phase 14zN: Städtenamen-Kollisionsvermeidung per adjustText
+
+Nutzerfrage: können Städtenamen so platziert werden, dass sie sich
+weder gegenseitig noch mit Küstenlinien kreuzen? Als Diskussion
+beantwortet - Empfehlung `adjustText` (bereits im README als möglicher
+nächster Schritt erwähnt), das auch beliebige Artists (z.B. die
+Küstenlinien) als Ausweich-Objekte kennt, aber deutlich mehr Aufwand
+und nicht-deterministische Läufe bedeutet. Nutzerentscheidung: erstmal
+nur Städtenamen untereinander, ohne Küstenlinien-Ausweichen.
+
+Umsetzung: `adjustText` per `pipenv install adjustText` ergänzt (in
+`Pipfile` gelandet). In `_draw_labels()` werden die pro Stadt erzeugten
+`ax.text()`-Objekte jetzt in einer Liste gesammelt (`city_texts`,
+Kontinent-Beschriftungen bleiben davon unberührt) und nach der Schleife
+per `adjust_text(city_texts, ax=ax)` gegeneinander verschoben. Wichtige
+Erkenntnis beim Quelltext-Check von `adjustText`: es respektiert den
+tatsächlichen Transform der übergebenen `Text`-Objekte
+(`texts[0].get_transform()`), nicht hart `ax.transData` - da alle
+Städtenamen `ccrs.PlateCarree()` als Transform teilen, funktioniert das
+korrekt sowohl unter Mercator als auch Robinson, ohne dass die
+Kollisionsberechnung selbst geografische Koordinaten kennen müsste.
+
+Verifiziert: Testrender zeigt "Rio de Janeiro"/"São Paulo" (das im
+README explizit als Beispiel für überlappende Labels genannte
+Regionenpaar) jetzt sauber untereinander statt überlappend, sowohl mit
+als auch ohne `--galton`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

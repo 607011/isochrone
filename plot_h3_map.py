@@ -25,6 +25,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import numpy as np
 import pandas as pd
+from adjustText import adjust_text
 from global_land_mask import globe
 from PIL import Image
 from scipy.ndimage import gaussian_filter
@@ -141,16 +142,25 @@ def _draw_labels(ax):
             fontsize=config.CONTINENT_FONT_SIZE, color=ANTHRACITE, ha="center", va="center",
             fontproperties=CONTINENT_FONT,
         )
+    city_texts = []
     for name, lon, lat in _load_city_labels():
         ax.plot(
             lon, lat, marker="o", markersize=config.CITY_MARKER_SIZE, color=ANTHRACITE,
             transform=ccrs.PlateCarree(), zorder=6,
         )
-        ax.text(
+        city_texts.append(ax.text(
             lon + 1, lat, name, transform=ccrs.PlateCarree(), zorder=6,
             fontsize=config.CITY_FONT_SIZE, color=ANTHRACITE, ha="left", va="center",
             fontproperties=CITY_FONT,
-        )
+        ))
+    # Verschiebt nur sich gegenseitig überlappende Städtenamen auseinander
+    # (dichte Regionen wie Rio/São Paulo) - küstenlinien-bewusstes
+    # Ausweichen wäre ein größerer, separater Schritt (siehe MEMO.md).
+    # Läuft in der jeweiligen Kartenprojektion (ax.transData über den
+    # gemeinsamen Text-Transform, siehe adjustText-Quelltext), nicht in
+    # Lon/Lat, daher automatisch für Mercator und Robinson gleichermaßen
+    # korrekt.
+    adjust_text(city_texts, ax=ax)
 
 
 def _cell_polygon_lonlat(h3_index):
