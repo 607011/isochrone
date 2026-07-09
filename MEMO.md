@@ -2042,6 +2042,68 @@ Stelle, direkt unter dem Rahmen auf Höhe der Farberklärungszeile;
 Regressionslauf ganz ohne `--galton` zeigt weiterhin keine
 Signaturzeile.
 
+## Phase 14zU: `--cmap galton`/`galton5` neu benannt, `GALTON_NUM_BANDS` entfernt
+
+Nutzer zeigte `GALTON_COLORS` (zehn Werte, dunkel/hell je Farbfamilie)
+und schlug eine reduzierte Fünf-Farben-Palette vor - keine einfache
+"jede zweite Farbe"-Auswahl, sondern die tatsächlichen
+Einzelschwatch-Farben aus der Original-Legende: dunkles Grün, aber
+HELLES Gelb/Rosa/Blau/Braun. Frage: welche Implikationen das nach
+sich zieht.
+
+Antwort identifizierte u. a.: die Änderung betrifft die tatsächliche
+Kartenfarbgebung, nicht nur die Legende, da `GALTON10_COLORS` direkt
+in `ListedColormap()`/`contourf` einfließt; die bestehende
+`paired`-Legendenlogik (für die alten fünf Farbpaare gebaut) würde bei
+nur fünf rohen Farben den fünften Eintrag stillschweigend verlieren
+(`5 // 2 = 2`). Nutzer wies zusätzlich auf einen zweiten, unabhängigen
+Fehler hin: `--cmap galton` (die interpolierte Variante) zeigte in der
+Legende sechs statt fünf Farbfelder (`GALTON_NUM_BANDS = 6`) - Galtons
+Original hat exakt fünf Kategorien, die hellste/letzte immer offen
+("more than Xh."), was `extend="max"` automatisch korrekt abbildet,
+sobald Band- und Farbanzahl übereinstimmen.
+
+Finale Umbenennung (Nutzerentscheidung): `--cmap galton10` (die feste,
+nicht interpolierte Zehn-Farben-Palette) wird zu `--cmap galton` -
+damit übernimmt die *authentische* Direktfarben-Variante den bisher
+von der interpolierten Variante belegten Namen. Die interpolierte
+`LinearSegmentedColormap`-Variante (bisher `--cmap galton`,
+`GALTON_NUM_BANDS`-Bänder) entfällt ersatzlos - ein erfundener
+Verlaufston zwischen den Ankerfarben war ohnehin nie originalgetreu,
+sobald eine direkte Zehn-Farben-Variante existiert. Die neue reduzierte
+Fünf-Farben-Palette (`GALTON5_COLORS`) ist ab jetzt über
+`--cmap galton5` erreichbar. Zusätzlich: `--galton` impliziert nun
+`--cmap galton`, sofern `--cmap` nicht explizit gesetzt wurde - der
+Retro-Look soll standardmäßig Galtons echte Farben zeigen, nicht
+`config.COLORMAP` (`viridis_r`). Gleiches Muster wie bei der
+`--rivers`/`--grid`-Implikation aus Phase 14zL: `cmap_name = cmap_name
+or ("galton" if galton else config.COLORMAP)`, einmal in
+`plot_h3_map()` selbst und gespiegelt in den `main()`-Funktionen aller
+drei aufrufenden Skripte, jeweils vor der Dateinamens-Bildung (dafür
+wurde der `--cmap`-Default in allen vier Skripten von
+`config.COLORMAP` auf `None` geändert, um "nicht gesetzt" von
+"explizit `viridis_r` gewählt" unterscheiden zu können).
+
+Bandanzahl folgt jetzt direkt der Palettengröße statt einer eigenen
+Konstante: `n_bands = len(GALTON5_COLORS) if cmap_name == "galton5"
+else len(GALTON_COLORS)` - fünf bei `galton5`, sonst zehn (auch für
+beliebige andere `--cmap`-Werte im `--galton`-Modus, vorher
+`GALTON_NUM_BANDS`). `config.GALTON_NUM_BANDS` komplett entfernt, da
+es keine Verwendung mehr hat. Die `paired`-Legendenlogik bleibt
+unverändert bestehen, wird aber jetzt an `cmap_name == "galton"`
+geknüpft statt `== "galton10"` - weiterhin sinnvoll, da `galton` nach
+wie vor zehn echte Einzelfarben in fünf Familien liefert; `galton5`
+braucht keine Paarung, da jede seiner fünf Farben schon eine eigene
+Familie repräsentiert. Der Titelzusatz ("N feste Stufen") ist jetzt
+dynamisch aus `n_bands` abgeleitet statt fest "10" zu schreiben.
+
+Verifiziert: `--galton` ohne `--cmap` rendert mit `cmap=galton`
+(Konsolen-Overview bestätigt), Legende zeigt fünf gepaarte
+Zehn-Farb-Felder, Titel "10 feste Stufen"; `--galton --cmap galton5`
+zeigt fünf einzelne Felder ohne Paarung, Titel "5 feste Stufen",
+letztes Feld korrekt "more than 38h."; Regressionslauf ganz ohne
+`--galton` unverändert (Standardfarbe weiterhin `viridis_r`).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

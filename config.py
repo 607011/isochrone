@@ -34,15 +34,6 @@ SHOW_PORTS = False
 # Standardausgabe durch die Einführung dieses Schalters nicht ändert.
 GALTON_MAX_HOURS = 48
 
-# Anzahl der Bänder bei --cmap galton (interpolierte Palette) - kein eigener
-# CLI-Schalter, da das eher zum Look der Palette gehört als zur Reichweite
-# der Skala. Bei --cmap galton10 ist die Anzahl ohnehin durch die zehn festen
-# Palettenfarben vorgegeben. 6 Bänder (bei GALTON_MAX_HOURS=48 also 8h breit)
-# sind klar als 5 ineinander übergehende Farbfamilien lesbar, wie im
-# Original - mehr Bänder würden das Sampling der zehn Ankerfarben so dicht
-# machen, dass sie kaum noch von --cmap galton10 zu unterscheiden wären.
-GALTON_NUM_BANDS = 6
-
 # Nachbarschafts-Mittelung auf dem H3-Gitter selbst (1 Ring) glättet zu
 # schwach, um Galtons handgezeichnete, glatte Bänder nachzubilden - das
 # Bandmuster folgt sonst weiter dem kleinräumigen Rauschen der Rohdaten

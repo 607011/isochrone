@@ -272,17 +272,19 @@ def _print_config_overview(
 def main(
     lat, lon, label=None, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
-    max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
     heli=False, jetpack=False, verbose=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
-    # --galton impliziert --rivers/--grid (siehe plot_h3_map.py) - hier
-    # schon vor der Dateinamens-Bildung und der -v-Übersicht angewendet,
-    # damit Dateiname und Konsolenausgabe zum tatsächlich gezeichneten
-    # Bild passen, statt die implizierten Schalter zu verschweigen.
+    # --galton impliziert --rivers/--grid und --cmap galton (siehe
+    # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung und der
+    # -v-Übersicht angewendet, damit Dateiname und Konsolenausgabe zum
+    # tatsächlich gezeichneten Bild passen, statt die implizierten
+    # Schalter zu verschweigen.
     rivers = rivers or galton
     grid = grid or galton
+    cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
     if verbose:
         _print_config_overview(
             lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
@@ -290,7 +292,7 @@ def main(
         )
     slug = slug_for_point(lat, lon)
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
-    galton_suffix = ("_galton10" if cmap_name == "galton10" else "_galton") if galton else ""
+    galton_suffix = ("_galton5" if cmap_name == "galton5" else "_galton") if galton else ""
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""
@@ -336,7 +338,7 @@ def main(
     # travel_times_df/h3_df inhaltlich (andere Einstiegszeiten je Flughafen),
     # ohne den Suffix würde ein --heli-Lauf sonst denselben Dateinamen wie
     # der normale Lauf treffen und ihn stillschweigend überschreiben - siehe
-    # MEMO.md zur analogen --cmap galton/galton10-Kollision.
+    # MEMO.md zur analogen --cmap galton/galton5-Kollision.
     travel_times_csv = f"travel_times_from_{slug}{air_suffix}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
@@ -377,8 +379,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
         help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
-             "Farbton statt weiterer Streckung. Gleichmäßig in config.GALTON_NUM_BANDS Bänder "
-             "aufgeteilt (bzw. exakt zehn feste bei --cmap galton10).",
+             "Farbton statt weiterer Streckung. Gleichmaessig in zehn Baender aufgeteilt "
+             "(bzw. fuenf feste bei --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
@@ -386,13 +388,15 @@ if __name__ == "__main__":
              "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
     )
     parser.add_argument(
-        "--cmap", default=config.COLORMAP,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig). "
-             "Weitere perzeptuell gleichmaessige Optionen: plasma_r, inferno_r, magma_r, cividis_r "
-             "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': interpolierte, an das Original angelehnte Palette. "
-             "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: exakt zehn statt config.GALTON_NUM_BANDS Stufen).",
+        "--cmap", default=None,
+        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
+             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
+             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
+             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
+             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
+             "(zusammen mit --galton: zehn statt fuenf Stufen). "
+             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
+             "(zusammen mit --galton: fuenf statt zehn Stufen).",
     )
     parser.add_argument(
         "--labels", action="store_true",

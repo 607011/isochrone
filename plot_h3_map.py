@@ -17,7 +17,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
+from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
 from matplotlib.transforms import Bbox
@@ -114,11 +114,18 @@ GALTON_COLORS = [
     "#a48d81", "#d2bea4",  # Braun dunkel/hell
 ]
 
-# --cmap galton10: dieselben zehn Original-Farbwerte, aber als direkte,
-# diskrete ListedColormap statt als Stützstellen einer interpolierten
-# LinearSegmentedColormap (--cmap galton) - der Entfernungsstrahl bekommt
-# so exakt zehn Stufen, eine Farbe pro Stufe, ohne Zwischentöne.
-GALTON10_COLORS = GALTON_COLORS
+# --cmap galton5: eine auf fünf Farben reduzierte Palette - eine je
+# Farbfamilie statt der zehn dunkel/hell-Paare von GALTON_COLORS. Keine
+# einfache "jede zweite Farbe"-Auswahl, sondern die tatsächlichen
+# Einzelschwatch-Farben aus Galtons Original-Legende (dunkles Grün, aber
+# helles Gelb/Rosa/Blau/Braun - siehe Original-Legendenbild).
+GALTON5_COLORS = [
+    "#697f75",  # Grün dunkel
+    "#dcd4b7",  # Gelb hell
+    "#dfc6c0",  # Pink hell
+    "#aeb5be",  # Blau hell
+    "#d2bea4",  # Braun hell
+]
 
 # Grobe Kontinent-Beschriftungspositionen für --labels - ändern sich nie,
 # deshalb fest hinterlegt statt aus einem Datensatz abgeleitet.
@@ -284,7 +291,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
     für das letzte, offene Band - extend='max' im contourf-Aufruf gibt
     allem darüber ohnehin dieselbe Farbe), statt eines stufenlosen
     Farbbalkens mit eigener Achse und Achsenbeschriftung - nimmt dadurch
-    deutlich weniger Höhe ein. Bei paired=True (--cmap galton10) werden je
+    deutlich weniger Höhe ein. Bei paired=True (--cmap galton) werden je
     zwei aufeinanderfolgende Farben (dunkel/hell derselben Farbfamilie, siehe
     GALTON_COLORS) als ein zusammenhängendes Doppelfeld mit einer
     gemeinsamen Bereichsangabe gruppiert, genau wie im Original (fünf
@@ -550,7 +557,7 @@ def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS,
     show_ports=config.SHOW_PORTS, galton=False,
-    max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False,
 ):
@@ -559,6 +566,10 @@ def plot_h3_map(
     # wäre nur eine unnötige zusätzliche Angabe.
     rivers = rivers or galton
     grid = grid or galton
+    # --galton impliziert außerdem --cmap galton (statt config.COLORMAP),
+    # sofern --cmap nicht explizit gesetzt wurde - der Retro-Look soll
+    # Galtons echte Originalfarben zeigen, nicht viridis_r.
+    cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
 
     # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
     # Friction-Surface-Pfad haben keins, siehe friction_map_from_point.py)
@@ -710,12 +721,12 @@ def plot_h3_map(
         gap_axes = (config.CREDITS_GAP_PT * fig.dpi / 72.0) / ax_height_px
         credits_y = outer_axes.y0 - gap_axes
         ax.text(
-            outer_axes.x0, credits_y, "O. Lau, editor, c’t", transform=ax.transAxes,
+            outer_axes.x0, credits_y, "O. Lau, ed., c’t", transform=ax.transAxes,
             fontproperties=CITY_FONT, fontsize=config.CREDITS_FONT_SIZE, color=ANTHRACITE,
             va="top", ha="left", zorder=6, clip_on=False,
         )
         ax.text(
-            outer_axes.x1, credits_y, "Claude, generative AI model, Anthropic", transform=ax.transAxes,
+            outer_axes.x1, credits_y, "Claude, gen. AI, Anthropic", transform=ax.transAxes,
             fontproperties=CITY_FONT, fontsize=config.CREDITS_FONT_SIZE, color=ANTHRACITE,
             va="top", ha="right", zorder=6, clip_on=False,
         )
@@ -723,13 +734,13 @@ def plot_h3_map(
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
     # Maximum (mehrere Tage Seezeit mitten im Ozean) zu strecken.
-    if cmap_name == "galton10":
-        # ListedColormap statt LinearSegmentedColormap: exakt zehn feste
-        # Farben, keine Zwischentöne - eine direkte Palette statt
-        # Stützstellen für eine Interpolation.
-        cmap = ListedColormap(GALTON10_COLORS)
+    if cmap_name == "galton5":
+        # ListedColormap statt Interpolation: feste Farben, keine
+        # Zwischentöne - eine direkte Palette statt Stützstellen für eine
+        # Interpolation.
+        cmap = ListedColormap(GALTON5_COLORS)
     elif cmap_name == "galton":
-        cmap = LinearSegmentedColormap.from_list("galton", GALTON_COLORS)
+        cmap = ListedColormap(GALTON_COLORS)
     else:
         cmap = matplotlib.colormaps[cmap_name].copy()
 
@@ -738,15 +749,12 @@ def plot_h3_map(
         # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
         # Galtons handgezeichnete Bänder nachzubilden).
         lon_grid, lat_grid, galton_values = _build_galton_grid(covered, sigma_deg=galton_sigma)
-        if cmap_name == "galton10":
-            # Exakt zehn gleich breite Stufen - eine je Palettenfarbe -,
-            # von 0 bis max_hours.
-            boundaries = np.linspace(0, max_hours, len(GALTON10_COLORS) + 1)
-        else:
-            # config.GALTON_NUM_BANDS gleich breite Stufen von 0 bis
-            # max_hours - kein eigener CLI-Schalter für die Bandanzahl,
-            # siehe Kommentar dort.
-            boundaries = np.linspace(0, max_hours, config.GALTON_NUM_BANDS + 1)
+        # Bandanzahl folgt der Palettengröße: fünf gleich breite Stufen bei
+        # --cmap galton5, sonst zehn (--cmap galton oder jede andere
+        # Colormap im --galton-Modus) - eine feste Stufe je Palettenfarbe,
+        # kein eigener CLI-Schalter für die Bandanzahl.
+        n_bands = len(GALTON5_COLORS) if cmap_name == "galton5" else len(GALTON_COLORS)
+        boundaries = np.linspace(0, max_hours, n_bands + 1)
         mappable = ax.contourf(
             lon_grid, lat_grid, galton_values, levels=boundaries, cmap=cmap, extend="max",
             transform=ccrs.PlateCarree(), zorder=1,
@@ -786,22 +794,21 @@ def plot_h3_map(
         # Wie im Original: diskrete Farbfelder mit Bereichsangabe statt
         # eines stufenlosen Farbbalkens, siehe _draw_galton_color_legend().
         n_bands = len(boundaries) - 1
-        swatch_colors = (
-            GALTON10_COLORS if cmap_name == "galton10"
-            else [cmap((i + 0.5) / n_bands) for i in range(n_bands)]
-        )
-        _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton10")
+        if cmap_name == "galton5":
+            swatch_colors = GALTON5_COLORS
+        elif cmap_name == "galton":
+            swatch_colors = GALTON_COLORS
+        else:
+            swatch_colors = [cmap((i + 0.5) / n_bands) for i in range(n_bands)]
+        _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton")
     else:
         cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
         cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
-        if galton and cmap_name == "galton10":
-            detail = f"10 feste Stufen, geglättet (Gauß-Radius {galton_sigma}°)"
-        elif galton:
-            band_width = max_hours / config.GALTON_NUM_BANDS
-            detail = f"{band_width:g}h-Bänder, geglättet (Gauß-Radius {galton_sigma}°)"
+        if galton:
+            detail = f"{n_bands} feste Stufen, geglättet (Gauß-Radius {galton_sigma}°)"
         else:
             detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
         ax.set_title(
@@ -849,8 +856,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
         help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
-             "Farbton statt weiterer Streckung. Gleichmäßig in config.GALTON_NUM_BANDS Bänder "
-             "aufgeteilt (bzw. exakt zehn feste bei --cmap galton10).",
+             "Farbton statt weiterer Streckung. Gleichmaessig in zehn Baender aufgeteilt "
+             "(bzw. fuenf feste bei --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
@@ -858,13 +865,15 @@ if __name__ == "__main__":
              "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
     )
     parser.add_argument(
-        "--cmap", default=config.COLORMAP,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig). "
-             "Weitere perzeptuell gleichmaessige Optionen: plasma_r, inferno_r, magma_r, cividis_r "
-             "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': interpolierte, an das Original angelehnte Palette. "
-             "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: exakt zehn statt config.GALTON_NUM_BANDS Stufen).",
+        "--cmap", default=None,
+        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
+             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
+             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
+             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
+             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
+             "(zusammen mit --galton: zehn statt fuenf Stufen). "
+             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
+             "(zusammen mit --galton: fuenf statt zehn Stufen).",
     )
     parser.add_argument(
         "--labels", action="store_true",

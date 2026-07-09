@@ -87,14 +87,15 @@ def slug_for(iata, name):
 def main(
     origin_iata, dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS, show_ports=config.SHOW_PORTS,
     resolution=config.H3_RESOLUTION, galton=False,
-    max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
+    max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
-    # --galton impliziert --rivers/--grid (siehe plot_h3_map.py) - hier
-    # schon vor der Dateinamens-Bildung angewendet, damit der Dateiname
-    # zum tatsächlich gezeichneten Bild passt.
+    # --galton impliziert --rivers/--grid und --cmap galton (siehe
+    # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung angewendet,
+    # damit der Dateiname zum tatsächlich gezeichneten Bild passt.
     rivers = rivers or galton
     grid = grid or galton
+    cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
 
     travel_times_df = build_travel_times([origin_iata])
     if origin_iata not in travel_times_df["iata_code"].values:
@@ -103,7 +104,7 @@ def main(
     origin_row = travel_times_df[travel_times_df["iata_code"] == origin_iata].iloc[0]
     slug = slug_for(origin_iata, origin_row["name"])
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
-    galton_suffix = ("_galton10" if cmap_name == "galton10" else "_galton") if galton else ""
+    galton_suffix = ("_galton5" if cmap_name == "galton5" else "_galton") if galton else ""
     labels_suffix = "_labels" if labels else ""
     proj_suffix = "_robinson" if robinson else ""
     grid_suffix = "_grid" if grid else ""
@@ -146,8 +147,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
         help="Gesamtspanne der Farbskala in Stunden im --galton-Modus - ab hier der dunkelste "
-             "Farbton statt weiterer Streckung. Gleichmäßig in config.GALTON_NUM_BANDS Bänder "
-             "aufgeteilt (bzw. exakt zehn feste bei --cmap galton10).",
+             "Farbton statt weiterer Streckung. Gleichmaessig in zehn Baender aufgeteilt "
+             "(bzw. fuenf feste bei --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
@@ -155,13 +156,15 @@ if __name__ == "__main__":
              "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
     )
     parser.add_argument(
-        "--cmap", default=config.COLORMAP,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig). "
-             "Weitere perzeptuell gleichmaessige Optionen: plasma_r, inferno_r, magma_r, cividis_r "
-             "(oder ohne '_r' fuer umgekehrte Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': interpolierte, an das Original angelehnte Palette. "
-             "'galton10': dieselben zehn Originalfarben als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: exakt zehn statt config.GALTON_NUM_BANDS Stufen).",
+        "--cmap", default=None,
+        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
+             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
+             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
+             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
+             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
+             "(zusammen mit --galton: zehn statt fuenf Stufen). "
+             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
+             "(zusammen mit --galton: fuenf statt zehn Stufen).",
     )
     parser.add_argument(
         "--labels", action="store_true",
