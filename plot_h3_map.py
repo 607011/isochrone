@@ -107,7 +107,7 @@ else:
 # "<10 Tage"-Kategorie bei uns die gesamte Welt abdeckt (unser Maximum
 # liegt bei 48h = 2 Tagen).
 GALTON_COLORS = [
-    "#697f75", "#d7d4bf",  # Grün dunkel/hell
+    "#697f75", "#91a99f",  # Grün dunkel/hell
     "#d1c498", "#dcd4b7",  # Gelb dunkel/hell
     "#ba9ca7", "#dfc6c0",  # Pink dunkel/hell
     "#8b98a9", "#aeb5be",  # Blau dunkel/hell
@@ -361,7 +361,12 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
         # unangetastet, nur diese Beschriftung wird geglättet.
         lower_h = round(boundaries[i])
         upper_h = round(boundaries[i + step])
-        label = f"more than {lower_h}h." if is_last else f"{lower_h}-{upper_h}h."
+        # Beim letzten, offenen Band bezieht sich "more than" auf das obere
+        # Ende der Skala (max_hours), nicht auf den Bandanfang - sonst würde
+        # z.B. --max-hours=40 bei fünf Bändern (8h je Band) "more than 32h."
+        # zeigen statt "more than 40h.", obwohl die Skala selbst bis 40h
+        # geht und erst darüber (extend="max") derselbe Farbton greift.
+        label = f"more than {upper_h}h." if is_last else f"{lower_h}-{upper_h}h."
         place_text(label)
 
     total_width = x - gap / fig_w_px

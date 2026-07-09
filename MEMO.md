@@ -2119,6 +2119,20 @@ Verifiziert: `--galton` ohne `--labels` zeigt jetzt trotzdem Kontinent-
 und Stadtbeschriftungen, Konsolen-Overview listet "labels" unter
 Overlays, Dateiname enthält `_labels`.
 
+## Phase 14zW: "more than Xh."-Label bezieht sich auf `--max-hours`
+
+Bug-Report: bei `--max-hours=40` zeigte das letzte, offene Legendenfeld
+"more than 32h." statt "more than 40h." - `_draw_galton_color_legend()`
+nahm für das letzte Label bislang `lower_h` (den Anfang des letzten
+Bandes, bei fünf 8h-Bändern also 32h) statt des tatsächlichen oberen
+Skalenendes. Fix: letztes Label nutzt jetzt `upper_h` (== `round(max_hours)`,
+da `boundaries[-1] == max_hours`) statt `lower_h` - die Skala selbst
+geht bis `max_hours`, erst darüber greift `extend="max"` mit demselben
+Farbton.
+
+Verifiziert: `--galton --cmap galton5 --max-hours=40` zeigt jetzt
+korrekt "more than 40h." als letztes Legendenfeld.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
