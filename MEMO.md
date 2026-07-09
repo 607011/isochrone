@@ -2104,6 +2104,21 @@ zeigt fünf einzelne Felder ohne Paarung, Titel "5 feste Stufen",
 letztes Feld korrekt "more than 38h."; Regressionslauf ganz ohne
 `--galton` unverändert (Standardfarbe weiterhin `viridis_r`).
 
+## Phase 14zV: `--galton` impliziert jetzt auch `--labels`
+
+Nutzerwunsch: `--galton` soll auch `--labels` implizieren. Gleiches
+Muster wie bei der `--rivers`/`--grid`/`--cmap galton`-Implikation
+(Phasen 14zL/14zU): `labels = labels or galton`, einmal in
+`plot_h3_map()` selbst (dort direkt neben `rivers`/`grid` ergänzt) und
+gespiegelt in den `main()`-Funktionen aller drei aufrufenden Skripte,
+jeweils vor der Dateinamens-Bildung (`_labels`-Suffix) und vor der
+`-v`-Übersicht, damit Dateiname und Konsolenausgabe zum tatsächlich
+gezeichneten Bild passen.
+
+Verifiziert: `--galton` ohne `--labels` zeigt jetzt trotzdem Kontinent-
+und Stadtbeschriftungen, Konsolen-Overview listet "labels" unter
+Overlays, Dateiname enthält `_labels`.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

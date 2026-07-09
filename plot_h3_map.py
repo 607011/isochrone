@@ -561,11 +561,13 @@ def plot_h3_map(
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False,
 ):
-    # --galton impliziert --rivers/--grid - der Retro-Look zeigt Flüsse
-    # und das Gradnetz ohnehin wie im Original, ein separates Anfordern
-    # wäre nur eine unnötige zusätzliche Angabe.
+    # --galton impliziert --rivers/--grid/--labels - der Retro-Look zeigt
+    # Flüsse, das Gradnetz und die Kontinent-/Stadtbeschriftung ohnehin wie
+    # im Original, ein separates Anfordern wäre nur eine unnötige
+    # zusätzliche Angabe.
     rivers = rivers or galton
     grid = grid or galton
+    labels = labels or galton
     # --galton impliziert außerdem --cmap galton (statt config.COLORMAP),
     # sofern --cmap nicht explizit gesetzt wurde - der Retro-Look soll
     # Galtons echte Originalfarben zeigen, nicht viridis_r.
@@ -839,7 +841,7 @@ def plot_h3_map(
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
     if galton:
         _apply_retro_noise(png_path)
-    print(f"Karte gespeichert unter {png_path}")
+    print(f"Map saved as {png_path}")
 
 
 if __name__ == "__main__":

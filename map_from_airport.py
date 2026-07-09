@@ -90,11 +90,12 @@ def main(
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
 ):
-    # --galton impliziert --rivers/--grid und --cmap galton (siehe
+    # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
     # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung angewendet,
     # damit der Dateiname zum tatsächlich gezeichneten Bild passt.
     rivers = rivers or galton
     grid = grid or galton
+    labels = labels or galton
     cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
 
     travel_times_df = build_travel_times([origin_iata])

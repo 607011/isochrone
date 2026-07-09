@@ -244,15 +244,15 @@ def _print_config_overview(
     fasst zusammen, was sonst über ein Dutzend einzelner CLI-Flags verstreut
     wäre, bevor die eigentliche (teils mehrere Sekunden dauernde) Berechnung
     losläuft."""
-    print(f"Startpunkt: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
-    print(f"H3-Auflösung: {resolution}, DPI: {dpi}")
-    print(f"Projektion: {'Robinson' if robinson else 'Mercator'}"
+    print(f"Start: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
+    print(f"H3 resolution: {resolution}, DPI: {dpi}")
+    print(f"Projection: {'Robinson' if robinson else 'Mercator'}"
           + ("" if robinson or lat_limits is None else f", lat-limits {lat_limits[0]:g}/{lat_limits[1]:g}"))
     if galton:
-        print(f"Darstellung: --galton (cmap={cmap_name}, max-hours={max_hours:g}, "
+        print(f"Rendering: Galton color bands (cmap={cmap_name}, max-hours={max_hours:g}, "
               f"galton-sigma={galton_sigma:g}°)")
     else:
-        print(f"Darstellung: Kachel-Mosaik (cmap={cmap_name})")
+        print(f"Rendering: tile mosaic (cmap={cmap_name})")
     overlays = [name for name, on in [
         ("labels", labels), ("grid", grid), ("title", title), ("rivers", rivers),
         ("airports", show_airports), ("ports", show_ports),
@@ -264,9 +264,9 @@ def _print_config_overview(
             parts.append(f"Heli ({config.HELI_SPEED_KMH} km/h, {config.HELI_RANGE_KM} km Reichweite)")
         if jetpack:
             parts.append(f"Jetpack ({config.JETPACK_SPEED_KMH} km/h, {config.JETPACK_RANGE_KM} km Reichweite)")
-        print(f"Einstiegs-Etappe: {' + '.join(parts)}")
+        print(f"First stage of journey: {' + '.join(parts)}")
     else:
-        print("Einstiegs-Etappe: nur Friction-Surface (kein --heli/--jetpack)")
+        print("First stage of journey: friction-surface only (no --heli or --jetpack)")
 
 
 def main(
@@ -277,13 +277,14 @@ def main(
     heli=False, jetpack=False, verbose=False,
 ):
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
-    # --galton impliziert --rivers/--grid und --cmap galton (siehe
+    # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
     # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung und der
     # -v-Übersicht angewendet, damit Dateiname und Konsolenausgabe zum
     # tatsächlich gezeichneten Bild passen, statt die implizierten
     # Schalter zu verschweigen.
     rivers = rivers or galton
     grid = grid or galton
+    labels = labels or galton
     cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
     if verbose:
         _print_config_overview(
@@ -302,36 +303,36 @@ def main(
     air_suffix = "_bond" if heli and jetpack else ("_heli" if heli else "_jetpack" if jetpack else "")
 
     if verbose:
-        print("Lade Flughafendaten...")
+        print("Loading airport data ...")
     airports_df = load_airports(config.AIRPORTS_CSV)
     if verbose:
-        print("Lade Friction-Graph...")
+        print("Loading friction-graph ...")
     graph, node_lat, node_lon = friction.load_graph()
     if verbose:
-        print("Berechne kombinierte Boden-/Luft-Reisezeiten zu jedem Flughafen...")
+        print("Calculating combined ground/air travel-times to each airport ...")
     travel_times_df, combo_minutes = build_travel_times_from_point(
         lat, lon, graph, node_lat, node_lon, airports_df, heli=heli, jetpack=jetpack,
     )
     if verbose:
-        print(f"{len(travel_times_df)} Flughäfen erreichbar.")
+        print(f"{len(travel_times_df)} airports reachable.")
 
     if verbose:
-        print("Verteile Bodenzeit auf alle Land-Kacheln...")
+        print("Distributing ground time across all land tiles ...")
     land_result = build_friction_land(
         travel_times_df, graph, node_lat, node_lon,
         minutes_path=f"friction_data/land_travel_minutes_from_{slug}{res_suffix}{air_suffix}.npy",
         resolution=resolution,
     )
     if verbose:
-        print("Baue See-Kacheln/Häfen...")
+        print("Building port tiles/ports ...")
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
     if verbose:
-        print("Wende Fliegen-dann-Laufen-Bodenzeit auf Land-Kacheln an...")
+        print("Applying fly-then-walk ground time to land tiles ...")
     h3_df = _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon)
     if heli or jetpack:
         if verbose:
-            print("Färbe Heli-/Jetpack-Reichweite direkt auf alle Kacheln ein...")
+            print("Coloring tiles within heli/jetpack range...")
         h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
     # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
@@ -345,13 +346,13 @@ def main(
     png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}.png"
 
     if verbose:
-        print(f"Schreibe {travel_times_csv}, {h3_csv}, {ports_csv}...")
+        print(f"Writing {travel_times_csv}, {h3_csv}, {ports_csv} ...")
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
     ports_df.to_csv(ports_csv, index=False)
 
     if verbose:
-        print(f"Zeichne Karte nach {png}...")
+        print(f"Drawing map ...")
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [],
         origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
