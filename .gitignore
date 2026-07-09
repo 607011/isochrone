@@ -6,3 +6,15 @@ cache/
 osm_data/*.osm.pbf
 friction_data/*.geotiff
 fonts/PlayfairDisplay-Variable.ttf
+
+# Generierte Testläufe der Karten-Skripte (friction_map_from_point.py,
+# map_from_airport.py, friction_surface_map.py, plot_h3_map.py) - jederzeit
+# per CLI-Aufruf neu erzeugbar, sammeln sich sonst über viele Testläufe
+# hinweg unversioniert an. Bereits mit git add getrackte Referenzbeispiele
+# (z.B. h3_travel_times_map_from_thu_thule_air_base.png) bleiben davon
+# unberührt - .gitignore wirkt nur auf bisher ungetrackte Dateien.
+friction_data/land_travel_minutes_from_*.npy
+h3_travel_times_from_*.csv
+ports_travel_times_from_*.csv
+travel_times_from_*.csv
+h3_travel_times_map_from_*.png
