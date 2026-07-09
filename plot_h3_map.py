@@ -400,13 +400,16 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     an die Stelle von Galtons vagem "local preparations have been made
     and other circumstances are favourable".
 
-    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert (der
-    horizontalen Mitte der Ursprungs-Legende), bis auf den Fließtext-
-    Absatz: matplotlib kennt keinen echten Blocksatz (der bräuchte
-    Wort-für-Wort-Platzierung mit dynamisch berechnetem Wortabstand) -
-    der Absatz bleibt daher pro Zeile linksbündig, aber als Ganzes
-    (anhand seiner breitesten Zeile) auf dieselbe Mittelachse zentriert,
-    statt komplett linksbündig wie zuvor.
+    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert, bis auf
+    den Fließtext-Absatz: matplotlib kennt keinen echten Blocksatz (der
+    bräuchte Wort-für-Wort-Platzierung mit dynamisch berechnetem
+    Wortabstand) - der Absatz bleibt daher pro Zeile linksbündig, aber
+    als Ganzes (anhand seiner breitesten Zeile) auf dieselbe Mittelachse
+    zentriert, statt komplett linksbündig wie zuvor. Die Mittelachse
+    selbst liegt so, dass die BOX als Ganzes (ihre breiteste Zeile)
+    linksbündig mit der Ursprungs-Legende abschließt, statt die Legenden-
+    Mitte zu treffen - sonst würde die Box über den linken Legendenrand
+    hinaus in die Gradzahlen am Kartenrand hineinragen.
 
     Positionierung wie bei der Farberklärung: Text wird zunächst
     unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
@@ -421,7 +424,6 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     renderer = fig.canvas.get_renderer()
     fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
     legend_bbox = legend.get_window_extent(renderer)
-    center_x_px = (legend_bbox.x0 + legend_bbox.x1) / 2
 
     body = (
         f"showing the shortest number of hours’ journey from {origin_label} "
@@ -438,44 +440,56 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         )
     body_lines = textwrap.wrap(body, width=config.EXPLANATION_BODY_WRAP_CHARS)
 
-    # Body-Zeilen vorab an Platzhalter-Position erzeugen, nur um ihre
-    # gerenderte Breite zu kennen - die breiteste bestimmt, wie weit der
-    # ganze (linksbündige) Absatzblock von der Mittelachse aus nach links
-    # verschoben werden muss, damit der Block als Ganzes zentriert wirkt.
-    body_artists = []
-    max_body_width_px = 0.0
-    for line_str in body_lines:
+    # Jede Zeile (Body-Absatz UND die einzeiligen Elemente) wird zunächst
+    # an Platzhalter-Position (0, 0) erzeugt, nur um ihre gerenderte
+    # Breite zu kennen - die insgesamt breiteste bestimmt die Mittelachse
+    # so, dass die Box als Ganzes linksbündig mit der Legende abschließt
+    # (siehe Docstring), statt deren Mitte zu treffen.
+    def measure(text_str, fontproperties, fontsize):
         t = fig.text(
-            0, 0, line_str, fontproperties=BODY_FONT, fontsize=config.EXPLANATION_BODY_FONT_SIZE,
+            0, 0, text_str, fontproperties=fontproperties, fontsize=fontsize,
             color=ANTHRACITE, va="bottom", ha="left", zorder=6,
         )
         fig.canvas.draw()
-        max_body_width_px = max(max_body_width_px, t.get_window_extent(renderer).width)
+        return t, t.get_window_extent(renderer).width
+
+    body_artists = []
+    max_body_width_px = 0.0
+    for line_str in body_lines:
+        t, width_px = measure(line_str, BODY_FONT, config.EXPLANATION_BODY_FONT_SIZE)
+        max_body_width_px = max(max_body_width_px, width_px)
         body_artists.append(t)
+
+    title_artist, title_width_px = measure("ISOCHRONE CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+    subtitle_artist, subtitle_width_px = measure("FOR TRAVELLERS,", CONTINENT_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE)
+    attr1_artist, attr1_width_px = measure("In the manner of", CONTINENT_FONT, config.EXPLANATION_BODY_FONT_SIZE)
+    attr2_artist, attr2_width_px = measure(
+        "Francis Galton, F.R.S. (1881).", CONTINENT_FONT, config.EXPLANATION_BODY_FONT_SIZE,
+    )
+
+    max_width_px = max(max_body_width_px, title_width_px, subtitle_width_px, attr1_width_px, attr2_width_px)
+    center_x_px = legend_bbox.x0 + max_width_px / 2
     para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
 
     x_center = center_x_px / fig_w_px
     y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
     line_gap_px = 2.0 * fig.dpi / 72.0
     para_gap_px = 4.0 * fig.dpi / 72.0
-    all_artists = list(body_artists)
+    all_artists = list(body_artists) + [title_artist, subtitle_artist, attr1_artist, attr2_artist]
 
-    def place_centered(text_str, fontproperties, fontsize, extra_gap_px=0.0):
+    def place_centered(artist, extra_gap_px=0.0):
         nonlocal y
-        t = fig.text(
-            x_center, y, text_str, fontproperties=fontproperties, fontsize=fontsize,
-            color=ANTHRACITE, va="bottom", ha="center", zorder=6,
-        )
+        artist.set_position((x_center, y))
+        artist.set_ha("center")
         fig.canvas.draw()
-        all_artists.append(t)
-        y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
+        y += (artist.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
 
     # Fett statt kursiv (CONTINENT_FONT statt CITY_FONT) - liest sich eher
     # wie eine Signaturzeile. Auf zwei Zeilen umgebrochen statt einer
     # langen - macht die Box insgesamt schmaler, da diese Zeile sonst die
     # breiteste im ganzen Block wäre (breiter als jede Absatzzeile).
-    place_centered("Francis Galton, F.R.S. (1881).", CONTINENT_FONT, config.EXPLANATION_BODY_FONT_SIZE)
-    place_centered("In the manner of", CONTINENT_FONT, config.EXPLANATION_BODY_FONT_SIZE)
+    place_centered(attr2_artist)
+    place_centered(attr1_artist)
 
     for i, t in enumerate(reversed(body_artists)):
         is_top_line = i == len(body_artists) - 1
@@ -487,11 +501,8 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     # "FOR TRAVELLERS," mit Serifen (CONTINENT_FONT) statt der serifenlosen
     # Titel-Groteskschrift - wie im Original, wo nur die Hauptüberschrift
     # serifenlos ist.
-    place_centered(
-        "FOR TRAVELLERS,", CONTINENT_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE,
-        extra_gap_px=para_gap_px,
-    )
-    place_centered("ISOCHRONE CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+    place_centered(subtitle_artist, extra_gap_px=para_gap_px)
+    place_centered(title_artist)
 
     # Hellerer Hintergrund für besseren Kontrast vor der (teils dunklen)
     # Karte - eine Fläche hinter allen Textelementen, anhand deren

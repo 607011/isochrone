@@ -1978,6 +1978,40 @@ Verifiziert: Testrender zeigt die Box wieder links über der Legende,
 schmaler als vor Phase 14zQ und ohne erkennbare Überlappung mit
 pazifischen Inseln; Regressionslauf ganz ohne `--galton` unverändert.
 
+## Phase 14zS: Box linksbündig zur Legende, dunklerer Hintergrund
+
+Trotz Phase 14zR reichte die Box noch immer über den linken Rand der
+Ursprungs-Legende hinaus und überdeckte dort die Gradzahlen am
+Kartenrand - weil `center_x_px` bislang die MITTE der Legende traf,
+die Box selbst aber breiter als die Legende ist und dadurch
+symmetrisch über deren linken Rand hinausragte. Nutzerwunsch: die Box
+soll linksbündig mit der Legende abschließen, "auf der Karte liegen"
+statt teilweise im Rand.
+
+Umsetzung: da für "linksbündig mit der Legende" jetzt die Breite der
+GESAMTEN Box (nicht nur des Absatzes) vorab bekannt sein muss, werden
+jetzt auch Titel, Untertitel und beide Attributionszeilen zunächst bei
+Platzhalter-Position (0, 0) erzeugt und nur vermessen (neue
+Hilfsfunktion `measure()`, ersetzt die alte `place_centered()`, die
+noch direkt erzeugte UND platzierte). Aus der größten Breite aller
+Zeilen (Body-Absatz, Titel, Untertitel, beide Attributionszeilen)
+ergibt sich `center_x_px = legend_bbox.x0 + max_width_px / 2` statt
+der bisherigen Legenden-Mitte - die Box schließt dadurch mit ihrem
+eigenen linken Rand exakt am linken Rand der Legende ab, statt
+symmetrisch darüber hinauszuragen. `place_centered()` positioniert die
+vorab erzeugten Artists jetzt nur noch per `set_position()` +
+`set_ha("center")`, statt neue zu erzeugen.
+
+Zusätzlich: `EXPLANATION_BG_COLOR` einen Schritt dunkler
+(`#f2ede0` → `#e8e0cb`) für mehr Kontrast, auf Nachfrage. Antwort auf
+die Nutzerfrage "in welcher Konstante steht die Transparenz": das ist
+eine eigene, unveränderte Konstante (`EXPLANATION_BG_ALPHA`) - Farbe
+und Transparenz sind getrennt, hier wurde nur die Farbe angepasst.
+
+Verifiziert: Zoom auf die linke Kartenkante zeigt die Box jetzt exakt
+linksbündig mit der Legende, keine Überlappung mit den Gradzahlen mehr;
+Regressionslauf ganz ohne `--galton` unverändert.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
