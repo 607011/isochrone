@@ -230,6 +230,12 @@ EXPLANATION_BG_PAD_PT = 5.0
 CREDITS_FONT_SIZE = 7.0
 CREDITS_GAP_PT = 4.0
 
+# --- Logo unten rechts (siehe plot_h3_map.py:_draw_logo) ---
+# Auf JEDER Karte, nicht nur unter --galton - anders als die Signaturzeile
+# oben, die den Kartenrahmen voraussetzt, den es nur im Retro-Look gibt.
+LOGO_SVG_PATH = "assets/ct-logo.svg"
+LOGO_GAP_PT = 4.0
+
 # --- Farberklärung im --galton-Modus (siehe plot_h3_map.py:_draw_galton_color_legend) ---
 # Wie im Original von 1881: eine einzelne, knappe Zeile "Explanation of
 # colours." gefolgt von Farbfeld+Bereich je Band, statt eines stufenlosen

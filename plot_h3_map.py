@@ -11,6 +11,8 @@ if "SSL_CERT_FILE" not in os.environ:
     import certifi
     os.environ["SSL_CERT_FILE"] = certifi.where()
 
+import xml.etree.ElementTree as ET
+
 import h3
 import matplotlib
 matplotlib.use("Agg")
@@ -18,9 +20,10 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import ListedColormap, Normalize
-from matplotlib.patches import Rectangle
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch, Rectangle
 from matplotlib.ticker import FuncFormatter
-from matplotlib.transforms import Bbox
+from matplotlib.transforms import Affine2D, Bbox
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
@@ -31,6 +34,7 @@ from global_land_mask import globe
 from PIL import Image, ImageColor
 from scipy.ndimage import gaussian_filter
 from sklearn.neighbors import BallTree
+from svgpath2mpl import parse_path
 
 import config
 
@@ -97,6 +101,23 @@ else:
     EXPLANATION_TITLE_FONT = fm.FontProperties(
         family=config.EXPLANATION_TITLE_FONT_FALLBACK_FAMILY, weight="bold",
     )
+
+# Logo als matplotlib-Path statt Rasterbild: bleibt dadurch, wie der Rest
+# der Grafik, verlustfrei vektoriell bis zum finalen fig.savefig(dpi=dpi) -
+# skaliert also sauber mit --dpi/--paper mit, ohne eine feste Auflösung
+# einzubetten. svgpath2mpl (reines Python) statt einer SVG-Rasterbibliothek
+# wie cairosvg, die eine System-Bibliothek (Cairo) braucht, die nicht
+# überall vorhanden ist - genau die Art Umgebungsabhängigkeit, die dieses
+# Projekt an anderer Stelle schon bewusst vermieden hat (echtes Baskerville
+# nur auf macOS, siehe Libre Baskerville stattdessen). Nur der "d"-Pfad der
+# SVG wird gebraucht, kein voller SVG-Renderer - das Logo ist eine einzelne
+# flache Fläche ohne Farbverläufe/Text.
+LOGO_PATH_RAW = None
+if os.path.exists(config.LOGO_SVG_PATH):
+    svg_root = ET.parse(config.LOGO_SVG_PATH).getroot()
+    path_elem = svg_root.find(".//{http://www.w3.org/2000/svg}path")
+    if path_elem is not None:
+        LOGO_PATH_RAW = parse_path(path_elem.get("d"))
 
 # Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
 # je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
@@ -272,7 +293,7 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
     # Kartendarstellung zu beeinflussen. Das behebt die zuvor sichtbaren
     # Ausfransungen in der Hintergrundfarbe innerhalb kleiner Inseln.
     is_land_grid = _nan_gaussian_filter(
-        np.where(is_land_grid, 1.0, 0.0), sigma_px,
+        np.where(is_land_grid, 1.0, 0.0), sigma_px / 10,
     ) >= 0.5
 
     land_grid = np.where(is_land_grid, nearest_values, np.nan)
@@ -287,7 +308,8 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
 def parse_lat_limits(s):
     """CLI-Parser für '--lat-limits=80,-60' (Norden,Süden) -> (80.0, -60.0)."""
     north_str, south_str = s.split(",")
-    return float(north_str), float(south_str)
+    north, south = float(north_str), float(south_str)
+    return max(north, south), min(north, south)
 
 
 def _sketch(artist, dpi):
@@ -411,7 +433,7 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
 
     footer_fontsize = config.GALTON_LEGEND_FONT_SIZE * 2 / 3
     footer = fig.text(
-        0, y - 0.028, "Published by heise Medien / c’t, 2026. Flight network: OpenFlights, 2014. Friction surface: Malaria Atlas Project, 2020.", fontproperties=CITY_FONT,
+        0, y - 0.028, "Published by c’t/heise Medien, 2026. Flight network: OpenFlights, 2014. Friction surface: Malaria Atlas Project, 2020. Ports: LINERLIB, 2023", fontproperties=CITY_FONT,
         fontsize=footer_fontsize, color=ANTHRACITE, va="center", ha="left",
     )
     fig.canvas.draw()
@@ -652,6 +674,69 @@ def _apply_paper_size(png_path, paper, dpi):
     paste_y = max(0, (page_h_px - resized.height) // 2)
     page.paste(resized, (0, paste_y))
     page.save(png_path)
+
+
+def _draw_logo(fig, ax):
+    """Setzt das c't-Logo (LOGO_PATH_RAW, aus assets/ct-logo.svg geparst)
+    unten rechts auf JEDE Karte - unabhängig von --galton, anders als die
+    Signaturzeile (_draw_credits), die den dortigen Kartenrahmen voraussetzt.
+
+    Größe orientiert sich an der Schrift der "Published by..."-Zeile
+    (config.GALTON_LEGEND_FONT_SIZE * 2/3), auch wenn diese Zeile selbst
+    nur unter --galton existiert - der Nutzerwunsch war "ungefähr die Höhe
+    der Buchstaben" dieser Zeile, nicht deren tatsächliche Position.
+
+    Position: rechte untere Ecke des gesamten bisherigen Inhalts
+    (fig.get_tightbbox(), derselbe Bbox, den bbox_inches="tight" beim
+    Speichern ohnehin zum Zuschneiden verwendet) - funktioniert dadurch
+    einheitlich mit und ohne --galton/--title/--labels/etc., ohne von den
+    unterschiedlichen Layout-Elementen dieser Modi abhängig zu sein. Muss
+    daher als letztes vor fig.savefig() aufgerufen werden, sonst wäre die
+    gemessene Bbox noch unvollständig.
+
+    Positionierung in Figur-Bruchteilen (fig.transFigure) statt über
+    fig.dpi_scale_trans: Pfad-Eckpunkte werden VORAB (per .transformed())
+    in Pixel und dann in Bruchteile umgerechnet, statt den Patch selbst mit
+    einer aus fig.dpi_scale_trans zusammengesetzten Transform zu versehen -
+    letzteres lieferte zwar eine korrekte get_window_extent()-Vorschau,
+    das fertige, mit bbox_inches="tight" zugeschnittene PNG zeigte den
+    Logo-Patch danach aber gar nicht oder an völlig falscher Stelle (siehe
+    MEMO.md). fig.transFigure mit vorab in Pixel/Bruchteile umgerechneten
+    Koordinaten ist dasselbe bewährte Verfahren wie bei der Farberklärung
+    und den Signaturzeilen weiter oben.
+    """
+    if LOGO_PATH_RAW is None:
+        return
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
+    content_bbox = fig.get_tightbbox(renderer)  # in Zoll
+    content_x1_px = content_bbox.x1 * fig.dpi
+    content_y0_px = content_bbox.y0 * fig.dpi
+
+    target_height_px = (config.GALTON_LEGEND_FONT_SIZE * 2 / 3) * fig.dpi / 72.0
+    logo_bbox = LOGO_PATH_RAW.get_extents()
+    scale = target_height_px / logo_bbox.height
+
+    margin_px = config.LOGO_GAP_PT * fig.dpi / 72.0
+    # SVG-y wächst nach unten, matplotlib-y nach oben - deshalb
+    # scale(scale, -scale) statt nur scale(scale), um das Logo zu spiegeln
+    # statt es auf dem Kopf stehend zu platzieren.
+    affine = Affine2D().scale(scale, -scale)
+    scaled_bbox = LOGO_PATH_RAW.transformed(affine).get_extents()
+    target_x1_px = content_x1_px - margin_px
+    target_y0_px = content_y0_px + margin_px
+    affine = affine.translate(target_x1_px - scaled_bbox.x1, target_y0_px - scaled_bbox.y0)
+
+    final_path = LOGO_PATH_RAW.transformed(affine)
+    final_path = Path(final_path.vertices / [fig_w_px, fig_h_px], final_path.codes)
+
+    patch = PathPatch(
+        final_path, transform=fig.transFigure,
+        facecolor=ANTHRACITE, edgecolor="none", zorder=10, clip_on=False,
+    )
+    fig.add_artist(patch)
+
 
 
 def plot_h3_map(
@@ -897,7 +982,7 @@ def plot_h3_map(
         )
     ax.scatter(
         origin_lons, origin_lats, c="red", marker="*", s=200,
-        transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
+        transform=ccrs.PlateCarree(), zorder=9, label=origin_label,
     )
 
     if galton:
@@ -945,6 +1030,8 @@ def plot_h3_map(
 
     if labels:
         _draw_labels(ax)
+
+    _draw_logo(fig, ax)
 
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
     if paper:

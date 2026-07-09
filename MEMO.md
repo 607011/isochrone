@@ -2321,6 +2321,63 @@ Insel jetzt einheitlich in der erwarteten Bandfarbe gefüllt, keine
 Sprenkel/Fransen mehr; Sichtprüfung der übrigen Karte (Indonesien,
 Japan, Philippinen) zeigt keine neuen Auffälligkeiten.
 
+## Phase 14zZd: c't-Logo unten rechts, auf jeder Karte
+
+Nutzerwunsch: kleines Logo (`assets/ct-logo.svg`, vom Nutzer aus einer
+EPS gewandelt) unten rechts auf JEDER Karte, auch ohne `--galton` -
+Größe ungefähr wie die Buchstaben der "Published by..."-Zeile (die es
+nur unter `--galton` gibt).
+
+Erster Ansatz: `cairosvg` zum Rastern der SVG auf die Ziel-DPI, dann
+per PIL wie `_apply_paper_size()`/`_apply_retro_noise()` einfügen.
+Scheitert lokal: `cairosvg` braucht die native Cairo-Systembibliothek
+(`OSError: no library called "cairo-2" was found`), die hier nicht
+installiert ist und auf keinem anderen Rechner garantiert vorhanden
+wäre - genau die Art Umgebungsabhängigkeit, die dieses Projekt schon
+einmal bewusst vermieden hat (echtes Baskerville nur auf macOS, siehe
+Libre Baskerville stattdessen). Da das Logo nur eine einzelne flache
+Fläche ohne Farbverläufe/Text ist, reicht der rohe SVG-`d`-Pfad -
+`svgpath2mpl` (reines Python, kein Systemaufwand) parst ihn direkt in
+einen matplotlib-`Path`, gezeichnet als `PathPatch` im selben Figure
+statt als eingebettetes Rasterbild. Bleibt dadurch bis zum finalen
+`fig.savefig(dpi=dpi)` vektoriell, skaliert verlustfrei mit
+`--dpi`/`--paper` mit wie der Rest der Grafik.
+
+Positionierung: `fig.get_tightbbox()` (derselbe Bbox, den
+`bbox_inches="tight"` beim Speichern zum Zuschneiden verwendet) liefert
+die rechte untere Ecke des GESAMTEN bisherigen Karteninhalts -
+funktioniert dadurch einheitlich mit und ohne `--galton`/`--title`/
+`--labels`/etc., ohne von deren unterschiedlichen Layout-Elementen
+abhängig zu sein. `_draw_logo()` muss daher als letztes vor
+`fig.savefig()` aufgerufen werden.
+
+Zwischenfall bei der Umsetzung: der naheliegende Ansatz - eine eigene
+`Affine2D` mit `fig.dpi_scale_trans` zusammensetzen und das als
+Patch-`transform` setzen - lieferte korrekte `get_window_extent()`-
+Werte VOR dem Speichern, im fertigen `bbox_inches="tight"`-
+zugeschnittenen PNG erschien der Patch danach aber entweder gar nicht
+oder an völlig falscher Position/Größe. Reproduziert isoliert mit
+einem einfachen `Rectangle` (unabhängig von Cartopy oder dem
+SVG-Pfad) - `fig.dpi_scale_trans`-basierte `fig.add_artist()`-Artists
+scheinen mit `bbox_inches="tight"` in dieser matplotlib-Version nicht
+zuverlässig zusammenzuspielen. Ursache nicht abschließend geklärt,
+stattdessen auf das bereits bewährte Verfahren dieser Datei
+umgestiegen (Farberklärung, Signaturzeilen): Pfad-Eckpunkte VORAB
+manuell in Figur-Bruchteile umrechnen (`fig.get_tightbbox()` liefert
+dabei - anders als die meisten sonstigen Pixel-Messungen in dieser
+Datei - Zoll, nicht Pixel; erst mit `fig.dpi` in Pixel, dann durch
+`fig.bbox.width`/`height` in Bruchteile), und den Patch stattdessen
+mit dem simplen, bereits vielfach bewährten `transform=fig.transFigure`
+versehen. Funktioniert zuverlässig.
+
+`config.LOGO_SVG_PATH`/`LOGO_GAP_PT` neu in config.py. `svgpath2mpl`
+als neue Pipfile-Abhängigkeit (reines Python, kein Systempaket nötig).
+
+Verifiziert: Testrender mit `--galton`, ohne `--galton`, mit `--paper`
+und mit `--airports --ports` (höhere Legende) zeigen das Logo jeweils
+korrekt unten rechts, in etwa auf Höhe der "Published by..."-Zeile
+(wo vorhanden), ohne andere Elemente zu überlappen.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

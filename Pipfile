@@ -19,6 +19,7 @@ rasterio = "*"
 scikit-image = "*"
 pillow = "*"
 adjusttext = "*"
+svgpath2mpl = "*"
 
 [dev-packages]
 # Nur für fix_ports_coordinates.py (einmaliges Korrekturskript, siehe
