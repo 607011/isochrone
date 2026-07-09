@@ -1731,6 +1731,24 @@ zeigt "Overlays: labels, grid, rivers" und den korrekten
 dreiteiligen Rahmen; Regressionslauf ganz ohne `--galton` zeigt weiterhin
 "Overlays: (keine)" und den unveränderten schlichten Dateinamen.
 
+## Phase 14zM: Legenden-Stundenangaben auf ganze Zahlen gerundet
+
+Bei `--cmap galton10` (zehn Bänder über `max_hours`) fallen die
+Bandgrenzen nicht zwangsläufig auf ganze Stunden - beim Standardwert
+`max_hours=48` liegt jede Grenze bei einem Vielfachen von 4.8, die
+Legende zeigte entsprechend "4.8-9.6h." statt runder Zahlen. In
+`_draw_galton_color_legend()` werden die Grenzwerte für die
+Beschriftung jetzt per `round()` auf ganze Stunden gerundet
+(`lower_h`/`upper_h`) - nur kosmetisch, das tatsächlich für `contourf`
+verwendete `boundaries`-Array bleibt exakt, nur der Text der Legende
+wird geglättet. `--cmap galton` (Bänder aus `GALTON_NUM_BANDS`, beim
+Standardwert bereits ganzzahlig) zeigt dadurch unverändert dieselben
+Werte wie zuvor.
+
+Verifiziert: `--cmap galton10` zeigt jetzt "0-10h., 10-19h., 19-29h.,
+29-38h., more than 38h." statt der Dezimalwerte; `--cmap galton`
+weiterhin unverändert "0-8h., 8-16h., ..., more than 40h.".
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

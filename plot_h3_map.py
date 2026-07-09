@@ -326,8 +326,12 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
         x += gap / fig_w_px
 
         is_last = entry == n_entries - 1
-        upper = boundaries[i + step]
-        label = f"more than {boundaries[i]:g}h." if is_last else f"{boundaries[i]:g}-{upper:g}h."
+        # Auf ganze Stunden gerundet - nur für die Anzeige, die
+        # tatsächlichen Bandgrenzen (boundaries, contourf-Level) bleiben
+        # unangetastet, nur diese Beschriftung wird geglättet.
+        lower_h = round(boundaries[i])
+        upper_h = round(boundaries[i + step])
+        label = f"more than {lower_h}h." if is_last else f"{lower_h}-{upper_h}h."
         place_text(label)
 
     total_width = x - gap / fig_w_px
