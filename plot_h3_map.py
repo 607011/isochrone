@@ -38,30 +38,19 @@ from svgpath2mpl import parse_path
 
 import config
 
-# Kacheln, deren Eckpunkte-Längengrade (unkorrigiert) mehr als das hier
-# überspannen, liegen an einem Pol - dort laufen alle Längengrade
-# zusammen, das ist keine Antimeridian-Überquerung. Die "+360"-Korrektur
-# für echte Antimeridian-Fälle würde solche Kacheln zu einem absurd
-# breiten Riesenpolygon aufblähen, das große Teile der Karte verdeckt.
-#
-# Ein Versuch, echte Antimeridian-Kacheln (statt sie wie Pol-Kacheln zu
-# verwerfen) per "+360 auf negative Längen" ins Bild zu holen, ist
-# gescheitert und wurde zurückgerollt (siehe MEMO.md, Phase 14zZg):
-# Cartopys Mercator-`transform_points()` normalisiert Längengrade jenseits
-# von ±180° kommentarlos zurück in den Standardbereich (181° projiziert
-# identisch zu -179°) - die "+360"-Verschiebung hat dadurch beim
-# Projizieren schlicht KEINE Wirkung. Ergebnis: ein einzelner Eckpunkt
-# einer sechseckigen Kachel landet auf der gegenüberliegenden Kartenseite
-# wie seine fünf Nachbar-Eckpunkte, das "Polygon" wird zu einem
-# bogenbreiten Riesenschlauch quer über die ganze Karte - sichtbar als
-# horizontale Lücken/Streifen bei jeder betroffenen Kachel-Breite, nicht
-# nur nahe der Datumsgrenze. Kacheln auf dem Antimeridian bleiben daher
-# weiterhin verworfen; das hinterlässt eine schmale, aber harmlose Lücke
-# genau an der Datumsgrenze statt korrekt aufgeteilter Polygone - ein
-# sauberer Fix bräuchte echtes Clipping am Antimeridian (Polygon in zwei
-# Teile schneiden statt Eckpunkte zu verschieben), nicht nur eine
-# Verschiebung.
-POLE_DEGENERACY_THRESHOLD_DEG = 300
+# Kacheln, deren Eckpunkte-Breitengrade (nicht Längengrade!) mehr als das
+# hier überspannen, gelten als Pol-Kachel - dort laufen alle Längengrade
+# zusammen, das ist keine Antimeridian-Überquerung. Ein LÄNGENgrad-
+# Schwellwert (die ursprüngliche Version dieser Konstante) kann Pol- und
+# Antimeridian-Kacheln nicht unterscheiden: der naive Längengrad-Spann
+# (`max(lons) - min(lons)`, nicht wrap-aware) liegt für BEIDE Fälle bei
+# ~358-360°, egal ob die Kachel winzig ist (Antimeridian, z.B. Eckpunkte
+# bei -179,9° und 179,9°) oder tatsächlich am Pol liegt. Ein Breitengrad-
+# Schwellwert unterscheidet korrekt: eine echte Pol-Kachel hat auch bei
+# der gröbsten H3-Auflösung (0) Eckpunkt-Breiten von mindestens ~82°,
+# eine Antimeridian-Kachel dagegen ganz gewöhnliche Breiten irgendwo auf
+# der Welt.
+POLE_LAT_THRESHOLD_DEG = 80
 
 # Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
 # am scharfen, gestochenen Druckbild von Galtons Original.
@@ -222,16 +211,68 @@ def _draw_labels(ax):
     adjust_text(city_texts, ax=ax)
 
 
+def _x_intersect(p1, p2, x_bound):
+    """Schnittpunkt der Strecke p1->p2 mit der senkrechten Linie x=x_bound
+    (lineare Interpolation in y/Breite) - Hilfsfunktion für _clip_polygon_x."""
+    x1, y1 = p1
+    x2, y2 = p2
+    t = (x_bound - x1) / (x2 - x1)
+    return (x_bound, y1 + t * (y2 - y1))
+
+
+def _clip_polygon_x(vertices, x_bound, keep_le):
+    """Sutherland-Hodgman-Zuschnitt eines (einfachen, konvexen) Polygons an
+    der senkrechten Linie x=x_bound. keep_le=True behält den Teil mit
+    x <= x_bound, False den Teil mit x >= x_bound. Siehe _cell_polygon_lonlat
+    für den Anwendungsfall (Antimeridian-Kacheln in zwei Teile schneiden)."""
+    output = []
+    n = len(vertices)
+    for i in range(n):
+        curr = vertices[i]
+        prev = vertices[i - 1]
+        curr_in = (curr[0] <= x_bound) if keep_le else (curr[0] >= x_bound)
+        prev_in = (prev[0] <= x_bound) if keep_le else (prev[0] >= x_bound)
+        if curr_in:
+            if not prev_in:
+                output.append(_x_intersect(prev, curr, x_bound))
+            output.append(curr)
+        elif prev_in:
+            output.append(_x_intersect(prev, curr, x_bound))
+    return output
+
+
 def _cell_polygon_lonlat(h3_index):
+    """Gibt eine Liste von Polygonen zurück - normalerweise genau eins,
+    zwei bei Kacheln auf dem Antimeridian (siehe unten), keins bei
+    Pol-Kacheln (nicht darstellbar, siehe POLE_LAT_THRESHOLD_DEG).
+    """
     boundary = h3.cell_to_boundary(h3_index)  # Tupel von (lat, lon)
     lons = [lon for _, lon in boundary]
     lats = [lat for lat, _ in boundary]
     span = max(lons) - min(lons)
-    if span > POLE_DEGENERACY_THRESHOLD_DEG:
-        return None
-    if span > 180:  # Kachel liegt auf dem Antimeridian
-        lons = [lon + 360 if lon < 0 else lon for lon in lons]
-    return list(zip(lons, lats))
+    if span > 180:
+        if max(abs(lat) for lat in lats) > POLE_LAT_THRESHOLD_DEG:
+            return []
+        # Kachel liegt auf dem Antimeridian: NICHT (wie in einem früheren,
+        # zurückgerollten Versuch, siehe MEMO.md Phase 14zZg) Eckpunkte per
+        # "+360" auf die andere Seite schieben - Cartopys Mercator-
+        # Projektion normalisiert Längengrade jenseits ±180° beim
+        # Projizieren kommentarlos zurück in den Standardbereich, die
+        # Verschiebung hätte dort schlicht keine Wirkung mehr und ein
+        # einzelner Eckpunkt würde auf der falschen Kartenseite landen.
+        # Stattdessen: erst alle negativen Längen um 360° verschieben, bis
+        # ein zusammenhängendes ("unwrapped") Polygon knapp über 180°
+        # hinaus entsteht, dieses dann an der Linie x=180° in zwei echte
+        # Teilpolygone zuschneiden (Sutherland-Hodgman) - der Ost-Teil
+        # bleibt unverändert <= 180° (schon gültig), der West-Teil wird
+        # nach dem Zuschnitt um 360° zurückverschoben und landet dadurch
+        # ebenfalls im gültigen Bereich (<= -180° ... < 180°), nie jenseits
+        # ±180°. Beide Teile bekommen denselben Wert der Ursprungskachel.
+        unwrapped = [(lon + 360 if lon < 0 else lon, lat) for lon, lat in zip(lons, lats)]
+        east = _clip_polygon_x(unwrapped, 180.0, keep_le=True)
+        west = [(lon - 360, lat) for lon, lat in _clip_polygon_x(unwrapped, 180.0, keep_le=False)]
+        return [p for p in (east, west) if len(p) >= 3]
+    return [list(zip(lons, lats))]
 
 
 def _project_polygons(verts_lonlat, projection):
@@ -1001,11 +1042,14 @@ def plot_h3_map(
         )
         n_dropped = 0
     else:
-        polygons = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
-        keep = [p is not None for p in polygons]
-        verts_lonlat = [p for p in polygons if p is not None]
-        values = covered["reisezeit_stunden"].to_numpy()[keep]
-        n_dropped = len(polygons) - len(verts_lonlat)
+        polygon_lists = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
+        raw_values = covered["reisezeit_stunden"].to_numpy()
+        # Meist ein Polygon je Kachel, zwei bei Antimeridian-Kacheln (siehe
+        # _cell_polygon_lonlat) - deren Wert entsprechend mitverdoppelt,
+        # keins bei Pol-Kacheln (n_dropped).
+        verts_lonlat = [p for polys in polygon_lists for p in polys]
+        values = np.array([v for polys, v in zip(polygon_lists, raw_values) for _ in polys])
+        n_dropped = sum(1 for polys in polygon_lists if not polys)
         verts = _project_polygons(verts_lonlat, ax.projection)
 
         norm = Normalize(vmin=0, vmax=config.COLOR_CAP_HOURS, clip=False)

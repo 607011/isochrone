@@ -2523,6 +2523,61 @@ Verifiziert: derselbe vom Nutzer gemeldete Befehl
 wieder volle, unauffällige Landabdeckung ohne horizontale Streifen,
 identisch zum Rendering vor Phase 14zZf.
 
+## Phase 14zZh: Antimeridian-Lücke sauber gefixt - Clipping statt Verschieben
+
+Nutzer wies darauf hin, dass die ursprüngliche Lücke (schmaler Rand-
+Gap an der Datumsgrenze, siehe 14zZf) nach dem Rückbau in 14zZg
+natürlich weiterhin besteht - erwartungsgemäß, da der Rückbau bewusst
+nur die kaputte Verschiebung entfernt hat, ohne einen Ersatz. Jetzt
+sauber nachgeholt.
+
+Erkenntnis aus 14zZg direkt umgesetzt: statt Eckpunkte einer
+Antimeridian-Kachel per "+360" auf die andere Kartenseite zu schieben
+(scheitert an Cartopys Wraparound-Normalisierung beim Projizieren),
+wird die Kachel jetzt VOR dem Projizieren in zwei echte Teilpolygone
+GESCHNITTEN, die beide für sich genommen innerhalb des gültigen
+±180°-Bereichs liegen - dann kann Cartopy nichts mehr falsch
+zurücknormalisieren, weil kein einzelner Eckpunkt mehr außerhalb
+dieses Bereichs liegt.
+
+Umsetzung (`_clip_polygon_x()`, Sutherland-Hodgman-Zuschnitt eines
+einfachen Polygons an einer senkrechten Linie):
+1. "Unwrap": wie bisher alle negativen Längen um +360° verschieben,
+   ergibt ein zusammenhängendes (aber teils >180° reichendes) Polygon.
+2. Ost-Teil: an `x=180` zuschneiden, Teil mit `x <= 180` behalten -
+   bereits gültig, keine weitere Korrektur nötig.
+3. West-Teil: an `x=180` zuschneiden, Teil mit `x >= 180` behalten,
+   danach um -360° zurückverschieben - landet dadurch selbst wieder
+   im gültigen Bereich (`<= -180°` bis knapp darunter), nie jenseits
+   ±180°.
+4. Beide Teile bekommen denselben `reisezeit_stunden`-Wert der
+   Ursprungskachel (Duplizierung wie in 14zZf, diesmal aber
+   geometrisch korrekt: die zwei Teile ergeben zusammen exakt die
+   Fläche der Originalkachel, keine Überlappung, keine falsche
+   Position).
+
+`POLE_DEGENERACY_THRESHOLD_DEG` (Längengrad-Schwellwert) wieder durch
+`POLE_LAT_THRESHOLD_DEG = 80` (Breitengrad-Schwellwert, aus 14zZf)
+ersetzt - ohne den würden echte Antimeridian-Kacheln (Spann ~358-360°)
+weiterhin fälschlich als "Pol" verworfen und die neue Clipping-Logik
+nie erreicht.
+
+Verifiziert:
+- Einzel-Kachel-Test (dieselbe Kachel `820d97fffffffff` aus 14zZg):
+  beide Teilpolygone bleiben nach der Projektion auf ihrer jeweiligen
+  Kartenseite (`x`-Bereich 172,86° bis 180° bzw. -180° bis -178,51°),
+  kein Eckpunkt springt mehr auf die falsche Seite. Gerendert zeigt
+  das erwartete Bild: dieselbe reale Küste (Tschukotka) erscheint
+  korrekt aufgeteilt am linken UND rechten Kartenrand.
+- Voller Testrender mit dem vom Nutzer gemeldeten Befehl
+  (`--cmap plasma_r -r 2 --paper a4 --dpi 200`) zeigt jetzt Kachel-
+  Abdeckung bis an beide Kartenränder heran, keine horizontalen
+  Streifen, keine fehlende Landabdeckung.
+- Regressionstest bei Standardauflösung (ohne `-r 2`) ebenfalls
+  sauber, volle Abdeckung bis an beide Ränder.
+- `--galton`-Modus unberührt (nutzt einen anderen Rendering-Pfad,
+  `_build_galton_grid()`/`contourf` statt `_cell_polygon_lonlat()`).
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
