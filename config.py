@@ -64,7 +64,7 @@ GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 # angesetzt ergibt eine beinahe perfekte, rhythmische Sinuswelle statt
 # eines unregelmäßigen Zitterns - je höher, desto "zufälliger" wirkt die
 # Wellung statt gleichförmig zu schwingen.
-RETRO_SKETCH_SCALE = 0.05       # Amplitude der Linienwellung, in Punkten
+RETRO_SKETCH_SCALE = 0.1       # Amplitude der Linienwellung, in Punkten
 RETRO_SKETCH_LENGTH = 15.0      # Wellenlänge der Linienwellung, in Punkten
 RETRO_SKETCH_RANDOMNESS = 10.0  # Zufälligkeit der Wellung
 RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)
@@ -173,3 +173,12 @@ TITLE_FONT_SIZE = 18
 CONTINENT_FONT_SIZE = 14
 CITY_FONT_SIZE = 7.5
 CITY_MARKER_SIZE = 2
+
+# --- Farberklärung im --galton-Modus (siehe plot_h3_map.py:_draw_galton_color_legend) ---
+# Wie im Original von 1881: eine einzelne, knappe Zeile "Explanation of
+# colours." gefolgt von Farbfeld+Bereich je Band, statt eines stufenlosen
+# Farbbalkens mit eigener Achse - nimmt dadurch deutlich weniger Höhe ein.
+GALTON_LEGEND_FONT_SIZE = 10
+GALTON_LEGEND_SWATCH_WIDTH_PT = 22
+GALTON_LEGEND_SWATCH_HEIGHT_PT = 11
+GALTON_LEGEND_GAP_PT = 6

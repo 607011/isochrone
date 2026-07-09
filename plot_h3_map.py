@@ -249,6 +249,63 @@ def _sketch(artist):
     )
 
 
+def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors):
+    """Farberklärung im Stil von Galtons Original (1881): eine einzelne
+    knappe Zeile 'Explanation of colours.' gefolgt von Farbfeld+Bereich je
+    Band ('0-8h.', '8-16h.', ..., 'mehr als 48h.' für das letzte, offene
+    Band - extend='max' im contourf-Aufruf gibt allem darüber ohnehin
+    dieselbe Farbe), statt eines stufenlosen Farbbalkens mit eigener Achse
+    und Achsenbeschriftung - nimmt dadurch deutlich weniger Höhe ein.
+
+    Layout in Figure-Koordinaten statt ax.transAxes, da die Zeile UNTER der
+    Kartenachse sitzt, außerhalb ihrer eigenen Bounding Box - x-Positionen
+    werden sequentiell aus den tatsächlich gerenderten Textbreiten
+    aufsummiert (fig.canvas.draw() + get_window_extent(), derselbe Trick
+    wie beim --galton-Doppelrahmen weiter oben), da Textbreiten je nach
+    Schriftart/-größe nicht im Voraus bekannt sind.
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
+
+    ax_bbox = ax.get_position()
+    x = ax_bbox.x0
+    y = ax_bbox.y0 - 0.05
+    gap = config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0
+
+    def place_text(s):
+        nonlocal x
+        t = fig.text(
+            x, y, s, fontproperties=TITLE_FONT, fontsize=config.GALTON_LEGEND_FONT_SIZE,
+            color=ANTHRACITE, va="center", ha="left",
+        )
+        fig.canvas.draw()
+        x += (t.get_window_extent(renderer).width + gap) / fig_w_px
+
+    place_text("Explanation of colours.")
+
+    swatch_w = config.GALTON_LEGEND_SWATCH_WIDTH_PT * fig.dpi / 72.0
+    swatch_h = config.GALTON_LEGEND_SWATCH_HEIGHT_PT * fig.dpi / 72.0
+    n = len(boundaries) - 1
+    for i in range(n):
+        swatch = Rectangle(
+            (x, y - (swatch_h / 2) / fig_h_px), swatch_w / fig_w_px, swatch_h / fig_h_px,
+            transform=fig.transFigure, facecolor=swatch_colors[i], edgecolor=ANTHRACITE,
+            linewidth=COASTLINE_LINEWIDTH, zorder=10,
+        )
+        _sketch(swatch)
+        fig.add_artist(swatch)
+        x += (swatch_w + gap) / fig_w_px
+
+        label = f"{boundaries[i]:g}-{boundaries[i + 1]:g}h." if i < n - 1 else f"mehr als {boundaries[i]:g}h."
+        place_text(label)
+
+    fig.text(
+        ax_bbox.x0, y - 0.028, "Published by heise Medien, 2026.", fontproperties=CITY_FONT,
+        fontsize=config.GALTON_LEGEND_FONT_SIZE, color=ANTHRACITE, va="center", ha="left",
+    )
+
+
 def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
     """Gealtertes Papier-Rauschen als Postprocessing übers fertige PNG -
     grobkörnige, hochskalierte Flecken (Stockflecken-artige Papiermarmorierung)
@@ -460,23 +517,18 @@ def plot_h3_map(
         transform=ccrs.PlateCarree(), zorder=4, label=origin_label,
     )
 
-    # drawedges=True zeichnet echte Trennlinien zwischen den Farbfeldern
-    # (cbar.dividers) statt sie nur durch den Farbkontrast erahnen zu lassen -
-    # nötig, damit im --galton-Modus überhaupt etwas da ist, das wackeln kann.
-    cbar = fig.colorbar(
-        mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max", drawedges=galton,
-    )
-    cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
     if galton:
-        cbar.ax.xaxis.label.set_fontproperties(TITLE_FONT)
-        for tick_label in cbar.ax.get_xticklabels():
-            tick_label.set_fontproperties(CITY_FONT)
-        cbar.dividers.set_edgecolor(ANTHRACITE)
-        cbar.dividers.set_linewidth(COASTLINE_LINEWIDTH)
-        _sketch(cbar.dividers)
-        cbar.outline.set_edgecolor(ANTHRACITE)
-        cbar.outline.set_linewidth(COASTLINE_LINEWIDTH)
-        _sketch(cbar.outline)
+        # Wie im Original: diskrete Farbfelder mit Bereichsangabe statt
+        # eines stufenlosen Farbbalkens, siehe _draw_galton_color_legend().
+        n_bands = len(boundaries) - 1
+        swatch_colors = (
+            GALTON10_COLORS if cmap_name == "galton10"
+            else [cmap((i + 0.5) / n_bands) for i in range(n_bands)]
+        )
+        _draw_galton_color_legend(fig, ax, boundaries, swatch_colors)
+    else:
+        cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
+        cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"

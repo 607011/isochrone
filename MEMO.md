@@ -1556,6 +1556,47 @@ Konfigurationsübersicht plus alle Zwischenschritte inklusive korrekter
 Flughafen-Erreichbarkeitszahl; Lauf ohne `-v` bleibt exakt so knapp wie
 zuvor (nur zwei Zeilen Ausgabe).
 
+## Phase 14zH: Legende wie im Original - diskrete Farbfelder statt Farbstrahl
+
+Nutzer zeigte einen Ausschnitt aus Galtons Originalkarte: die Legende
+dort ist keine stufenlose Farbskala mit Achse, sondern eine einzelne
+knappe Zeile "Explanation of colours." gefolgt von Farbfeld+Bereich je
+Kategorie ("Green [Muster] within 10 days. Yellow [Muster] 10-20
+days. ..."), darunter kursiv der Publikationshinweis. Wunsch: das für
+`--galton` nachbilden (nur dort, der nicht-diskrete Modus behält seinen
+gewohnten `fig.colorbar()`), deutlich weniger Höhe als bisher, plus
+"Explanation of colours." wörtlich und darunter "Published by heise
+Medien, 2026."
+
+Umsetzung: neue Funktion `_draw_galton_color_legend(fig, ax, boundaries,
+swatch_colors)` in `plot_h3_map.py`, ersetzt den kompletten
+`fig.colorbar(...)`-Aufruf im `if galton:`-Zweig (der `else`-Zweig für
+den normalen Modus bleibt unverändert). Da die Legende UNTER der
+Kartenachse sitzt, außerhalb von deren eigener Bounding Box, läuft die
+Positionierung über Figure- statt Achsen-Koordinaten - x-Positionen
+werden sequentiell aus den tatsächlich gerenderten Textbreiten
+aufsummiert (`fig.canvas.draw()` + `get_window_extent()` je Textstück,
+derselbe Trick wie schon beim Doppelrahmen-Abstand). Für jedes Band:
+ein `Rectangle`-Farbfeld (Farbe aus `GALTON10_COLORS` bei `--cmap
+galton10`, sonst aus der interpolierten Colormap am Bandmittelpunkt
+gesampelt) mit wackelndem Rand (`_sketch()`, passt zum übrigen
+Retro-Look), gefolgt von der Bereichsangabe ("0-8h.", ..., "mehr als
+48h." fürs letzte, offene Band - passend zu `extend="max"`, das ohnehin
+allem darüber dieselbe Farbe gibt). Schriftgrößen/Abstände neu in
+`config.py` (`GALTON_LEGEND_FONT_SIZE`, `GALTON_LEGEND_SWATCH_WIDTH_PT`/
+`_HEIGHT_PT`, `GALTON_LEGEND_GAP_PT`).
+
+Die alte, unter `--galton` extra aktivierte `drawedges=True`-Behandlung
+von `cbar.dividers`/`cbar.outline` (Phase 14zF/14zG) ist damit
+hinfällig und entfernt - es gibt für `--galton` gar keinen `cbar` mehr,
+an dem es etwas zu wackeln gäbe.
+
+Verifiziert: Testrender mit `--cmap galton` (6 Bänder) und `--cmap
+galton10` (10 Bänder, passt trotz mehr Einträgen noch auf eine Zeile,
+`bbox_inches="tight"` erweitert die gespeicherte Breite bei Bedarf von
+selbst) zeigen die einzeilige Legende wie gewünscht; Regressionslauf
+ganz ohne `--galton` bestätigt den unveränderten stufenlosen Farbbalken.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte
