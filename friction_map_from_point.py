@@ -355,7 +355,7 @@ def main(
         origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
-        galton_sigma=galton_sigma,
+        galton_sigma=galton_sigma, heli=heli, jetpack=jetpack,
     )
 
 

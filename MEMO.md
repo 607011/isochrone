@@ -1776,6 +1776,63 @@ README explizit als Beispiel für überlappende Labels genannte
 Regionenpaar) jetzt sauber untereinander statt überlappend, sowohl mit
 als auch ohne `--galton`.
 
+## Phase 14zO: Erklärungsbox wie im Original, neue Groteskschrift
+
+Nutzer zeigte den Erklärungstext unten links auf Galtons Original
+("ISOCHRONIC PASSAGE CHART FOR TRAVELLERS, showing the shortest number
+of days journey from London by the quickest through routes...") und
+bat um einen an unser Modell angepassten Text, zunächst nur als
+Vorschlag (nicht umsetzen). Vorschlag wurde als "perfekt" bestätigt und
+umgesetzt, auf Englisch (passend zu "Explanation of colours."/
+"Published by..."), plus eine passende serifenlose Schrift für die
+Überschrift.
+
+**Schriftart**: Archivo Black (Omnibus-Type, SIL Open Font License,
+`fonts/ArchivoBlack-OFL.txt`) - kräftige Grotesk im viktorianischen
+Headline-Stil, deutlicher Kontrast zu den sonst ausschließlich
+serifigen Schriften (Playfair Display, Libre Baskerville). Liegt bei
+Google Fonts bereits als statische Einzelschnitt-Datei vor, kein
+Variable-Font-Umweg wie bei Playfair/Libre Baskerville nötig. Neue
+Konfigurationswerte in `config.py`: `EXPLANATION_TITLE_FONT_PATH`,
+`_FALLBACK_FAMILY`, `EXPLANATION_TITLE_FONT_SIZE`,
+`EXPLANATION_SUBTITLE_FONT_SIZE`, `EXPLANATION_BODY_FONT_SIZE`,
+`EXPLANATION_BODY_WRAP_CHARS`. Laden in `plot_h3_map.py` nach demselben
+Muster wie TITLE_FONT/CONTINENT_FONT/CITY_FONT (Existenzprüfung +
+Fallback-Familie).
+
+**Text**: bewusst nicht Galtons Wortlaut übernommen, sondern
+beschrieben, was das Modell tatsächlich berechnet - Stunden statt Tage
+(unser Maximum liegt bei ~48h, nicht mehreren Wochen), "the quickest
+available routes" statt "as are available without unreasonable cost"
+(striktes Dijkstra-Minimum, keine Ermessensfrage), und die einzige im
+Modell tatsächlich vorhandene Kulanz-Annahme (`TRANSFER_HOURS` je
+Umstieg) statt Galtons vagem "local preparations have been made and
+other circumstances are favourable". Schließt mit "In the manner of
+Francis Galton, F.R.S. (1881)." als Hommage statt falscher Autorenzeile.
+Bei `--heli`/`--jetpack` ein zusätzlicher Satz zur Heli-/Jetpack-
+Einstiegsetappe - dafür bekam `plot_h3_map()` zwei neue Parameter
+(`heli`/`jetpack`), nur von `friction_map_from_point.py` durchgereicht
+(einzige Aufruferin mit diesem Konzept).
+
+**Positionierung**: neue Funktion `_draw_galton_explanation(fig, ax,
+origin_label, legend, heli, jetpack)`, direkt über der
+Ursprungs-Legende (dem Stern) gestapelt, linksbündig zu deren
+`legend.get_window_extent()`-Position - "erst rendern, dann
+vermessen"-Trick wie schon bei der Farberklärung und dem Doppelrahmen.
+Die Zeilen werden in umgekehrter Lesereihenfolge platziert
+(Attribution zuerst, Titel zuletzt), da jede neue Zeile über der
+vorherigen erscheint, nicht darunter. Fließtext-Zeilenumbruch per
+`textwrap.wrap()` mit fester Zeichenbreite statt pixelgenauer Messung
+wie sonst in dieser Datei üblich - für einen dekorativen Absatz
+ausreichend, spart den Mehraufwand einer echten Wortumbruch-Messung.
+Body-Text und Attribution nutzen `CITY_FONT` (kursives Libre
+Baskerville) statt einer vierten Schriftfamilie.
+
+Verifiziert: Testrender zeigt die Box wie erwartet über der
+Stern-Legende, mit korrektem `origin_label` und `TRANSFER_HOURS`-Wert;
+`--james-bond`-Lauf zeigt den zusätzlichen Heli-/Jetpack-Satz;
+Regressionslauf ganz ohne `--galton` zeigt keine Box.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

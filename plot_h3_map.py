@@ -5,6 +5,7 @@ statt eine erfundene Reisezeit zu zeigen.
 """
 
 import os
+import textwrap
 
 if "SSL_CERT_FILE" not in os.environ:
     import certifi
@@ -84,6 +85,13 @@ if os.path.exists(config.CITY_FONT_PATH):
     CITY_FONT = fm.FontProperties(fname=config.CITY_FONT_PATH)
 else:
     CITY_FONT = fm.FontProperties(family=config.CITY_FONT_FALLBACK_FAMILY, style="italic")
+if os.path.exists(config.EXPLANATION_TITLE_FONT_PATH):
+    fm.fontManager.addfont(config.EXPLANATION_TITLE_FONT_PATH)
+    EXPLANATION_TITLE_FONT = fm.FontProperties(fname=config.EXPLANATION_TITLE_FONT_PATH)
+else:
+    EXPLANATION_TITLE_FONT = fm.FontProperties(
+        family=config.EXPLANATION_TITLE_FONT_FALLBACK_FAMILY, weight="bold",
+    )
 
 # Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
 # je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
@@ -363,6 +371,80 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired):
     footer.set_position((ax_center - footer_width / 2, y - 0.028))
 
 
+def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
+    """Erklärungstext im Stil von Galtons Original (1881, siehe MEMO.md) -
+    unten links auf der Karte selbst, direkt über der Ursprungs-Legende
+    (dem Stern) gestapelt, nicht zu verwechseln mit der separaten
+    Farberklärung unterhalb der Karte (_draw_galton_color_legend).
+
+    Anders als Galtons pauschales "showing the shortest number of days
+    journey from London by the quickest through routes and using such
+    further conveyances as are available without unreasonable cost"
+    beschreibt der Text genau das, was dieses Modell tatsächlich
+    berechnet: eine kombinierte Flug-/Boden-/See-Reisezeit ab dem
+    gewählten Startpunkt (nicht zwangsläufig London), in Stunden statt
+    Tagen (unser Maximum liegt bei rund 48h statt Galtons mehreren
+    Wochen), als striktes Dijkstra-Minimum statt einer Ermessensfrage
+    "ohne unangemessene Kosten". Die einzige tatsächlich im Modell
+    vorhandene Kulanz-Annahme ist TRANSFER_HOURS je Umstieg - das tritt
+    an die Stelle von Galtons vagem "local preparations have been made
+    and other circumstances are favourable".
+
+    Positionierung wie bei der Farberklärung: erst bei x=legend.x0
+    platzieren und den tatsächlich gerenderten Zeilenhöhen folgend nach
+    oben stapeln (fig.canvas.draw() + get_window_extent() je Zeile),
+    da diese von Schriftart/-größe abhängen. Die Zeilen werden in
+    umgekehrter Lesereihenfolge (Attribution zuerst, Titel zuletzt)
+    platziert, weil jede neue Zeile über der vorherigen erscheint.
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
+    legend_bbox = legend.get_window_extent(renderer)
+
+    x = legend_bbox.x0 / fig_w_px
+    y = (legend_bbox.y1 + config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0) / fig_h_px
+    line_gap_px = 2.0 * fig.dpi / 72.0
+    para_gap_px = 4.0 * fig.dpi / 72.0
+
+    def place(text_str, fontproperties, fontsize, extra_gap_px=0.0):
+        nonlocal y
+        t = fig.text(
+            x, y, text_str, fontproperties=fontproperties, fontsize=fontsize,
+            color=ANTHRACITE, va="bottom", ha="left",
+        )
+        fig.canvas.draw()
+        y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
+
+    body = (
+        f"showing the shortest number of hours’ journey from {origin_label} "
+        "by the quickest available routes, combining scheduled flight "
+        "connections with realistic road- and terrain-following travel "
+        "time to and from the airport, and shipping time across open "
+        f"water. Airport transfers are assumed to take {config.TRANSFER_HOURS:g} "
+        "hours each; it is supposed that no other delays occur."
+    )
+    if heli or jetpack:
+        body += (
+            " Where a helicopter or jetpack is used for departure, its "
+            "higher speed and limited range are accounted for."
+        )
+
+    place("In the manner of Francis Galton, F.R.S. (1881).", CITY_FONT, config.EXPLANATION_BODY_FONT_SIZE)
+    body_lines = textwrap.wrap(body, width=config.EXPLANATION_BODY_WRAP_CHARS)
+    for i, wrapped_line in enumerate(reversed(body_lines)):
+        is_top_line = i == len(body_lines) - 1
+        place(
+            wrapped_line, CITY_FONT, config.EXPLANATION_BODY_FONT_SIZE,
+            extra_gap_px=para_gap_px if is_top_line else 0.0,
+        )
+    place(
+        "FOR TRAVELLERS,", EXPLANATION_TITLE_FONT, config.EXPLANATION_SUBTITLE_FONT_SIZE,
+        extra_gap_px=para_gap_px,
+    )
+    place("ISOCHRONIC TRAVEL-TIME CHART", EXPLANATION_TITLE_FONT, config.EXPLANATION_TITLE_FONT_SIZE)
+
+
 def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
     """Gealtertes Papier-Rauschen als Postprocessing übers fertige PNG -
     grobkörnige, hochskalierte Flecken (Stockflecken-artige Papiermarmorierung)
@@ -390,7 +472,7 @@ def plot_h3_map(
     show_ports=config.SHOW_PORTS, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=config.COLORMAP, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
-    galton_sigma=config.GALTON_SIGMA_DEG,
+    galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False,
 ):
     # --galton impliziert --rivers/--grid - der Retro-Look zeigt Flüsse
     # und das Gradnetz ohnehin wie im Original, ein separates Anfordern
@@ -640,6 +722,9 @@ def plot_h3_map(
     for handle, text in zip(legend.legend_handles, legend.get_texts()):
         if text.get_text() == origin_label:
             handle.set_sizes(handle.get_sizes() / 4)
+
+    if galton:
+        _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack)
 
     if labels:
         _draw_labels(ax)
