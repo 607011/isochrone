@@ -26,6 +26,7 @@ import cartopy.io.shapereader as shpreader
 import numpy as np
 import pandas as pd
 from global_land_mask import globe
+from PIL import Image
 from scipy.ndimage import gaussian_filter
 from sklearn.neighbors import BallTree
 
@@ -236,6 +237,39 @@ def parse_lat_limits(s):
     return float(north_str), float(south_str)
 
 
+def _sketch(artist):
+    """Lässt einen Linien-/Patch-Artist leicht 'handgezeichnet' wackeln statt
+    geometrisch perfekt zu wirken - matplotlibs eingebauter Mechanismus
+    hinter plt.xkcd(), hier gezielt nur auf einzelne Artists angewendet
+    statt global. Wirkt auf jeden Artist mit set_sketch_params (Cartopys
+    FeatureArtist/Gridliner und matplotlib-Patches gleichermaßen)."""
+    artist.set_sketch_params(
+        scale=config.RETRO_SKETCH_SCALE, length=config.RETRO_SKETCH_LENGTH,
+        randomness=config.RETRO_SKETCH_RANDOMNESS,
+    )
+
+
+def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
+    """Gealtertes Papier-Rauschen als Postprocessing übers fertige PNG -
+    grobkörnige, hochskalierte Flecken (Stockflecken-artige Papiermarmorierung)
+    plus feines Pixelrauschen (Kornstruktur), additiv gemischt und aufs Bild
+    addiert. Deutlich einfacher als Rauschen ins Rendering selbst
+    einzubauen, und unabhängig von Projektion/Auflösung/DPI - wirkt auf das
+    bereits fertig zusammengesetzte Bild (Karte + Legende + Titel)."""
+    img = Image.open(png_path).convert("RGB")
+    w, h = img.size
+    rng = np.random.default_rng(seed)
+    coarse = rng.normal(0, 1, size=(h // 10 + 1, w // 10 + 1)).astype(np.float32)
+    coarse = np.array(Image.fromarray(coarse, mode="F").resize((w, h), Image.BILINEAR))
+    fine = rng.normal(0, 1, size=(h, w)).astype(np.float32)
+    grain = 0.6 * coarse + 0.4 * fine
+    grain = grain / (np.abs(grain).max() + 1e-9)
+    arr = np.asarray(img, dtype=np.float32)
+    arr += grain[..., None] * strength * 255
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    Image.fromarray(arr).save(png_path)
+
+
 def plot_h3_map(
     h3_csv_path, travel_times_csv_path, ports_csv_path, png_path, origin_iatas,
     origin_label="London", dpi=config.MAP_DPI, show_airports=config.SHOW_AIRPORTS,
@@ -288,14 +322,18 @@ def plot_h3_map(
         ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
-    ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
+    coast = ax.coastlines(linewidth=COASTLINE_LINEWIDTH, color=ANTHRACITE, zorder=2)
+    if galton:
+        _sketch(coast)
 
     if rivers:
         # Natural-Earth-Layer für die großen, weltweit bedeutsamen Flüsse
         # (110m-Auflösung, wie bei den übrigen cfeature-Layern) - in
         # derselben Strichstärke wie die Landmassenumrisse, wie bei
         # Galtons Original, das auch nur die prominenten Flüsse zeigt.
-        ax.add_feature(cfeature.RIVERS, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)
+        river_feature = ax.add_feature(cfeature.RIVERS, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)
+        if galton:
+            _sketch(river_feature)
 
     if grid or galton:
         # Im --galton-Modus sollen wie im Original 1881 die Gradzahlen
@@ -325,6 +363,8 @@ def plot_h3_map(
             plain_formatter = FuncFormatter(lambda v, pos: f"{abs(v):g}")
             gl.xformatter = plain_formatter
             gl.yformatter = plain_formatter
+        if galton:
+            _sketch(gl)
 
     if galton:
         # Doppelte Rahmenlinie wie im Original: die Kartenumrandung ist
@@ -336,6 +376,7 @@ def plot_h3_map(
         # wäre das nicht, da die Karte nicht quadratisch ist.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
         ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
+        _sketch(ax.spines["geo"])
         fig.canvas.draw()
         bbox_px = ax.get_window_extent(fig.canvas.get_renderer())
         gap_px = FRAME_GAP_PT * fig.dpi / 72.0
@@ -343,10 +384,12 @@ def plot_h3_map(
             bbox_px.x0 + gap_px, bbox_px.y0 + gap_px, bbox_px.x1 - gap_px, bbox_px.y1 - gap_px,
         )
         inner_axes = inner_px.transformed(ax.transAxes.inverted())
-        ax.add_patch(Rectangle(
+        inner_rect = Rectangle(
             (inner_axes.x0, inner_axes.y0), inner_axes.width, inner_axes.height,
             transform=ax.transAxes, fill=False, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=5,
-        ))
+        )
+        _sketch(inner_rect)
+        ax.add_patch(inner_rect)
 
     # Wie bei Galtons Original: ab COLOR_CAP_HOURS wird der dunkelste
     # Farbton vergeben, statt die Skala linear bis zum tatsächlichen
@@ -447,6 +490,8 @@ def plot_h3_map(
         _draw_labels(ax)
 
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight", facecolor=BACKGROUND_COLOR)
+    if galton:
+        _apply_retro_noise(png_path)
     print(f"Karte gespeichert unter {png_path}")
 
 

@@ -1423,6 +1423,61 @@ Verifiziert mit dem ursprünglich gemeldeten Aufruf
 (`--cmap galton10 --max-hours=72`): Farbskala geht jetzt bis 72h in
 zehn gleich breiten 7,2h-Stufen, wie erwartet.
 
+## Phase 14zF: Kupferstich-Retro-Look (nur --galton)
+
+Nutzeridee: den Look von Galtons Originalkarte (Kupferstich-Druck auf
+gealtertem Papier) nachempfinden - ein Rausch-Overlay für die
+Papierstruktur, und die Linien "kupferstichartig" statt digital
+perfekt ziehen. Zunächst als Diskussion beantwortet (Empfehlung:
+Rausch-Overlay + Linien-Wackeln als Post-/Pre-Processing-Schritte statt
+einer aufwendigeren echten Schraffur-Schattierung), dann auf Zuruf
+("Ja, bitte, aber nur für den Schalter --galton") umgesetzt.
+
+**Linien-Wackeln**: kein manuelles Vertex-Jittern nötig - matplotlib
+hat dafür bereits `Artist.set_sketch_params(scale, length,
+randomness)` eingebaut, denselben Mechanismus, den `plt.xkcd()` intern
+nutzt (dort global über `rcParams["path.sketch"]`, hier gezielt pro
+Artist über die neue Hilfsfunktion `_sketch()`). Per Kurztest bestätigt,
+dass das auch auf Cartopys `FeatureArtist` (Küsten, Flüsse) und
+`Gridliner` funktioniert, nicht nur auf einfache matplotlib-Linien.
+Parameter empirisch bei Weltkarten-Maßstab kalibriert (mehrere
+Testrender verglichen): `scale=1.5, length=20, randomness=2` -
+sichtbares Wackeln ohne unleserlich zu werden (ein erster Test mit den
+xkcd-Standardwerten `scale=1, length=100` war bei Weltkarten-Maßstab
+praktisch unsichtbar, da `length` in Punkten skaliert und die Karte
+riesig ist; ein zweiter Test mit `scale=3, length=15` an einem
+Europa-Ausschnitt dagegen viel zu unruhig/haarig). Angewendet auf
+Küstenlinien, Flüsse (falls `--rivers`), den Gridliner und den
+doppelten Kartenrahmen (Spine + Rectangle) - überall dort, wo
+`config.py`s Kommentare bereits von "Galtons Original nachempfunden"
+sprechen.
+
+**Papier-Rauschen**: als Postprocessing-Schritt übers fertige PNG
+(`_apply_retro_noise()`, nach `fig.savefig()`), nicht ins Rendering
+selbst eingebaut - einfacher und unabhängig von Projektion/Auflösung/
+DPI, wirkt einheitlich auf das ganze zusammengesetzte Bild (Karte,
+Legende, Farbskala). Zwei Rauschkomponenten gemischt: ein grobes,
+hochskaliertes Rauschfeld (wirkt wie fleckige Papiermarmorierung/
+Stockflecken) plus feines Pixel-für-Pixel-Rauschen (Kornstruktur),
+additiv auf alle drei RGB-Kanäle addiert. Stärke per Sichtprobe
+kalibriert (0.03/0.06/0.10 verglichen) - 0.06 traf die beste Balance
+zwischen sichtbarem Alterungseffekt und Lesbarkeit; 0.10 wirkte schon
+recht matschig/fleckig.
+
+Alle Parameter (`RETRO_SKETCH_SCALE`/`_LENGTH`/`_RANDOMNESS`,
+`RETRO_NOISE_STRENGTH`) leben in `config.py`, bewusst ohne eigene
+CLI-Schalter - das gehört zum festen Look von `--galton`, nicht zu
+etwas, das pro Kartenlauf angepasst werden soll (dieselbe Überlegung
+wie bei `GALTON_NUM_BANDS`). `Pillow` wird jetzt direkt importiert
+(vorher nur transitiv über matplotlib installiert) - im `Pipfile`
+ergänzt.
+
+Verifiziert: Paris-Testkarte mit `--galton` zeigt sichtbar wackelnde
+Küsten-/Gitter-/Rahmenlinien und eine überzeugende Papierkörnung,
+ohne Lesbarkeit einzubüßen; dieselbe Karte ganz ohne `--galton`
+unverändert (keine Wackellinien, kein Rauschen) - Regression
+ausgeschlossen.
+
 ## Phase 15 (geplant): Isochronen-Konturlinien
 
 Auf Basis des kombinierten Land+See-H3-Rasters aus Phase 6 echte

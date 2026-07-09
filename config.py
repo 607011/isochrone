@@ -53,6 +53,18 @@ GALTON_NUM_BANDS = 6
 GALTON_GRID_DEG = 0.25       # Auflösung des Zwischenrasters
 GALTON_SIGMA_DEG = 3.0       # Gauß-Glättungsradius (Standardabweichung)
 
+# Kupferstich-Retro-Look, nur unter --galton: Linien (Küsten, Flüsse, Gitter,
+# Rahmen) leicht "handgezeichnet" wackeln lassen statt sie geometrisch perfekt
+# zu ziehen (matplotlibs eingebauter Artist.set_sketch_params(), derselbe
+# Mechanismus wie hinter plt.xkcd()), plus ein gealtertes Papier-Rauschen als
+# Postprocessing-Schritt übers fertige PNG. Werte per Sichtprobe kalibriert:
+# genug Wackeln/Körnung, um wie gestochen statt digital gezeichnet zu wirken,
+# ohne die Lesbarkeit zu beeinträchtigen - siehe MEMO.md.
+RETRO_SKETCH_SCALE = 1.5        # Amplitude der Linienwellung, in Punkten
+RETRO_SKETCH_LENGTH = 20.0      # Wellenlänge der Linienwellung, in Punkten
+RETRO_SKETCH_RANDOMNESS = 2.0   # Zufälligkeit der Wellung
+RETRO_NOISE_STRENGTH = 0.06     # Stärke des Papier-Rauschoverlays (0-1)
+
 # Ab dieser Reisezeit (Stunden) wird der dunkelste Farbton vergeben, statt
 # die Skala linear bis zum tatsächlichen Maximum zu strecken - wie bei
 # Galtons Original mit diskreten Farbbändern und einer letzten

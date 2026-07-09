@@ -17,6 +17,7 @@ pyrosm = "*"
 pyarrow = "*"
 rasterio = "*"
 scikit-image = "*"
+pillow = "*"
 
 [dev-packages]
 # Nur für fix_ports_coordinates.py (einmaliges Korrekturskript, siehe
