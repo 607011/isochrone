@@ -32,7 +32,6 @@ Computes in three phases, each cacheable on its own:
 import time
 
 import numpy as np
-import pandas as pd
 import rasterio
 from global_land_mask import globe
 from scipy import sparse
@@ -178,11 +177,17 @@ def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVE
 
 
 def main():
-    airports_df = pd.read_csv(config.OUTPUT_CSV)
-
+    # Builds only the origin-independent cache (downsampled raster +
+    # land graph) that load_graph() reloads - this is the one-time setup
+    # step the web backend needs (see friction_map_from_point.py, which
+    # calls load_graph() + run_dijkstra() itself with its own per-point
+    # origin). The London-specific result (run_dijkstra() seeded from
+    # doc/travel_times.csv) isn't computed here anymore - it's only
+    # consumed by doc/friction_surface_map.py's own example pipeline, so
+    # it's computed there instead, rather than requiring doc/main.py's
+    # output just to set up the backend.
     friction = downsample_friction()
-    graph, node_lat, node_lon = build_land_graph(friction)
-    run_dijkstra(graph, node_lat, node_lon, airports_df)
+    build_land_graph(friction)
 
 
 if __name__ == "__main__":

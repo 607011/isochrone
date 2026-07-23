@@ -2,6 +2,11 @@
 (friction_surface_global.py) and places it alongside the previous
 isotropic map.
 
+Runs the London-specific Dijkstra itself (friction_surface_global.load_graph()
++ run_dijkstra(), seeded from doc/travel_times.csv) - that step used to live
+in friction_surface_global.py's own main(), but it's only ever consumed here,
+not by the web backend, so it moved to where it's actually used.
+
 Only land tiles get the new, road-based value - water tiles come
 unchanged from main_h3.py (its port model is independent of the
 friction-surface raster, see friction_surface_global.py). At a
@@ -22,13 +27,11 @@ from sklearn.neighbors import BallTree
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
+import friction_surface_global as friction
 from h3_grid import build_grid
 from land_mask import is_land
 from main_h3 import _output_path_for
 from plot_h3_map import parse_lat_limits, parse_paper, plot_h3_map
-
-TRAVEL_MINUTES_NPY = "friction_data/land_travel_minutes.npy"
-NODE_LATLON_NPY = "friction_data/land_node_latlon.npy"
 
 OUTPUT_CSV = "doc/h3_travel_times_london_friction_surface.csv"
 OUTPUT_PNG = "doc/h3_travel_times_map_london_friction_surface_land.png"
@@ -49,10 +52,17 @@ def main(
     labels = labels or galton
     cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
 
-    minutes = np.load(TRAVEL_MINUTES_NPY)
-    node_latlon = np.load(NODE_LATLON_NPY)
+    # The London-specific Dijkstra run lives here now, not in
+    # friction_surface_global.py's own main() - it's only this example
+    # script that needs it (see friction_surface_global.py for why),
+    # and run_dijkstra() itself is fast (~1-2s), so recomputing it here
+    # rather than caching a separate copy matches how
+    # friction_map_from_point.py already treats it for its own origins.
+    airports_df = pd.read_csv(config.OUTPUT_CSV)
+    graph, node_lat, node_lon = friction.load_graph()
+    minutes = friction.run_dijkstra(graph, node_lat, node_lon, airports_df)
     finite = np.isfinite(minutes)
-    tree = BallTree(np.radians(node_latlon[finite]), metric="haversine")
+    tree = BallTree(np.radians(np.column_stack([node_lat, node_lon]))[finite], metric="haversine")
 
     grid_df = build_grid(resolution)
     on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
