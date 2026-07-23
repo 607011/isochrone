@@ -25,6 +25,10 @@ cell — land or water — is assigned the travel time of whichever
 airport or port serves it fastest, including the "last mile" from that
 hub to the cell itself (by road or by sea).
 
+## Example
+
+![Isochrones from Paris](doc/example.png)
+
 ## Data files
 
 | File | Source | Format | Used for |
