@@ -30,8 +30,8 @@ from plot_h3_map import parse_lat_limits, parse_paper, plot_h3_map
 TRAVEL_MINUTES_NPY = "friction_data/land_travel_minutes.npy"
 NODE_LATLON_NPY = "friction_data/land_node_latlon.npy"
 
-OUTPUT_CSV = "h3_travel_times_london_friction_surface.csv"
-OUTPUT_PNG = "h3_travel_times_map_london_friction_surface_land.png"
+OUTPUT_CSV = "doc/h3_travel_times_london_friction_surface.csv"
+OUTPUT_PNG = "doc/h3_travel_times_map_london_friction_surface_land.png"
 
 
 def main(

@@ -199,7 +199,7 @@ def main():
         f"(H3 res. {H3_RESOLUTION}, {REGION_HALF_WIDTH_DEG*2}° region)"
     )
 
-    out_path = "birdsville_friction_surface_vs_isotropic.png"
+    out_path = "doc/birdsville_friction_surface_vs_isotropic.png"
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     print(f"Map saved to {out_path}")
 

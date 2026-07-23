@@ -10,8 +10,13 @@ from pathlib import Path
 # --- Paths ---
 ROUTES_CSV = Path("routes.csv")
 AIRPORTS_CSV = Path("airports.csv")
-OUTPUT_CSV = Path("travel_times.csv")
-OUTPUT_MAP_PNG = Path("travel_times_map_london_airports_points.png")
+# London example-pipeline outputs (doc/main.py, doc/plot_map.py,
+# doc/main_h3.py, plot_h3_map.py's own CLI default) live under doc/
+# alongside the standalone scripts that produce/consume them - unlike
+# friction_map_from_point.py's per-point outputs, which stay in the
+# project root (see friction_map_from_point.py for why).
+OUTPUT_CSV = Path("doc/travel_times.csv")
+OUTPUT_MAP_PNG = Path("doc/travel_times_map_london_airports_points.png")
 
 # --- Point map rendering ---
 COLORMAP = "viridis_r"  # _r: dark = far away, light = close
@@ -139,16 +144,16 @@ MAX_AIRPORT_DISTANCE_KM = 3000
 # --- Assumed ground speed (car/train) between airport and tile ---
 GROUND_SPEED_KMH = 80
 
-OUTPUT_H3_CSV = Path("h3_travel_times.csv")
-OUTPUT_H3_MAP_PNG = Path("h3_travel_times_map_london_h3_land_and_sea.png")
+OUTPUT_H3_CSV = Path("doc/h3_travel_times.csv")
+OUTPUT_H3_MAP_PNG = Path("doc/h3_travel_times_map_london_h3_land_and_sea.png")
 
 # --- Ports (LINERLIB, github.com/blof/LINERLIB) ---
 # PORTS_CSV is the unmodified raw dataset, only relevant for
-# fix_ports_coordinates.py (see there). The normal pipeline reads
+# doc/fix_ports_coordinates.py (see there). The normal pipeline reads
 # PORTS_CORRECTED_CSV.
 PORTS_CSV = Path("ports.csv")
 PORTS_CORRECTED_CSV = Path("ports_corrected.csv")
-OUTPUT_PORTS_CSV = Path("ports_travel_times.csv")
+OUTPUT_PORTS_CSV = Path("doc/ports_travel_times.csv")
 
 # Assumed ship speed for the "last mile" port -> water tile.
 SEA_SPEED_KMH = 35

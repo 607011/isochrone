@@ -33,7 +33,7 @@ To reproduce this exact map after a fresh clone:
 
 ```bash
 pipenv install
-pipenv run python doc/main.py                 # -> travel_times.csv (optional sanity check, not needed below)
+pipenv run python doc/main.py                 # -> doc/travel_times.csv, read by friction_surface_global.py below
 
 mkdir -p friction_data
 curl -L -o friction_data/friction_surface.zip \
