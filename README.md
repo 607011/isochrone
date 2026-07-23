@@ -1,8 +1,8 @@
 # Isochrone Map
 
-A modern take on Francis Galton's 1881 travel-time map: how long does it
+**A modern take on Francis Galton's 1881 travel-time map: how long does it
 take to reach any point in the world from London, given the global
-flight network, plus a rough estimate of the "last mile" by road or sea?
+flight network, plus a rough estimate of the "last mile" by road or sea?**
 
 ## Idea
 
