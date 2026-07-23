@@ -64,17 +64,42 @@ def _progress_percent(message, last_percent):
     return last_percent
 
 
-def _run_render_job(params, progress_queue):
+class JobCancelled(Exception):
+    """Raised inside the worker process, from within the progress
+    callback, once the server has noticed the client is gone -
+    interrupts main() at its next _report() checkpoint (see
+    friction_map_from_point.py) instead of letting it render to
+    completion for nobody. Deliberately a plain Exception, not
+    asyncio.CancelledError: it crosses the process boundary through the
+    Future's normal exception-pickling path, not asyncio's cancellation
+    machinery, and ProcessPoolExecutor.Future.cancel() alone is not
+    reliable here - whether a queued job actually gets skipped depends
+    on a race against the executor's internal dispatch queue, confirmed
+    by testing to sometimes let an already "cancelled" job run to
+    completion anyway."""
+
+
+def _run_render_job(params, progress_queue, cancel_event):
     """Runs in its own worker process (ProcessPoolExecutor) - the import
     of friction_map_from_point deliberately happens only in here, not
     at module level, so that it (and the heavy dependencies it loads)
-    happens in the worker process rather than the server process.
-    progress_queue.put is passed directly as the callback, main() calls
-    it with exactly one string per milestone (see _report() there)."""
+    happens in the worker process rather than the server process. Pool
+    workers are reused across jobs, so this import only pays its cost
+    on that worker's first job; later jobs in the same worker hit
+    Python's module cache."""
     import friction_map_from_point
 
+    def progress_callback(msg):
+        # Checked first, before the message is even queued - once the
+        # client is gone nobody reads progress_queue anyway, and this
+        # is the checkpoint that lets an already-dispatched job bail
+        # out early instead of running to completion unwatched.
+        if cancel_event.is_set():
+            raise JobCancelled(msg)
+        progress_queue.put(msg)
+
     return friction_map_from_point.main(
-        progress_callback=progress_queue.put, verbose=False, **params,
+        progress_callback=progress_callback, verbose=False, **params,
     )
 
 
@@ -114,6 +139,27 @@ def _build_job_params(payload):
     }
 
 
+def _abandon_job(future, cancel_event):
+    """Called once a client is confirmed gone. cancel_event.set() is the
+    reliable path (checked inside the worker's progress callback, see
+    _run_render_job) - future.cancel() is kept alongside it since it's
+    free and occasionally wins outright for a job that hasn't been
+    dispatched to a worker at all yet. The done-callback below just
+    retrieves the eventual JobCancelled/CancelledError so asyncio
+    doesn't log it as "exception was never retrieved" - nobody's left
+    to hand the result to."""
+    cancel_event.set()
+    future.cancel()
+
+    def _retrieve(f):
+        try:
+            f.exception()
+        except asyncio.CancelledError:
+            pass
+
+    future.add_done_callback(_retrieve)
+
+
 app = FastAPI()
 
 
@@ -123,29 +169,58 @@ async def render_socket(websocket: WebSocket):
     try:
         payload = await websocket.receive_json()
         params = _build_job_params(payload)
+    except WebSocketDisconnect:
+        return
     except (KeyError, TypeError, ValueError) as exc:
         await websocket.send_json({"type": "error", "message": str(exc)})
         await websocket.close()
         return
 
     progress_queue = _MANAGER.Queue()
+    cancel_event = _MANAGER.Event()
     loop = asyncio.get_running_loop()
-    future = loop.run_in_executor(_EXECUTOR, _run_render_job, params, progress_queue)
+    future = loop.run_in_executor(_EXECUTOR, _run_render_job, params, progress_queue, cancel_event)
+
+    # Detecting a disconnect passively (only when send_json happens to
+    # fail) doesn't help a job still waiting in the executor's queue -
+    # such a job produces no progress messages, so send_json is never
+    # attempted, and the disconnect goes unnoticed until the job has
+    # already started (at which point cancel() is a no-op). Actively
+    # watching receive() catches it the moment the client leaves,
+    # whether the job has started or not.
+    disconnected = asyncio.Event()
+
+    async def watch_disconnect():
+        try:
+            while True:
+                await websocket.receive()
+        except WebSocketDisconnect:
+            disconnected.set()
+
+    watcher_task = asyncio.ensure_future(watch_disconnect())
 
     percent = 0
     try:
-        # Deliberately queue.get_nowait() + asyncio.sleep() instead of a
-        # blocking queue.get(timeout=...) - the latter would freeze the
-        # entire event loop for the duration of the timeout, blocking
-        # ALL other concurrent WebSocket connections, not just this one.
-        while not future.done():
+        # Deliberately queue.get_nowait() + a timed wait on the
+        # disconnect event instead of a blocking queue.get(timeout=...)
+        # - the latter would freeze the entire event loop for the
+        # duration of the timeout, blocking ALL other concurrent
+        # WebSocket connections, not just this one.
+        while not future.done() and not disconnected.is_set():
             try:
                 message = progress_queue.get_nowait()
             except Empty:
-                await asyncio.sleep(0.15)
+                try:
+                    await asyncio.wait_for(disconnected.wait(), timeout=0.15)
+                except asyncio.TimeoutError:
+                    pass
                 continue
             percent = _progress_percent(message, percent)
             await websocket.send_json({"type": "progress", "message": message, "percent": percent})
+
+        if disconnected.is_set():
+            _abandon_job(future, cancel_event)
+            return
 
         # After the job ends, flush any remaining messages not yet
         # picked up (e.g. the last "Drawing map ..." message, if it
@@ -160,11 +235,14 @@ async def render_socket(websocket: WebSocket):
 
         png_path = future.result()  # re-raises an exception that occurred in the worker
     except WebSocketDisconnect:
+        _abandon_job(future, cancel_event)
         return
     except Exception as exc:
         await websocket.send_json({"type": "error", "message": str(exc)})
         await websocket.close()
         return
+    finally:
+        watcher_task.cancel()
 
     image_bytes = Path(png_path).read_bytes()
     await websocket.send_json({
