@@ -15,6 +15,11 @@ variants side by side. Deliberately regional only, not global - see
 MEMO.md for the trade-off (real routing worldwide would be
 disproportionately expensive; the effect's impact already shows up in
 a single region).
+
+Reads the road network from doc/osm_data/birdsville_*.parquet, a
+one-time pyrosm-filtered extract (see MEMO.md, Phase 9) - this script
+itself no longer downloads or filters the raw Geofabrik .osm.pbf, only
+the small cached result is committed.
 """
 
 import os
@@ -60,8 +65,8 @@ AIRPORT_NAME = "Birdsville Airport"
 AIRPORT_LAT, AIRPORT_LON = -25.8975, 139.348
 AIRPORT_OWN_TRAVEL_HOURS = 31.69  # from travel_times.csv (5 transfers from London)
 
-EDGES_PATH = "osm_data/birdsville_edges.parquet"
-NODES_PATH = "osm_data/birdsville_nodes.parquet"
+EDGES_PATH = "doc/osm_data/birdsville_edges.parquet"
+NODES_PATH = "doc/osm_data/birdsville_nodes.parquet"
 
 H3_RESOLUTION = 6  # finer than the global map (res. 4), to make the road layout visible
 REGION_HALF_WIDTH_DEG = 3.0
