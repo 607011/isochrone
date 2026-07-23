@@ -126,6 +126,25 @@ def _build_job_params(payload):
         # deliberately) block a single worker slot for minutes.
         raise ValueError("dpi must be between 36 and 300.")
 
+    resolution = int(payload.get("resolution") or config.H3_RESOLUTION)
+    if not (0 <= resolution <= 7):
+        # The CLI's own range is 0-15, but the H3 grid is built globally
+        # (see h3_grid.build_grid()) regardless of how local the origin
+        # point is - cell count grows ~7x per level, so anything much
+        # finer than the project's own examples (res. 5 already reaches
+        # ~200 MB of CSV output) would tie up a worker slot for a very
+        # long time, the same concern the dpi cap above addresses.
+        raise ValueError("resolution must be between 0 and 7.")
+
+    galton_sigma = float(payload.get("galton_sigma") or config.GALTON_SIGMA_DEG)
+    if not (0 <= galton_sigma <= 20):
+        raise ValueError("galton_sigma must be between 0 and 20.")
+
+    # --james-bond is shorthand for --heli --jetpack together, same as
+    # the CLI (see friction_map_from_point.py's argparse block) - heli/
+    # jetpack aren't exposed individually here, only this combined flag.
+    james_bond = bool(payload.get("james_bond"))
+
     return {
         "lat": lat,
         "lon": lon,
@@ -134,8 +153,15 @@ def _build_job_params(payload):
         "cmap_name": payload.get("cmap") or None,
         "max_hours": float(payload.get("max_hours") or config.GALTON_MAX_HOURS),
         "dpi": dpi,
+        "resolution": resolution,
         "paper": paper,
         "title": bool(payload.get("title")),
+        "rivers": bool(payload.get("rivers")),
+        "show_ports": bool(payload.get("ports")),
+        "show_airports": bool(payload.get("airports")),
+        "galton_sigma": galton_sigma,
+        "heli": james_bond,
+        "jetpack": james_bond,
     }
 
 

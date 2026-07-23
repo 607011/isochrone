@@ -11,12 +11,18 @@ function buildPayload() {
     lat: data.get("lat"),
     lon: data.get("lon"),
     label: data.get("label"),
+    resolution: data.get("resolution"),
     galton: form.galton.checked,
     cmap: data.get("cmap"),
     max_hours: data.get("max_hours"),
+    galton_sigma: data.get("galton_sigma"),
     dpi: data.get("dpi"),
     paper: data.get("paper"),
     title: form.title.checked,
+    rivers: form.rivers.checked,
+    ports: form.ports.checked,
+    airports: form.airports.checked,
+    james_bond: form.james_bond.checked,
   };
 }
 

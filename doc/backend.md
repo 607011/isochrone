@@ -47,7 +47,7 @@ app, so a map can be rendered remotely from a browser instead of the CLI.
 | File | Role |
 |---|---|
 | `backend_server.py` | The FastAPI app: job submission, progress relay, cancellation, static-file mount. |
-| `frontend/index.html` | Form for a curated subset of `friction_map_from_point.py`'s flags (lat/lon, label, colormap, `--max-hours`, DPI, `--paper`, `--galton`, `--title`). |
+| `frontend/index.html` | Form for a curated subset of `friction_map_from_point.py`'s flags (lat/lon, label, `-r`/`--resolution`, colormap, `--max-hours`, `--galton-sigma`, DPI, `--paper`, `--galton`, `--title`, `--rivers`, `--ports`, `--airports`, `--james-bond`). |
 | `frontend/app.js` | Opens the WebSocket, sends the form as JSON once, renders progress bar + final image from the server's messages. |
 | `frontend/style.css` | Minimal styling, light/dark aware (`color-scheme: light dark`). |
 
@@ -60,9 +60,12 @@ would extend to them if needed.
 ## WebSocket protocol (`/ws/render`)
 
 - **Client → Server** (once, right after connecting): a flat JSON object -
-  `lat`, `lon`, `label`, `galton`, `cmap`, `max_hours`, `dpi`, `paper`,
-  `title`. Missing/empty fields fall back to `friction_map_from_point.main()`'s
-  own defaults.
+  `lat`, `lon`, `label`, `resolution`, `galton`, `cmap`, `max_hours`,
+  `galton_sigma`, `dpi`, `paper`, `title`, `rivers`, `ports`, `airports`,
+  `james_bond`. Missing/empty fields fall back to
+  `friction_map_from_point.main()`'s own defaults. `james_bond` maps to
+  `heli=True, jetpack=True` together - `--heli`/`--jetpack` aren't
+  individually selectable in the form.
 - **Server → Client**, repeated: `{"type": "progress", "message": "...",
   "percent": 42}` - `percent` is a rough approximation from a fixed table
   of known milestones (`_PROGRESS_STAGES` in `backend_server.py`), not a
@@ -89,8 +92,9 @@ Code's browser pane.
 ## Known limitations (v1 scope)
 
 - Only a curated subset of `friction_map_from_point.py`'s flags is exposed
-  in the form - no `--heli`/`--jetpack`/`--james-bond`, `--robinson`,
-  `--grid`, `--rivers`, `--lat-limits`, or `--labels` yet.
+  in the form - no `--heli`/`--jetpack` individually (only combined via
+  `--james-bond`), `--robinson`, `--grid`, `--lat-limits`, or `--labels`
+  yet.
 - No authentication or per-client rate limiting beyond the global
   concurrency cap - anyone who can reach the port can submit jobs.
 - Rendered files (PNG/CSV) accumulate in the project root exactly as a CLI
