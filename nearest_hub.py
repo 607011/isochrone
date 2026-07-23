@@ -1,14 +1,14 @@
-"""Ordnet jeder Kachel die kürzeste Gesamtreisezeit über einen Hub-Typ zu.
+"""Assigns each tile the shortest total travel time via a hub type.
 
-Gesamtzeit(Kachel) = Reisezeit(London -> Hub) + Letzte-Meile-Zeit(Hub -> Kachel).
-Minimiert wird über ALLE Hubs im Radius nach dieser Summe - weder "nächster
-Hub" noch "schnellster Hub ab London" allein sind korrekt, denn ein weiter
-entfernter, aber besser angebundener Hub kann trotz längerer letzter Meile
-insgesamt schneller sein, und umgekehrt.
+Total time(tile) = travel time(London -> hub) + last-mile time(hub -> tile).
+Minimized over ALL hubs within range by this sum - neither "nearest
+hub" nor "fastest hub from London" alone is correct, since a farther
+but better-connected hub can end up faster overall despite a longer
+last mile, and vice versa.
 
-Ein "Hub" ist hier generisch: Flughafen für Landkacheln, Hafen für
-Wasserkacheln. Deshalb sind Geschwindigkeit und Spaltenname für die
-Hub-ID Parameter statt fest verdrahtet zu sein.
+A "hub" is generic here: airport for land tiles, port for water
+tiles. That's why speed and the column name for the hub ID are
+parameters instead of being hardwired.
 """
 
 import numpy as np
@@ -25,10 +25,11 @@ def assign_travel_times(
     speed_kmh: float,
     hub_id_col: str = "iata_code",
 ) -> pd.DataFrame:
-    # Hubs ohne eigene Reisezeit (z.B. unerreichbare Häfen) muessen raus,
-    # bevor sie als Kandidaten in Frage kommen: np.argmin gibt bei NaN im
-    # Array selbst NaN zurueck, statt es zu ignorieren, und würde sonst
-    # jedes Ergebnis vergiften, sobald ein solcher Hub im Suchradius liegt.
+    # Hubs without their own travel time (e.g. unreachable ports) must be
+    # removed before they can be considered as candidates: np.argmin
+    # returns NaN itself when NaN is present in the array, instead of
+    # ignoring it, which would otherwise poison every result as soon as
+    # such a hub lies within the search radius.
     hubs_df = hubs_df[hubs_df["reisezeit_stunden"].notna()].reset_index(drop=True)
 
     hub_coords_rad = np.radians(hubs_df[["lat", "lon"]].to_numpy())
@@ -71,11 +72,11 @@ def assign_travel_times(
 
 
 def nearest_value(points_df: pd.DataFrame, reference_df: pd.DataFrame, value_col: str) -> np.ndarray:
-    """Wert der nächstgelegenen Kachel in reference_df, für jeden Punkt in points_df.
+    """Value of the nearest tile in reference_df, for each point in points_df.
 
-    Kein eigener Hub-Mechanismus - reine Nachbarschaftssuche. Genutzt z.B.
-    dafür, Häfen einfach die Reisezeit ihrer nächstgelegenen Landkachel zu
-    geben, statt sie separat über eine eigene Flughafen-Suche zu berechnen.
+    No dedicated hub mechanism - pure nearest-neighbor search. Used e.g.
+    to simply give ports the travel time of their nearest land tile,
+    instead of computing it separately via their own airport search.
     """
     reference_df = reference_df[reference_df[value_col].notna()].reset_index(drop=True)
     reference_coords_rad = np.radians(reference_df[["lat", "lon"]].to_numpy())

@@ -1,14 +1,15 @@
-"""Kürzeste Reisezeiten von einem oder mehreren Start-Flughäfen (Dijkstra).
+"""Shortest travel times from one or more origin airports (Dijkstra).
 
-Mehrere Startflughäfen (z.B. die 5 Londoner Flughäfen) werden über einen
-virtuellen Knoten angebunden, sodass jeweils der schnellste Startpunkt
-automatisch gewählt wird. Normalerweise mit Gewicht 0 (die Flughäfen SIND
-der Start), aber origin_iatas darf auch ein Dict {iata: einstiegsstunden}
-sein - dann bekommt jede Kante das individuelle Gewicht statt einheitlich 0,
-z.B. die Bodenzeit von einem beliebigen Landpunkt bis zu diesem Flughafen
-(siehe friction_map_from_point.py). Gleiches Funktionsprinzip wie der
-virtuelle Superknoten in friction_surface_global.py, nur umgekehrte
-Richtung: dort Flugzeit -> Bodenzeit, hier Bodenzeit -> Flugzeit.
+Multiple origin airports (e.g. the 5 London airports) are connected via
+a virtual node, so that the fastest starting point is automatically
+chosen in each case. Normally with weight 0 (the airports ARE the
+origin), but origin_iatas may also be a dict {iata: entry_hours} - then
+each edge gets its individual weight instead of a uniform 0, e.g. the
+ground time from an arbitrary land point to this airport (see
+friction_map_from_point.py). Same functional principle as the virtual
+super-node in friction_surface_global.py, just in the reverse
+direction: there flight time -> ground time, here ground time -> flight
+time.
 """
 
 import math
@@ -25,9 +26,9 @@ def compute_shortest_times(G: nx.DiGraph, origin_iatas, transfer_hours: float) -
         entry_hours = {o: 0.0 for o in origin_iatas if o in G}
     missing = set(origin_iatas) - set(entry_hours)
     if missing:
-        print(f"Warnung: Start-Flughäfen nicht im Graphen gefunden und ignoriert: {sorted(missing)}")
+        print(f"Warning: origin airports not found in the graph and ignored: {sorted(missing)}")
     if not entry_hours:
-        raise ValueError("Keiner der angegebenen Start-Flughäfen ist im Graphen vorhanden.")
+        raise ValueError("None of the given origin airports are present in the graph.")
 
     G.add_node(VIRTUAL_ORIGIN)
     for o, hours in entry_hours.items():
@@ -47,7 +48,7 @@ def compute_shortest_times(G: nx.DiGraph, origin_iatas, transfer_hours: float) -
     for iata, hours in distances.items():
         if iata == VIRTUAL_ORIGIN:
             continue
-        real_path = paths[iata][1:]  # virtuellen Startknoten aus dem Pfad entfernen
+        real_path = paths[iata][1:]  # remove the virtual origin node from the path
         num_edges = len(real_path) - 1
         stops = max(num_edges - 1, 0)
         results[iata] = {"hours": hours, "stops": stops, "path": real_path}

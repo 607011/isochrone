@@ -1,24 +1,22 @@
-"""Einmaliges Korrekturskript: erzeugt ports_corrected.csv aus ports.csv.
+"""One-time correction script: generates ports_corrected.csv from ports.csv.
 
-Etliche Zeilen in ports.csv (LINERLIB, github.com/blof/LINERLIB) haben
-Longitude/Latitude vertauscht, und zwar nicht nach einem festen Muster
-(manche Zeilen sind korrekt, manche nicht) - eine Distanz- oder
-Wertebereichs-Heuristik allein greift zu kurz, siehe MEMO.md
-("Argentia"/"Belem"-Fälle). Deshalb wird stattdessen die im Datensatz
-angegebene "Country"-Spalte als Kontrolle genutzt: für beide möglichen
-Lesarten (so wie im File, und vertauscht) wird per Offline-Reverse-
-Geocoding das Land der Koordinate bestimmt; welche Lesart zum
-angegebenen Land passt, gewinnt.
+Quite a few rows in ports.csv (LINERLIB, github.com/blof/LINERLIB) have
+longitude/latitude swapped, and not according to a fixed pattern (some
+rows are correct, some aren't) - a distance or value-range heuristic
+alone falls short, see MEMO.md ("Argentia"/"Belem" cases). Instead, the
+"Country" column given in the dataset is used as a check: for both
+possible readings (as in the file, and swapped), the coordinate's
+country is determined via offline reverse geocoding; whichever reading
+matches the given country wins.
 
-ports.csv ist ein statischer Datensatz (ändert sich nicht mehr) - die
-Korrektur muss deshalb nicht bei jedem Programmlauf wiederholt werden.
-Dieses Skript läuft einmalig, das Ergebnis (ports_corrected.csv) ist
-eingecheckt und wird von ports_loading.py direkt gelesen. So braucht
-die normale Pipeline reverse-geocoder/pycountry (native Cython-
-Erweiterung, unter Windows ohne Visual-C++-Build-Tools schwierig zu
-installieren, siehe MEMO.md) nur noch als optionale Dev-Abhängigkeit,
-falls ports.csv sich doch einmal ändert und die Korrektur neu laufen
-muss - nicht mehr für jeden `pipenv install`.
+ports.csv is a static dataset (no longer changes) - the correction
+therefore doesn't need to be repeated on every program run. This
+script runs once, the result (ports_corrected.csv) is checked in and
+read directly by ports_loading.py. That way the normal pipeline only
+needs reverse-geocoder/pycountry (native Cython extension, hard to
+install on Windows without Visual C++ build tools, see MEMO.md) as an
+optional dev dependency, in case ports.csv ever changes and the
+correction has to be rerun - no longer for every `pipenv install`.
 """
 
 import pandas as pd
@@ -27,12 +25,13 @@ import reverse_geocoder as rg
 
 import config
 
-# Fallback fuer Zeilen ohne "Country"-Angabe, wo der Land-Abgleich nicht
-# greift: kein Handelshafen in ports.csv liegt südlicher als das (der
-# südlichste MIT Country-Angabe ist Punta Arenas, Chile, bei ca. -53).
+# Fallback for rows without a "Country" value, where the country check
+# doesn't apply: no commercial port in ports.csv lies further south than
+# this (the southernmost WITH a country given is Punta Arenas, Chile, at
+# about -53).
 IMPLAUSIBLE_SOUTH_LATITUDE = -55
 
-# pycountry kennt diese Schreibweisen aus ports.csv nicht automatisch.
+# pycountry doesn't automatically recognize these spellings from ports.csv.
 _COUNTRY_ISO2_OVERRIDES = {
     "Cape Verde Island": "CV",
     "Congo. Dem. Rep. of": "CD",
@@ -92,4 +91,4 @@ def fix_ports(path) -> pd.DataFrame:
 if __name__ == "__main__":
     corrected = fix_ports(config.PORTS_CSV)
     corrected.to_csv(config.PORTS_CORRECTED_CSV, index=False)
-    print(f"{len(corrected)} Häfen korrigiert, geschrieben nach {config.PORTS_CORRECTED_CSV}")
+    print(f"{len(corrected)} ports corrected, written to {config.PORTS_CORRECTED_CSV}")

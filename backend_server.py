@@ -1,18 +1,18 @@
-"""FastAPI-Backend für Fernzugriff auf friction_map_from_point.py per WebSocket.
+"""FastAPI backend for remote access to friction_map_from_point.py via WebSocket.
 
-Rendert Karten in eigenen Worker-Prozessen (ProcessPoolExecutor, Obergrenze
-siehe config.MAX_CONCURRENT_RENDER_JOBS) statt im Server-Prozess selbst -
-matplotlib und Cartopy sind nicht thread-sicher, und dieselbe Prozess-
-Obergrenze ist zugleich die geforderte Begrenzung gleichzeitiger Renders:
-weitere Jobs über die Obergrenze hinaus warten automatisch in der internen
-Warteschlange des Executors, ganz ohne zusätzliche Semaphore.
+Renders maps in dedicated worker processes (ProcessPoolExecutor, limit
+see config.MAX_CONCURRENT_RENDER_JOBS) instead of in the server process
+itself - matplotlib and Cartopy aren't thread-safe, and this same
+process limit doubles as the required cap on concurrent renders:
+further jobs beyond the limit wait automatically in the executor's
+internal queue, with no extra semaphore needed.
 
-Fortschritt wird über eine multiprocessing.Manager().Queue() vom Worker- in
-den Server-Prozess zurückgereicht (ein direkter Python-Callback kann nicht
-über die Prozessgrenze übergeben werden) und per WebSocket an den Client
-weitergeleitet. Das fertige PNG wird nicht als eigene Datei ausgeliefert,
-sondern direkt Base64-codiert in der Abschluss-Nachricht mitgeschickt - kein
-zweiter Request nötig.
+Progress is passed back from the worker to the server process via a
+multiprocessing.Manager().Queue() (a direct Python callback can't be
+passed across the process boundary) and forwarded to the client over
+WebSocket. The finished PNG isn't served as a separate file, but sent
+directly base64-encoded in the completion message - no second request
+needed.
 
 Start: pipenv run uvicorn backend_server:app --reload
 """
@@ -30,18 +30,19 @@ from fastapi.staticfiles import StaticFiles
 import config
 from plot_h3_map import parse_paper
 
-# Ein Manager-Prozess und ein Worker-Pool fürs ganze Server-Leben, nicht pro
-# Request neu gestartet - Manager() startet einen eigenen Server-Prozess für
-# die Queue-Proxys, das pro Anfrage neu zu tun wäre unnötiger Overhead.
+# One manager process and one worker pool for the server's whole
+# lifetime, not restarted per request - Manager() starts its own
+# server process for the queue proxies, doing that again per request
+# would be unnecessary overhead.
 _MANAGER = multiprocessing.Manager()
 _EXECUTOR = ProcessPoolExecutor(max_workers=config.MAX_CONCURRENT_RENDER_JOBS)
 
-# Meilensteine aus friction_map_from_point.main() (siehe dort, die
-# _report()-Aufrufe) grob gewichtet für eine Fortschritts-Prozentanzeige -
-# keine echte kontinuierliche Messung, nur eine plausible Annäherung anhand
-# bekannter, immer in derselben Reihenfolge auftretender Etappen. Reihenfolge
-# hier ist unerheblich, jede eingehende Meldung wird gegen alle Muster
-# geprüft und übernimmt bei Treffer den zugehörigen Wert.
+# Milestones from friction_map_from_point.main() (see there, the
+# _report() calls) roughly weighted for a progress-percentage display -
+# not a real continuous measurement, just a plausible approximation
+# based on known stages that always occur in the same order. Order
+# here doesn't matter, every incoming message is checked against all
+# patterns and takes on the matching value on a hit.
 _PROGRESS_STAGES = [
     (lambda m: m.startswith("Loading airport data"), 5),
     (lambda m: m.startswith("Loading friction-graph"), 15),
@@ -64,12 +65,12 @@ def _progress_percent(message, last_percent):
 
 
 def _run_render_job(params, progress_queue):
-    """Läuft in einem eigenen Worker-Prozess (ProcessPoolExecutor) - der
-    Import von friction_map_from_point passiert bewusst erst hier drin,
-    nicht auf Modulebene, damit er (und die darin geladenen schweren
-    Abhängigkeiten) im Worker- statt im Server-Prozess stattfindet.
-    progress_queue.put direkt als Callback übergeben, main() ruft es mit
-    genau einer Zeichenkette pro Meilenstein auf (siehe _report() dort)."""
+    """Runs in its own worker process (ProcessPoolExecutor) - the import
+    of friction_map_from_point deliberately happens only in here, not
+    at module level, so that it (and the heavy dependencies it loads)
+    happens in the worker process rather than the server process.
+    progress_queue.put is passed directly as the callback, main() calls
+    it with exactly one string per milestone (see _report() there)."""
     import friction_map_from_point
 
     return friction_map_from_point.main(
@@ -78,26 +79,27 @@ def _run_render_job(params, progress_queue):
 
 
 def _build_job_params(payload):
-    """Validiert/normalisiert die vom Client gesendeten Request-Parameter zu
-    main()-kwargs - wirft ValueError bei ungültigen Werten (z.B. --paper),
-    das der Aufrufer in eine Fehlermeldung an den Client übersetzt, statt den
-    Worker-Prozess erst mit einer kaputten Eingabe zu starten."""
+    """Validates/normalizes the request parameters sent by the client
+    into main() kwargs - raises ValueError for invalid values (e.g.
+    --paper), which the caller translates into an error message to the
+    client, instead of starting the worker process with broken input
+    in the first place."""
     lat = float(payload["lat"])
     lon = float(payload["lon"])
     if not (-90 <= lat <= 90):
-        raise ValueError(f"Breitengrad {lat} liegt außerhalb von -90..90.")
+        raise ValueError(f"Latitude {lat} is outside -90..90.")
     if not (-180 <= lon <= 180):
-        raise ValueError(f"Längengrad {lon} liegt außerhalb von -180..180.")
+        raise ValueError(f"Longitude {lon} is outside -180..180.")
 
     paper = payload.get("paper") or None
     if paper:
-        paper = parse_paper(paper)  # wirft ValueError bei ungültigem Format
+        paper = parse_paper(paper)  # raises ValueError for an invalid format
 
     dpi = int(payload.get("dpi") or config.MAP_DPI)
     if not (36 <= dpi <= 300):
-        # Nach oben begrenzt, damit ein Request nicht versehentlich (oder
-        # absichtlich) einen einzelnen Worker-Slot minutenlang blockiert.
-        raise ValueError("dpi muss zwischen 36 und 300 liegen.")
+        # Capped from above so a request can't accidentally (or
+        # deliberately) block a single worker slot for minutes.
+        raise ValueError("dpi must be between 36 and 300.")
 
     return {
         "lat": lat,
@@ -132,11 +134,10 @@ async def render_socket(websocket: WebSocket):
 
     percent = 0
     try:
-        # Bewusst queue.get_nowait() + asyncio.sleep() statt eines
-        # blockierenden queue.get(timeout=...) - letzteres würde den
-        # gesamten Event-Loop für die Dauer des Timeouts einfrieren und
-        # damit ALLE anderen gleichzeitigen WebSocket-Verbindungen blockieren,
-        # nicht nur diese eine.
+        # Deliberately queue.get_nowait() + asyncio.sleep() instead of a
+        # blocking queue.get(timeout=...) - the latter would freeze the
+        # entire event loop for the duration of the timeout, blocking
+        # ALL other concurrent WebSocket connections, not just this one.
         while not future.done():
             try:
                 message = progress_queue.get_nowait()
@@ -146,9 +147,9 @@ async def render_socket(websocket: WebSocket):
             percent = _progress_percent(message, percent)
             await websocket.send_json({"type": "progress", "message": message, "percent": percent})
 
-        # Nach Jobende ggf. noch verbliebene, noch nicht abgeholte Meldungen
-        # nachreichen (z.B. die letzte "Drawing map ..."-Meldung, falls sie
-        # erst kurz vor future.done() in der Queue landete).
+        # After the job ends, flush any remaining messages not yet
+        # picked up (e.g. the last "Drawing map ..." message, if it
+        # only landed in the queue shortly before future.done()).
         while True:
             try:
                 message = progress_queue.get_nowait()
@@ -157,7 +158,7 @@ async def render_socket(websocket: WebSocket):
             percent = _progress_percent(message, percent)
             await websocket.send_json({"type": "progress", "message": message, "percent": percent})
 
-        png_path = future.result()  # wirft eine im Worker aufgetretene Exception hier erneut
+        png_path = future.result()  # re-raises an exception that occurred in the worker
     except WebSocketDisconnect:
         return
     except Exception as exc:
@@ -174,7 +175,8 @@ async def render_socket(websocket: WebSocket):
     await websocket.close()
 
 
-# Zuletzt registriert, damit die explizite WebSocket-Route oben Vorrang hat -
-# Starlette prüft Routen in Registrierungsreihenfolge, der StaticFiles-Mount
-# an "/" dient als Auffangregel für alles, was keine eigene Route hat.
+# Registered last, so the explicit WebSocket route above takes
+# precedence - Starlette checks routes in registration order, the
+# StaticFiles mount at "/" serves as the catch-all for anything without
+# its own route.
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

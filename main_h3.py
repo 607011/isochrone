@@ -1,11 +1,11 @@
-"""Baut das H3-Raster und ordnet jeder Kachel eine Reisezeit ab London zu.
+"""Builds the H3 grid and assigns each tile a travel time from London.
 
-Reihenfolge ist wichtig:
-1. Landkacheln: nächster Flughafen + Bodenzeit.
-2. Häfen: einfach die Reisezeit der ihnen nächstgelegenen Landkachel -
-   ein Hafen ist kein eigener Verkehrsknoten mit eigener Flughafen-Anbindung,
-   er liegt ja an Land und hat damit schon eine Reisezeit aus Schritt 1.
-3. Wasserkacheln: nächster Hafen (aus Schritt 2) + Seezeit.
+Order matters:
+1. Land tiles: nearest airport + ground time.
+2. Ports: simply the travel time of their nearest land tile - a port
+   isn't its own transport hub with its own airport connection, it
+   sits on land after all and so already has a travel time from step 1.
+3. Water tiles: nearest port (from step 2) + sea time.
 """
 
 import pandas as pd
@@ -20,15 +20,15 @@ from ports_loading import load_ports
 def main(resolution=config.H3_RESOLUTION, output_csv=config.OUTPUT_H3_CSV, output_ports_csv=config.OUTPUT_PORTS_CSV):
     airports_df = pd.read_csv(config.OUTPUT_CSV)
     ports_df = load_ports(config.PORTS_CORRECTED_CSV)
-    print(f"{len(ports_df)} Häfen mit gültigen Koordinaten geladen.")
+    print(f"{len(ports_df)} ports with valid coordinates loaded.")
 
     grid_df = build_grid(resolution)
-    print(f"{len(grid_df)} H3-Kacheln bei Auflösung {resolution} erzeugt.")
+    print(f"{len(grid_df)} H3 tiles generated at resolution {resolution}.")
 
     on_land = is_land(grid_df["lat"].to_numpy(), grid_df["lon"].to_numpy())
     land_df = grid_df[on_land].reset_index(drop=True)
     sea_df = grid_df[~on_land].reset_index(drop=True)
-    print(f"{len(land_df)} Landkacheln, {len(sea_df)} Wasserkacheln.")
+    print(f"{len(land_df)} land tiles, {len(sea_df)} water tiles.")
 
     land_result = assign_travel_times(
         land_df, airports_df, config.MAX_AIRPORT_DISTANCE_KM, config.GROUND_SPEED_KMH,
@@ -39,7 +39,7 @@ def main(resolution=config.H3_RESOLUTION, output_csv=config.OUTPUT_H3_CSV, outpu
     ports_df["reisezeit_stunden"] = nearest_value(ports_df, land_result, "reisezeit_stunden")
     ports_df.to_csv(output_ports_csv, index=False)
     covered_ports = ports_df["reisezeit_stunden"].notna().sum()
-    print(f"{covered_ports} von {len(ports_df)} Häfen haben eine Reisezeit über die nächste Landkachel erhalten.")
+    print(f"{covered_ports} of {len(ports_df)} ports received a travel time via the nearest land tile.")
 
     sea_result = assign_travel_times(
         sea_df, ports_df, config.MAX_PORT_DISTANCE_KM, config.SEA_SPEED_KMH,
@@ -50,17 +50,17 @@ def main(resolution=config.H3_RESOLUTION, output_csv=config.OUTPUT_H3_CSV, outpu
     result_df = pd.concat([land_result, sea_result], ignore_index=True)
 
     covered = result_df["reisezeit_stunden"].notna().sum()
-    print(f"{covered} von {len(result_df)} Kacheln insgesamt abgedeckt "
-          f"({covered / len(result_df):.1%}); davon Land: "
+    print(f"{covered} of {len(result_df)} tiles covered in total "
+          f"({covered / len(result_df):.1%}); of which land: "
           f"{land_result['reisezeit_stunden'].notna().sum()}/{len(land_result)}, "
-          f"Wasser: {sea_result['reisezeit_stunden'].notna().sum()}/{len(sea_result)}.")
+          f"water: {sea_result['reisezeit_stunden'].notna().sum()}/{len(sea_result)}.")
 
     result_df.to_csv(output_csv, index=False)
-    print(f"Ergebnis geschrieben nach {output_csv}")
+    print(f"Result written to {output_csv}")
 
 
 def _output_path_for(base_path, resolution):
-    """Hängt bei nicht-Standard-Auflösung ein _resN an den Dateinamen an."""
+    """Appends _resN to the filename for a non-default resolution."""
     if resolution == config.H3_RESOLUTION:
         return base_path
     return base_path.with_name(f"{base_path.stem}_res{resolution}{base_path.suffix}")
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
+    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3 resolution (0-15)")
     args = parser.parse_args()
 
     main(

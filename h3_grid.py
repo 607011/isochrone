@@ -1,4 +1,4 @@
-"""Erzeugt ein weltweites H3-Kachelraster einer gegebenen Auflösung."""
+"""Generates a worldwide H3 tile grid at a given resolution."""
 
 import h3
 import pandas as pd

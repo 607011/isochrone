@@ -31,7 +31,7 @@ form.addEventListener("submit", (event) => {
   resultContainer.innerHTML = "";
   progressContainer.hidden = false;
   progressBarInner.style.width = "0%";
-  progressMessage.textContent = "Verbinde mit Server ...";
+  progressMessage.textContent = "Connecting to server ...";
 
   const socket = new WebSocket(wsUrl());
 
@@ -46,7 +46,7 @@ form.addEventListener("submit", (event) => {
       progressMessage.textContent = msg.message;
     } else if (msg.type === "done") {
       progressBarInner.style.width = "100%";
-      progressMessage.textContent = "Fertig.";
+      progressMessage.textContent = "Done.";
       const img = document.createElement("img");
       img.src = `data:image/png;base64,${msg.image_base64}`;
       img.alt = msg.filename;
@@ -55,7 +55,7 @@ form.addEventListener("submit", (event) => {
     } else if (msg.type === "error") {
       const p = document.createElement("p");
       p.className = "error";
-      p.textContent = `Fehler: ${msg.message}`;
+      p.textContent = `Error: ${msg.message}`;
       resultContainer.appendChild(p);
       submitBtn.disabled = false;
     }
@@ -66,7 +66,7 @@ form.addEventListener("submit", (event) => {
   });
 
   socket.addEventListener("error", () => {
-    progressMessage.textContent = "Verbindungsfehler.";
+    progressMessage.textContent = "Connection error.";
     submitBtn.disabled = false;
   });
 });

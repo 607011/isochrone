@@ -1,20 +1,20 @@
-"""Regionaler Vergleich: isotrope Bodenzeit vs. echtes Straßennetz (Birdsville).
+"""Regional comparison: isotropic ground time vs. real road network (Birdsville).
 
-main_h3.py nimmt für die "letzte Meile" Flughafen->Kachel eine flache
-Geschwindigkeit über die Luftlinie an (GROUND_SPEED_KMH, isotrop - siehe
-config.py). Das ist eine grobe Vereinfachung: man "stolpert" ja nicht aus
-dem Flughafen und fährt dann in jede Richtung gleich schnell, sondern
-folgt Straßen (vgl. die historische Melbourne-Erreichbarkeitskarte, die
-den Nutzer zu dieser Frage gebracht hat).
+main_h3.py assumes a flat speed over the straight-line distance for
+the "last mile" airport->tile (GROUND_SPEED_KMH, isotropic - see
+config.py). That's a rough simplification: you don't just "stumble" out
+of the airport and then drive equally fast in every direction, you
+follow roads (cf. the historical Melbourne reachability map that
+brought the user to this question).
 
-Dieses Skript rechnet das für die Region um Birdsville Airport (BVI) -
-einen der entlegensten Flughäfen im Datensatz - einmal mit dem echten
-Straßennetz (OpenStreetMap-Auszug für Queensland, Fahrzeiten je
-Straßenklasse) statt der Kreis-Isotropie durch und stellt beide Varianten
-nebeneinander dar. Bewusst nur regional, nicht global - siehe MEMO.md
-für die Abwägung (echtes Routing weltweit wäre unverhältnismäßig
-aufwändig; die Wirkung des Effekts zeigt sich aber schon an einer
-einzelnen Region).
+This script computes that for the region around Birdsville Airport
+(BVI) - one of the most remote airports in the dataset - once with the
+real road network (OpenStreetMap extract for Queensland, travel times
+per road class) instead of the circular isotropy, and shows both
+variants side by side. Deliberately regional only, not global - see
+MEMO.md for the trade-off (real routing worldwide would be
+disproportionately expensive; the effect's impact already shows up in
+a single region).
 """
 
 import os
@@ -51,16 +51,16 @@ def _haversine_km_vec(lat1, lon1, lat2, lon2):
 AIRPORT_IATA = "BVI"
 AIRPORT_NAME = "Birdsville Airport"
 AIRPORT_LAT, AIRPORT_LON = -25.8975, 139.348
-AIRPORT_OWN_TRAVEL_HOURS = 31.69  # aus travel_times.csv (5 Umstiege ab London)
+AIRPORT_OWN_TRAVEL_HOURS = 31.69  # from travel_times.csv (5 transfers from London)
 
 EDGES_PATH = "osm_data/birdsville_edges.parquet"
 NODES_PATH = "osm_data/birdsville_nodes.parquet"
 
-H3_RESOLUTION = 6  # feiner als die globale Karte (Res. 4), um Straßenverlauf sichtbar zu machen
+H3_RESOLUTION = 6  # finer than the global map (res. 4), to make the road layout visible
 REGION_HALF_WIDTH_DEG = 3.0
 
-# Grobe Standardgeschwindigkeiten je Straßenklasse (km/h) - die meisten
-# OSM-Wege im Outback haben kein maxspeed-Tag.
+# Rough default speeds per road class (km/h) - most OSM ways in the
+# outback have no maxspeed tag.
 DEFAULT_SPEED_KMH = {
     "motorway": 110, "trunk": 100, "primary": 100, "secondary": 90,
     "tertiary": 80, "tertiary_link": 60, "unclassified": 60,
@@ -108,20 +108,20 @@ def build_region_grid(center_lat, center_lon, half_width_deg, resolution):
 
 
 def main():
-    print("Baue Straßengraphen...")
+    print("Building road graph...")
     G, nodes_df = build_road_graph()
-    print(f"{G.number_of_nodes()} Knoten, {G.number_of_edges()} Kanten.")
+    print(f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges.")
 
     origin_node = nearest_node(nodes_df, AIRPORT_LAT, AIRPORT_LON)
     road_hours = nx.single_source_dijkstra_path_length(G, origin_node, weight="hours")
-    print(f"{len(road_hours)} Knoten von {AIRPORT_NAME} aus über das Straßennetz erreichbar.")
+    print(f"{len(road_hours)} nodes reachable from {AIRPORT_NAME} via the road network.")
 
     reachable_nodes = nodes_df.loc[list(road_hours.keys())]
     reachable_tree = BallTree(np.radians(reachable_nodes[["lat", "lon"]].to_numpy()), metric="haversine")
     reachable_hours = np.array([road_hours[n] for n in reachable_nodes.index])
 
     grid_df = build_region_grid(AIRPORT_LAT, AIRPORT_LON, REGION_HALF_WIDTH_DEG, H3_RESOLUTION)
-    print(f"{len(grid_df)} H3-Kacheln (Res. {H3_RESOLUTION}) in der Region.")
+    print(f"{len(grid_df)} H3 tiles (res. {H3_RESOLUTION}) in the region.")
 
     _, idx = reachable_tree.query(np.radians(grid_df[["lat", "lon"]].to_numpy()), k=1)
     nearest_hours = reachable_hours[idx.ravel()]
@@ -129,8 +129,9 @@ def main():
         haversine_miles(lat, lon, reachable_nodes.iloc[i]["lat"], reachable_nodes.iloc[i]["lon"]) * 1.60934
         for (lat, lon), i in zip(grid_df[["lat", "lon"]].to_numpy(), idx.ravel())
     ])
-    # letzte, kurze Strecke von der Kachelmitte zum nächsten erfassten Straßenpunkt
-    # noch isotrop dazurechnen, sonst wirkt das Straßennetz "zu perfekt"
+    # add the last, short stretch from the tile center to the nearest
+    # captured road point isotropically too, otherwise the road network
+    # looks "too perfect"
     snap_hours = nearest_node_dist_km / config.GROUND_SPEED_KMH
     grid_df["ground_hours_road"] = nearest_hours + snap_hours
 
@@ -154,8 +155,8 @@ def main():
     road_segments = [list(geom.coords) for geom in edges_gdf.geometry if geom is not None]
 
     for ax, col, title in [
-        (axes[0], "ground_hours_isotropic", "Isotrop (Luftlinie / 80 km/h)"),
-        (axes[1], "ground_hours_road", "Straßennetz (OpenStreetMap)"),
+        (axes[0], "ground_hours_isotropic", "Isotropic (straight-line / 80 km/h)"),
+        (axes[1], "ground_hours_road", "Road network (OpenStreetMap)"),
     ]:
         ax.set_extent(extent, crs=ccrs.PlateCarree())
         ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
@@ -184,16 +185,16 @@ def main():
         matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap),
         ax=axes, orientation="horizontal", pad=0.05, shrink=0.6,
     )
-    cbar.set_label("Bodenzeit ab Birdsville Airport (Stunden)")
+    cbar.set_label("Ground time from Birdsville Airport (hours)")
 
     fig.suptitle(
-        f"{AIRPORT_NAME}: isotrope vs. straßenbasierte Bodenzeit-Modellierung "
-        f"(H3 Res. {H3_RESOLUTION}, {REGION_HALF_WIDTH_DEG*2}°-Region)"
+        f"{AIRPORT_NAME}: isotropic vs. road-based ground-time modeling "
+        f"(H3 res. {H3_RESOLUTION}, {REGION_HALF_WIDTH_DEG*2}° region)"
     )
 
     out_path = "birdsville_friction_surface_vs_isotropic.png"
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    print(f"Karte gespeichert unter {out_path}")
+    print(f"Map saved to {out_path}")
 
 
 if __name__ == "__main__":

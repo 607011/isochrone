@@ -1,4 +1,4 @@
-"""Erreichbarkeitskarte: schnellste Reisezeit ab London zu jedem Flughafen weltweit."""
+"""Reachability map: fastest travel time from London to every airport worldwide."""
 
 import csv
 
@@ -12,14 +12,14 @@ def main():
     airports_df = load_airports(config.AIRPORTS_CSV)
     routes_df = load_routes(config.ROUTES_CSV, airports_df, include_codeshare=config.INCLUDE_CODESHARE)
 
-    print(f"{len(airports_df)} Flughäfen mit gültigem IATA-Code und Koordinaten geladen.")
-    print(f"{len(routes_df)} Routen nach Filterung übrig.")
+    print(f"{len(airports_df)} airports with valid IATA code and coordinates loaded.")
+    print(f"{len(routes_df)} routes remaining after filtering.")
 
     G = build_graph(airports_df, routes_df)
-    print(f"Graph: {G.number_of_nodes()} Knoten, {G.number_of_edges()} Kanten.")
+    print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges.")
 
     results = compute_shortest_times(G, config.ORIGIN_AIRPORTS, config.TRANSFER_HOURS)
-    print(f"{len(results)} Flughäfen von {config.ORIGIN_AIRPORTS} aus erreichbar.")
+    print(f"{len(results)} airports reachable from {config.ORIGIN_AIRPORTS}.")
 
     rows = []
     for iata, res in results.items():
@@ -42,7 +42,7 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"Ergebnis geschrieben nach {config.OUTPUT_CSV}")
+    print(f"Result written to {config.OUTPUT_CSV}")
 
 
 if __name__ == "__main__":

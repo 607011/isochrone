@@ -1,15 +1,15 @@
-"""Einlesen von ports_corrected.csv (bereits lon/lat-korrigiert).
+"""Reading ports_corrected.csv (already lon/lat-corrected).
 
-Nur Positionsdaten werden genutzt, keine Schiffsrouten - siehe MEMO.md:
-ein Hafen bekommt seine eigene Reisezeit ab London wie jede andere
-Kachel (nächster Flughafen + Bodenzeit), Wasser-Kacheln bekommen dann
-die Reisezeit des schnellsten Hafens im Umkreis + Seezeit.
+Only position data is used, no shipping routes - see MEMO.md: a port
+gets its own travel time from London like any other tile (nearest
+airport + ground time), water tiles then get the travel time of the
+fastest port within range + sea time.
 
-Die eigentliche Longitude/Latitude-Korrektur (etliche Zeilen im
-LINERLIB-Rohdatensatz ports.csv haben beide vertauscht) läuft nur noch
-einmalig in fix_ports_coordinates.py, nicht mehr bei jedem
-Programmstart - siehe dort für die Begründung und MEMO.md für die
-Details der Korrektur selbst.
+The actual longitude/latitude correction (several rows in the
+LINERLIB raw dataset ports.csv have both swapped) now only runs once
+in fix_ports_coordinates.py, no longer on every program start - see
+there for the rationale and MEMO.md for the details of the correction
+itself.
 """
 
 import pandas as pd

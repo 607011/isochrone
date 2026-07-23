@@ -1,15 +1,15 @@
-"""Punktkarte: Flughäfen eingefärbt nach Reisezeit ab London.
+"""Point map: airports colored by travel time from London.
 
-Reiner Zwischenschritt vor den Isochronen-Konturlinien, um die
-räumliche Verteilung und Dichte der erreichten Flughäfen zu sehen -
-vor allem, wo Konturen später sinnvoll (viele Stützpunkte) bzw.
-irreführend (leere Ozean-/Wüstenflächen) wären.
+Purely an intermediate step before the isochrone contour lines, to see
+the spatial distribution and density of reached airports - especially
+where contours would later make sense (many support points) vs. be
+misleading (empty ocean/desert areas).
 """
 
 import os
 
-# certifi statt der (auf manchen macOS-Python-Installationen kaputten)
-# System-CA-Kette verwenden, sonst schlägt Cartopys Küstenlinien-Download fehl.
+# Use certifi instead of the system CA chain (broken on some macOS
+# Python installations), otherwise Cartopy's coastline download fails.
 if "SSL_CERT_FILE" not in os.environ:
     import certifi
     os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -52,20 +52,20 @@ def plot_travel_times(csv_path, png_path, origin_iatas, dpi=config.MAP_DPI):
     )
 
     cbar = fig.colorbar(sc, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6)
-    cbar.set_label("Reisezeit ab London (Stunden)")
+    cbar.set_label("Travel time from London (hours)")
 
-    ax.set_title(f"Erreichbarkeit ab London — {len(df)} Flughäfen (Stand: OpenFlights-Routennetz ~2014)")
+    ax.set_title(f"Reachability from London — {len(df)} airports (as of OpenFlights route network ~2014)")
     ax.legend(loc="lower left")
 
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
-    print(f"Karte gespeichert unter {png_path}")
+    print(f"Map saved to {png_path}")
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Resolution of the PNG")
     args = parser.parse_args()
 
     plot_travel_times(config.OUTPUT_CSV, config.OUTPUT_MAP_PNG, config.ORIGIN_AIRPORTS, dpi=args.dpi)

@@ -1,31 +1,32 @@
-"""Globale anisotrope Bodenzeit über das MAP-Friction-Surface-Raster.
+"""Global anisotropic ground time via the MAP friction-surface raster.
 
-Ersetzt für Landkacheln das isotrope GROUND_SPEED_KMH-Kreismodell durch
-eine echte Kostendistanz-Berechnung über ein globales Geländereibungs-
-Raster (Malaria Atlas Project / Weiss et al., "2020 motorized friction
-surface", 1 km Auflösung, Minuten pro Meter). Siehe friction_surface_demo.py
-für die kleinräumige Variante mit echtem OSM-Straßennetz (Birdsville) -
-dieses Skript ist das globale Gegenstück, aber mit einem vorgerechneten
-Reibungs-Raster statt Live-Routing, weil Live-Routing weltweit
-unverhältnismäßig aufwändig wäre (siehe MEMO.md).
+Replaces the isotropic GROUND_SPEED_KMH circle model for land tiles
+with a real cost-distance computation over a global terrain-friction
+raster (Malaria Atlas Project / Weiss et al., "2020 motorized friction
+surface", 1 km resolution, minutes per meter). See
+friction_surface_demo.py for the small-scale variant with a real OSM
+road network (Birdsville) - this script is the global counterpart, but
+with a precomputed friction raster instead of live routing, because
+live routing worldwide would be disproportionately expensive (see
+MEMO.md).
 
-Das Raster hat auch über offenem Ozean gültige (langsame) Werte, vermutlich
-für Boots-/Fährverbindungen gedacht - das würde mit dem bestehenden
-See-Modell (main_h3.py, über Häfen) kollidieren. Deshalb wird auf reines
-Land maskiert (global-land-mask, wie im Rest des Projekts), Wasserpixel
-werden aus dem Graphen entfernt statt als langsame Kanten zugelassen.
+The raster also has valid (slow) values over open ocean, presumably
+meant for boat/ferry connections - that would collide with the
+existing sea model (main_h3.py, via ports). So it's masked to pure
+land (global-land-mask, as in the rest of the project), water pixels
+are removed from the graph instead of allowed as slow edges.
 
-Rechnet in drei Phasen, jede für sich cachebar:
-1. Raster laden, auf ~11 km Auflösung herunterrechnen (Min-Pooling, damit
-   dünne schnelle Straßen bei der Vergröberung nicht verschwinden).
-2. Daraus einen Graphen nur über Landpixeln bauen (8er-Nachbarschaft,
-   Kantengewicht = Reibung * echte Distanz in Metern).
-3. Von einem virtuellen Superknoten aus, der mit jedem Flughafen-Pixel
-   über eine Kante mit Gewicht = dessen eigene Reisezeit ab London
-   verbunden ist, einmal global Dijkstra rechnen (scipy) - liefert direkt
-   Flugzeit + echte (anisotrope) Bodenzeit kombiniert, exakt das gleiche
-   Prinzip wie der virtuelle Ursprungsknoten in travel_time.py/nearest_hub.py,
-   nur über ein Rasterraster statt einer Radius-Suche.
+Computes in three phases, each cacheable on its own:
+1. Load the raster, downsample to ~11 km resolution (min-pooling, so
+   thin fast roads don't disappear during coarsening).
+2. Build a graph from that over land pixels only (8-neighborhood, edge
+   weight = friction * real distance in meters).
+3. From a virtual super-node connected to every airport pixel via an
+   edge with weight = that airport's own travel time from London, run
+   Dijkstra globally once (scipy) - directly yields flight time + real
+   (anisotropic) ground time combined, exactly the same principle as
+   the virtual origin node in travel_time.py/nearest_hub.py, just over
+   a raster grid instead of a radius search.
 """
 
 import time
@@ -41,7 +42,7 @@ from sklearn.neighbors import BallTree
 import config
 
 FRICTION_TIF = "friction_data/2020_motorized_friction_surface.geotiff"
-DOWNSAMPLE_FACTOR = 12  # ~1km -> ~11km Pixelkantenlänge
+DOWNSAMPLE_FACTOR = 12  # ~1km -> ~11km pixel edge length
 PIXEL_DEG = 0.008333333333333333 * DOWNSAMPLE_FACTOR
 
 CACHE_FRICTION = "friction_data/friction_downsampled_min.npy"
@@ -62,7 +63,7 @@ def downsample_friction():
     down = blocks.min(axis=(1, 3))
     down = np.where(np.isinf(down), np.nan, down)
     np.save(CACHE_FRICTION, down.astype(np.float32))
-    print(f"Raster heruntergerechnet auf {down.shape} in {time.time()-t0:.0f}s")
+    print(f"Raster downsampled to {down.shape} in {time.time()-t0:.0f}s")
     return down
 
 
@@ -73,7 +74,7 @@ def build_land_graph(friction):
     lon_grid, lat_grid = np.meshgrid(lon, lat)
 
     is_land = globe.is_land(lat_grid, lon_grid) & ~np.isnan(friction)
-    print(f"{is_land.sum()} Landpixel von {is_land.size}.")
+    print(f"{is_land.sum()} land pixels out of {is_land.size}.")
 
     node_id = np.full((h, w), -1, dtype=np.int64)
     node_id[is_land] = np.arange(is_land.sum())
@@ -82,11 +83,12 @@ def build_land_graph(friction):
 
     lat_step_km = config.EARTH_RADIUS_KM * np.radians(PIXEL_DEG)
 
-    # Kanten nur über explizites Slicing bauen (kein np.roll!) - roll
-    # umschließt am Rand auf die gegenüberliegende Kartenseite, was bei
-    # einer Vorzeichen-Verwechslung still falsche Kanten erzeugt, statt
-    # sauber zu crashen. Kostet dafür Kanten über den Antimeridian (~180°
-    # Länge) - kleine, akzeptierte Lücke, siehe MEMO.md.
+    # Build edges only via explicit slicing (no np.roll!) - roll wraps
+    # around at the edge to the opposite side of the map, which on a
+    # sign mix-up silently produces wrong edges instead of cleanly
+    # crashing. The cost of this is missing edges across the
+    # antimeridian (~180° longitude) - a small, accepted gap, see
+    # MEMO.md.
     rows, cols, weights = [], [], []
     for di in (-1, 0, 1):
         for dj in (-1, 0, 1):
@@ -122,18 +124,18 @@ def build_land_graph(friction):
     graph = sparse.csr_matrix((weights, (rows, cols)), shape=(n, n))
     sparse.save_npz(CACHE_GRAPH, graph)
     np.save(CACHE_NODE_LATLON, np.column_stack([node_lat, node_lon]).astype(np.float32))
-    print(f"Graph gebaut: {n} Knoten, {graph.nnz} Kanten.")
+    print(f"Graph built: {n} nodes, {graph.nnz} edges.")
     return graph, node_lat, node_lon
 
 
 def load_graph():
-    """Lädt den gecachten, Ursprungs-unabhängigen Landgraphen.
+    """Loads the cached, origin-independent land graph.
 
-    Der Graph selbst (Knoten, Kanten, Reibung) hängt nicht vom
-    Start-Flughafen ab - nur die Gewichte des virtuellen Superknotens in
-    run_dijkstra() tun das. Für einen neuen Ursprung muss also nur
-    run_dijkstra() erneut laufen, nicht downsample_friction()/
-    build_land_graph() (Minuten statt Minuten+Sekunden).
+    The graph itself (nodes, edges, friction) doesn't depend on the
+    origin airport - only the virtual super-node's weights in
+    run_dijkstra() do. So for a new origin only run_dijkstra() needs to
+    run again, not downsample_friction()/build_land_graph() (minutes
+    instead of minutes+seconds).
     """
     graph = sparse.load_npz(CACHE_GRAPH)
     node_latlon = np.load(CACHE_NODE_LATLON)
@@ -141,20 +143,20 @@ def load_graph():
 
 
 def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVEL_MINUTES):
-    # Misst die gesamte Funktion, nicht nur den eigentlichen dijkstra()-
-    # Aufruf: der saß vorher direkt vor der Zeitmessung, sodass der BallTree-
-    # Aufbau und das Zusammenbauen der Superknoten-Matrix (zusammen oft
-    # ähnlich viel Zeit wie Dijkstra selbst) unbemerkt vorbeiliefen - die
-    # Ausgabe "in 0s" war für den gemessenen Teil korrekt, täuschte aber
-    # eine viel kürzere Gesamtlaufzeit vor, als tatsächlich verging.
+    # Measures the whole function, not just the actual dijkstra() call:
+    # that previously sat right before the timing, so the BallTree
+    # construction and assembling the super-node matrix (together
+    # often about as much time as Dijkstra itself) went by unnoticed -
+    # the "in 0s" output was correct for the measured part, but
+    # suggested a much shorter total runtime than actually elapsed.
     t0 = time.time()
     n = graph.shape[0]
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, airport_node_idx = tree.query(np.radians(airports_df[["lat", "lon"]].to_numpy()), k=1)
     airport_node_idx = airport_node_idx.ravel()
 
-    # virtueller Superknoten (Index n) -> Flughafen-Pixel, Kantengewicht =
-    # eigene Reisezeit des Flughafens ab seinem Ursprung, in Minuten.
+    # virtual super-node (index n) -> airport pixel, edge weight =
+    # the airport's own travel time from its origin, in minutes.
     graph_coo = graph.tocoo()
     virtual_rows = np.full(len(airports_df), n)
     virtual_cols = airport_node_idx
@@ -166,9 +168,9 @@ def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVE
     big = sparse.csr_matrix((all_data, (all_rows, all_cols)), shape=(n + 1, n + 1))
 
     dist = dijkstra(big, directed=True, indices=[n])[0]
-    # .1f statt .0f: Dijkstra selbst läuft auf dem gecachten Graphen meist
-    # unter einer Sekunde - mit .0f wäre das immer "0s" gewesen, ganz
-    # unabhängig vom eigentlichen Rundungsfehler oben.
+    # .1f instead of .0f: Dijkstra itself usually runs in under a second
+    # on the cached graph - with .0f this would always have shown "0s",
+    # regardless of the actual rounding error above.
     print(f"Dijkstra finished in {time.time()-t0:.1f}s.")
     minutes = dist[:n]
     np.save(output_path, minutes.astype(np.float32))

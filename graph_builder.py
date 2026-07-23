@@ -1,8 +1,8 @@
-"""Aufbau des gerichteten Flughafen-Graphen mit Flugzeit als Kantengewicht.
+"""Building the directed airport graph with flight time as edge weight.
 
-Das Umsteigen wird hier bewusst NICHT eingerechnet - das passiert erst
-in travel_time.py, damit TRANSFER_HOURS nachträglich änderbar ist,
-ohne den Graphen neu bauen zu müssen.
+Transfers are deliberately NOT factored in here - that only happens in
+travel_time.py, so TRANSFER_HOURS can be changed afterwards without
+having to rebuild the graph.
 """
 
 import networkx as nx

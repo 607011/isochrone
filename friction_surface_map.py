@@ -1,11 +1,12 @@
-"""Baut aus dem globalen Friction-Surface-Ergebnis (friction_surface_global.py)
-eine H3-Karte und stellt sie neben die bisherige isotrope Karte.
+"""Builds an H3 map from the global friction-surface result
+(friction_surface_global.py) and places it alongside the previous
+isotropic map.
 
-Nur Landkacheln bekommen den neuen, straßenbasierten Wert - Wasserkacheln
-kommen unverändert aus main_h3.py (dessen Häfen-Modell ist unabhängig
-vom Friction-Surface-Raster, siehe friction_surface_global.py). Bei einer
-anderen als der Standard-Auflösung muss main_h3.py -r <auflösung> vorher
-gelaufen sein, damit die Wasserkacheln zur gewählten Auflösung passen.
+Only land tiles get the new, road-based value - water tiles come
+unchanged from main_h3.py (its port model is independent of the
+friction-surface raster, see friction_surface_global.py). At a
+resolution other than the default, main_h3.py -r <resolution> must
+have been run first, so the water tiles match the chosen resolution.
 """
 
 import numpy as np
@@ -32,9 +33,9 @@ def main(
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
     paper=None,
 ):
-    # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
-    # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung angewendet,
-    # damit der Dateiname zum tatsächlich gezeichneten Bild passt.
+    # --galton implies --rivers/--grid/--labels and --cmap galton (see
+    # plot_h3_map.py) - applied here already before the filename is
+    # built, so the filename matches the image actually rendered.
     rivers = rivers or galton
     grid = grid or galton
     labels = labels or galton
@@ -75,8 +76,8 @@ def main(
     combined.to_csv(output_csv, index=False)
 
     covered = combined["reisezeit_stunden"].notna().sum()
-    print(f"{covered} von {len(combined)} Kacheln abgedeckt "
-          f"(Land via Friction Surface: {land_df['reisezeit_stunden'].notna().sum()}/{len(land_df)}).")
+    print(f"{covered} of {len(combined)} tiles covered "
+          f"(land via friction surface: {land_df['reisezeit_stunden'].notna().sum()}/{len(land_df)}).")
 
     ports_csv_in = _output_path_for(config.OUTPUT_PORTS_CSV, resolution)
     plot_h3_map(
@@ -91,69 +92,70 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
-    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3 resolution (0-15)")
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Resolution of the PNG")
     parser.add_argument(
-        "--paper", type=parse_paper, default=None, metavar="FORMAT|BREITExHOEHE",
-        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
-             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
-             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
-             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
-             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
+        "--paper", type=parse_paper, default=None, metavar="FORMAT|WIDTHxHEIGHT",
+        help="Center the map on a page of this size (landscape), with blank space in "
+             "BACKGROUND_COLOR top/bottom instead of an arbitrary, content-dependent "
+             "aspect ratio - without --paper it stays as before, tightly cropped around "
+             "the actual content (bbox_inches=\"tight\"). Either a name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) or custom centimeter dimensions as "
+             "WIDTHxHEIGHT (e.g. 50x60) - poster print shops often don't offer DIN sizes.",
     )
-    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
-    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
+    parser.add_argument("--airports", action="store_true", help="Show airport points (off by default)")
+    parser.add_argument("--ports", action="store_true", help="Show port points (off by default)")
     parser.add_argument(
         "--galton", action="store_true",
-        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+        help="Retro look: smoothed, discrete color bands instead of a continuous scale",
     )
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
-        help="Gesamtspanne der Farbskala in Stunden - ab hier der dunkelste Farbton statt "
-             "weiterer Streckung. Gilt fuer beide Rendering-Modi; unter --galton zusaetzlich "
-             "gleichmaessig in zehn Baender aufgeteilt (bzw. fuenf feste bei --cmap galton5).",
+        help="Total span of the color scale in hours - beyond this the darkest shade "
+             "instead of further stretching. Applies to both rendering modes; under "
+             "--galton additionally split evenly into ten bands (or five fixed ones "
+             "with --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
-        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
-             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
+        help=f"Gaussian smoothing radius in degrees in --galton mode (standard deviation, default {config.GALTON_SIGMA_DEG}°) - "
+             "larger = softer/blurrier, smaller = sharper/closer to the raw raster",
     )
     parser.add_argument(
         "--cmap", default=None,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
-             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
-             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
-             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: zehn statt fuenf Stufen). "
-             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
-             "(zusammen mit --galton: fuenf statt zehn Stufen).",
+        help="Color palette. Default: viridis_r (standard matplotlib, perceptually uniform) - "
+             "except with --galton, then default: galton. Other perceptually uniform "
+             "options: plasma_r, inferno_r, magma_r, cividis_r (or without '_r' for the "
+             "reversed color direction, or any other matplotlib colormap name). "
+             "'galton': the ten real original color values as a fixed, non-interpolated palette "
+             "(together with --galton: ten instead of five levels). "
+             "'galton5': the same palette reduced to five colors, one per color family "
+             "(together with --galton: five instead of ten levels).",
     )
     parser.add_argument(
         "--labels", action="store_true",
-        help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
+        help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
         "--robinson", action="store_true",
-        help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
+        help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
     parser.add_argument(
         "--grid", action="store_true",
-        help="Längen-/Breitengrad-Raster in 20°-Abständen einzeichnen",
+        help="Draw a longitude/latitude grid at 20° intervals",
     )
     parser.add_argument(
         "--title", action="store_true",
-        help="Überschrift einblenden (standardmäßig aus)",
+        help="Show title (off by default)",
     )
     parser.add_argument(
-        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
-        help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
-             "ohne Angabe: 80,-60 (Galtons eigener Zuschnitt, unabhängig von --galton)",
+        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORTH,SOUTH",
+        help="Latitude crop of the Mercator map, e.g. '80,-60' (no effect with --robinson); "
+             "if not given: 80,-60 (Galton's own crop, independent of --galton)",
     )
     parser.add_argument(
         "--rivers", action="store_true",
-        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+        help="Draw major rivers (Natural Earth, 110m), at the same line width as the coastlines",
     )
     args = parser.parse_args()
 

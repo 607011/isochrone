@@ -1,7 +1,7 @@
-"""Einlesen und Bereinigen von routes.csv und airports.csv.
+"""Reading and cleaning routes.csv and airports.csv.
 
-airports.csv liegt im klassischen OpenFlights-Format vor: keine Kopfzeile,
-14 Spalten (Airport ID, Name, City, Country, IATA, ICAO, Latitude,
+airports.csv is in the classic OpenFlights format: no header row,
+14 columns (Airport ID, Name, City, Country, IATA, ICAO, Latitude,
 Longitude, Altitude, Timezone, DST, Tz-Database-Timezone, Type, Source).
 """
 

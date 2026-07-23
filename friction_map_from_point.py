@@ -1,48 +1,48 @@
-"""Friction-Surface-Erreichbarkeitskarte ab einem beliebigen Landpunkt
-(Breiten-/Längengrad) statt einem Flughafen.
+"""Friction-surface reachability map from an arbitrary land point
+(latitude/longitude) instead of an airport.
 
-Vertauscht die Blickrichtung von friction_surface_global.py: dort läuft
-ein Dijkstra vom virtuellen Superknoten über alle Flughäfen (deren
-Reisezeit ab London schon bekannt ist) zu jeder Landkachel der Welt. Hier
-läuft zunächst ein Dijkstra ab dem gewählten Startpunkt (genauer: von
-allen Punkten, die per Heli/Jetpack von dort aus erreichbar sind, siehe
-unten) über denselben gecachten Land-Friction-Graphen zu jedem Flughafen-
-Pixel - das liefert dessen individuelle Bodenzeit ab dem Startpunkt statt
-der bisher einheitlichen 0h für "echte" Startflughäfen. Diese Bodenzeiten
-sind die Kantengewichte des virtuellen Ursprungsknotens in
-travel_time.compute_shortest_times (dort seit dieser Änderung auch als
-Dict statt nur als Liste möglich), der normale Flugnetz-Dijkstra
-kombiniert daraus in einem Rutsch Bodenzeit-zum-Flughafen + Flug-/
-Umstiegszeit. Ab dort läuft build_friction_land() denselben Friction-
-Graphen erneut, diesmal in der ursprünglichen Richtung (Flughäfen ->
-Landkacheln) - identisch zum inzwischen entfernten
-friction_map_from_airport.py (siehe MEMO.md), das nur den Spezialfall
-Startpunkt == Flughafenkoordinaten abdeckte und sich als redundant
-herausstellte, sobald man diesen Spezialfall einfach hier miterledigt.
+Reverses the direction of friction_surface_global.py: there, a Dijkstra
+runs from the virtual super-node across all airports (whose travel time
+from London is already known) to every land tile in the world. Here, a
+Dijkstra first runs from the chosen origin point (more precisely: from
+every point reachable from there by heli/jetpack, see below) over the
+same cached land-friction graph to every airport pixel - this yields
+that airport's individual ground time from the origin point instead of
+the previously uniform 0h for "real" origin airports. These ground
+times are the edge weights of the virtual origin node in
+travel_time.compute_shortest_times (which, since this change, also
+accepts a dict instead of just a list), the normal flight-network
+Dijkstra then combines ground-time-to-airport + flight/transfer time in
+one pass. From there, build_friction_land() runs the same friction
+graph again, this time in the original direction (airports -> land
+tiles) - identical to the now-removed
+friction_map_from_airport.py (see MEMO.md), which only covered the
+special case origin point == airport coordinates and turned out to be
+redundant once that special case is simply handled here too.
 
-Flughäfen ohne Landverbindung zum Startpunkt (z.B. auf Inseln, die der
-Friction-Graph nicht mit dem Festland verbindet) bekommen unendliche
-Bodenzeit und fallen dadurch automatisch aus den Kandidaten heraus, statt
-einen Fehler zu verursachen.
+Airports with no land connection to the origin point (e.g. on islands
+that the friction graph doesn't connect to the mainland) get infinite
+ground time and thereby automatically drop out of the candidates,
+instead of causing an error.
 
---heli/--jetpack: alternative Einstiegs-Etappe Startpunkt -> Flughafen
-per Luftlinie (Haversine) mit fester Geschwindigkeit statt Friction-
-Graph, dafür mit begrenzter Reichweite (siehe HELI_SPEED_KMH/
-HELI_RANGE_KM/JETPACK_* in config.py). Beide zusammen (oder per
---james-bond) verketten sich: erst so weit wie möglich per Heli, der
-Rest der Strecke bis zur Jetpack-Reichweite per Jetpack.
+--heli/--jetpack: alternative entry leg origin point -> airport via
+straight-line distance (Haversine) at a fixed speed instead of the
+friction graph, but with limited range (see
+HELI_SPEED_KMH/HELI_RANGE_KM/JETPACK_* in config.py). Both together (or
+via --james-bond) chain: first as far as possible by heli, the rest of
+the distance up to jetpack range by jetpack.
 
-Wichtig: das ist kein simples "Boden- oder Luftweg, wer schneller ist"
-mehr (das würde die bereits geflogene Strecke verschenken, sobald man
-zwischendurch auf den Friction-Graphen umsteigen muss - siehe MEMO.md).
-Stattdessen wird in _combo_ground_minutes() ein virtueller Superknoten
-mit Kanten zu JEDEM Friction-Graph-Knoten in Flugreichweite gebaut,
-Kantengewicht = dessen individuelle Flugzeit ab dem Startpunkt - ein
-einziger Dijkstra über den ganzen Graphen liefert dann für jeden Punkt
-der Welt das Minimum über alle Einstiegspunkte von (Flugzeit dorthin +
-Bodenzeit von dort zum Ziel). Der Startpunkt selbst ist dabei immer ein
-kostenloser Einstiegspunkt (0h Flugzeit), deckt reines Zufußgehen ganz
-ohne Flug also automatisch mit ab.
+Important: this is no longer a simple "ground or air route, whichever
+is faster" (that would waste the distance already flown as soon as you
+have to switch to the friction graph partway through - see MEMO.md).
+Instead, _combo_ground_minutes() builds a virtual super-node with
+edges to EVERY friction-graph node within flight range, edge weight =
+that node's individual flight time from the origin point - a single
+Dijkstra over the whole graph then yields, for every point in the
+world, the minimum over all entry points of (flight time there +
+ground time from there to the destination). The origin point itself is
+always a free entry point (0h flight time), so it automatically covers
+pure walking with no flight at all.
 """
 
 import math
@@ -72,10 +72,10 @@ def slug_for_point(lat, lon):
 
 
 def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path, resolution=config.H3_RESOLUTION):
-    """Bodenzeit (in Stunden) je Land-H3-Kachel, ausgehend von den bereits
-    berechneten Einstiegszeiten je Flughafen (travel_times_df) - derselbe
-    gecachte Friction-Graph wie überall sonst, nur mit den für diesen Lauf
-    aktuellen Superknoten-Gewichten neu gelöst (unter einer Sekunde)."""
+    """Ground time (in hours) per land H3 tile, based on the already
+    computed entry times per airport (travel_times_df) - the same
+    cached friction graph as everywhere else, just re-solved with the
+    super-node weights current for this run (under a second)."""
     minutes = friction.run_dijkstra(graph, node_lat, node_lon, travel_times_df, output_path=minutes_path)
     finite = np.isfinite(minutes)
     tree = BallTree(np.radians(np.column_stack([node_lat[finite], node_lon[finite]])), metric="haversine")
@@ -91,10 +91,10 @@ def build_friction_land(travel_times_df, graph, node_lat, node_lon, minutes_path
 
 
 def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):
-    """Luftlinien-Reisezeit vom Startpunkt zu (dest_lat, dest_lon) per Heli/Jetpack,
-    np.inf außerhalb der Reichweite. dest_lat/dest_lon: beliebige numpy-Arrays -
-    Flughafen-Koordinaten für die Einstiegs-Etappe, H3-Kachel-Koordinaten für die
-    direkte Kacheleinfärbung (siehe _apply_air_reach_to_h3)."""
+    """Straight-line travel time from the origin point to (dest_lat, dest_lon)
+    via heli/jetpack, np.inf outside the range. dest_lat/dest_lon: arbitrary
+    numpy arrays - airport coordinates for the entry leg, H3 tile coordinates
+    for direct tile coloring (see _apply_air_reach_to_h3)."""
     hours = np.full(len(dest_lat), np.inf)
     if not (heli or jetpack):
         return hours
@@ -102,7 +102,7 @@ def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):
     dist_km = haversine_km_vec(lat, lon, dest_lat, dest_lon)
 
     if heli and jetpack:
-        # Erst Heli bis HELI_RANGE_KM, den Rest bis JETPACK_RANGE_KM weiter per Jetpack.
+        # First heli up to HELI_RANGE_KM, then the rest up to JETPACK_RANGE_KM by jetpack.
         within_heli = dist_km <= config.HELI_RANGE_KM
         hours = np.where(within_heli, dist_km / config.HELI_SPEED_KMH, hours)
 
@@ -121,30 +121,32 @@ def _air_hours_to(lat, lon, dest_lat, dest_lon, heli, jetpack):
 
 
 def _combo_ground_minutes(lat, lon, graph, node_lat, node_lon, heli, jetpack):
-    """Bodenzeit (in Minuten) zu jedem Knoten im Friction-Graphen, unter
-    Berücksichtigung, dass man zunächst per Heli/Jetpack so weit wie günstig
-    fliegen und erst danach zu Fuß weiterlaufen kann. Eine reine "Bodenzeit
-    ab dem Startpunkt" (ohne die geflogene Strecke gutzuschreiben) würde
-    genau die bereits zurückgelegte Flugstrecke verschenken - siehe MEMO.md.
+    """Ground time (in minutes) to every node in the friction graph,
+    accounting for the fact that you can first fly as far as convenient
+    via heli/jetpack and only then continue on foot. A pure "ground time
+    from the origin point" (without crediting the distance already
+    flown) would waste exactly the distance already covered by air -
+    see MEMO.md.
 
-    Technik: virtueller Superknoten mit Kanten zu jedem Friction-Graph-Knoten
-    in Flugreichweite, Kantengewicht = dessen individuelle Flugzeit ab dem
-    Startpunkt (_air_hours_to) - ein einziger Dijkstra über den ganzen Graphen
-    liefert dann je Knoten das Minimum über alle Einstiegspunkte von
-    (Flugzeit dorthin + Bodenzeit von dort zum Knoten). Exakt dasselbe
-    Prinzip wie der virtuelle Superknoten in friction_surface_global.py
-    (dort: Flughäfen mit ihrer eigenen Reisezeit als Kantengewicht), nur mit
-    Flugreichweiten-Punkten statt Flughäfen.
+    Technique: a virtual super-node with edges to every friction-graph
+    node within flight range, edge weight = that node's individual
+    flight time from the origin point (_air_hours_to) - a single
+    Dijkstra over the whole graph then yields, per node, the minimum
+    over all entry points of (flight time there + ground time from
+    there to the node). Exactly the same principle as the virtual
+    super-node in friction_surface_global.py (there: airports with
+    their own travel time as edge weight), just with flight-range
+    points instead of airports.
 
-    Der Startpunkt selbst ist immer ein kostenloser Einstiegspunkt (0h
-    Flugzeit), unabhängig von --heli/--jetpack - deckt reines Zufußgehen
-    ganz ohne Flug automatisch mit ab, ohne dass ein Sonderfall nötig wäre
-    (ohne --heli/--jetpack ist er dadurch schlicht der einzige
-    Einstiegspunkt, identisch zum ursprünglichen Einzelquellen-Dijkstra).
+    The origin point itself is always a free entry point (0h flight
+    time), regardless of --heli/--jetpack - automatically covers pure
+    walking with no flight at all, without needing a special case
+    (without --heli/--jetpack it's simply the only entry point,
+    identical to the original single-source Dijkstra).
 
-    Gibt (Minuten-Array über alle Knoten, BallTree über node_lat/node_lon)
-    zurück - der Tree wird von den Aufrufern für eigene Nearest-Node-
-    Abfragen wiederverwendet, statt ihn ein zweites Mal aufzubauen.
+    Returns (minutes array over all nodes, BallTree over
+    node_lat/node_lon) - the tree is reused by callers for their own
+    nearest-node queries, instead of building it a second time.
     """
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     _, start_idx = tree.query(np.radians([[lat, lon]]), k=1)
@@ -158,7 +160,7 @@ def _combo_ground_minutes(lat, lon, graph, node_lat, node_lon, heli, jetpack):
     graph_coo = graph.tocoo()
     virtual_rows = np.full(len(entry_idx), n)
     virtual_cols = entry_idx
-    virtual_weights = entry_air_hours[entry_idx] * 60  # Minuten, wie der Rest des Graphen
+    virtual_weights = entry_air_hours[entry_idx] * 60  # minutes, like the rest of the graph
 
     all_rows = np.concatenate([graph_coo.row, virtual_rows])
     all_cols = np.concatenate([graph_coo.col, virtual_cols])
@@ -179,7 +181,7 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
         if math.isfinite(hours)
     }
     if not entry_hours:
-        raise ValueError("Kein Flughafen ist vom Startpunkt aus über Land oder Luft erreichbar.")
+        raise ValueError("No airport is reachable from the origin point by land or air.")
 
     routes_df = load_routes(config.ROUTES_CSV, airports_df, include_codeshare=config.INCLUDE_CODESHARE)
     G = build_graph(airports_df, routes_df)
@@ -200,15 +202,16 @@ def build_travel_times_from_point(lat, lon, graph, node_lat, node_lon, airports_
 
 
 def _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack):
-    """Färbt H3-Kacheln (Land und See) innerhalb der Heli-/Jetpack-Reichweite direkt
-    per Luftlinie ein, statt nur die Einstiegs-Etappe zu einem Flughafen zu
-    beschleunigen (siehe _air_hours_to). Konkurriert per min() mit dem bereits
-    berechneten Wert (Friction-Surface- bzw. Hafen-Modell) - wer schneller ist,
-    gewinnt, kachelweise, exakt dasselbe Prinzip wie beim Flughafen-Einstieg.
-    Wirkt sich nur innerhalb weniger hundert Kilometer um den Startpunkt aus
-    (außerhalb liefert _air_hours_to ohnehin nur np.inf), macht die Heli-/
-    Jetpack-Reichweite dadurch aber als echten Umkreis auf der Karte sichtbar,
-    statt nur indirekt über schneller erreichte Flughäfen.
+    """Colors H3 tiles (land and sea) within heli/jetpack range directly
+    via straight-line distance, instead of only speeding up the entry
+    leg to an airport (see _air_hours_to). Competes via min() with the
+    already computed value (friction-surface or port model) - whichever
+    is faster wins, tile by tile, exactly the same principle as for the
+    airport entry. Only has an effect within a few hundred kilometers of
+    the origin point (_air_hours_to returns nothing but np.inf outside
+    that anyway), but this makes the heli/jetpack range visible on the
+    map as an actual radius, instead of only indirectly via faster
+    reached airports.
     """
     if not (heli or jetpack):
         return h3_df
@@ -218,13 +221,13 @@ def _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack):
 
 
 def _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon):
-    """Konkurriert combo_minutes (siehe _combo_ground_minutes - Fliegen so
-    weit wie günstig, dann per Friction-Surface zu Fuß weiter, ab dem
-    Startpunkt) gegen den bisherigen Wert je Landkachel. Nur für Landkacheln
-    (hub_type == "airport"), da der Friction-Graph reines Land ist und
-    Wasserkacheln keinen zugeordneten Knoten haben (dafür siehe
-    _apply_air_reach_to_h3 - deckt auch See ab, aber nur die reine
-    Flugstrecke ohne Fußweg-Fortsetzung).
+    """Competes combo_minutes (see _combo_ground_minutes - flying as far
+    as convenient, then continuing on foot via the friction surface,
+    from the origin point) against the previous value per land tile.
+    Land tiles only (hub_type == "airport"), since the friction graph is
+    pure land and water tiles have no assigned node (for that see
+    _apply_air_reach_to_h3 - also covers sea, but only the pure flight
+    distance without a walking continuation).
     """
     tree = BallTree(np.radians(np.column_stack([node_lat, node_lon])), metric="haversine")
     is_land = h3_df["hub_type"] == "airport"
@@ -240,10 +243,10 @@ def _print_config_overview(
     lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
     labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack, paper
 ):
-    """Übersicht der für diesen Lauf wirksamen Konfiguration, nur unter -v -
-    fasst zusammen, was sonst über ein Dutzend einzelner CLI-Flags verstreut
-    wäre, bevor die eigentliche (teils mehrere Sekunden dauernde) Berechnung
-    losläuft."""
+    """Overview of the configuration in effect for this run, only under
+    -v - summarizes what would otherwise be scattered across a dozen
+    individual CLI flags, before the actual (sometimes multi-second)
+    computation starts."""
     print(f"Start: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
     print(f"H3 resolution: {resolution}, Paper: {paper}, DPI: {dpi}")
     print(f"Projection: {'Robinson' if robinson else 'Mercator'}"
@@ -257,13 +260,13 @@ def _print_config_overview(
         ("labels", labels), ("grid", grid), ("title", title), ("rivers", rivers),
         ("airports", show_airports), ("ports", show_ports),
     ] if on]
-    print(f"Overlays: {', '.join(overlays) if overlays else '(keine)'}")
+    print(f"Overlays: {', '.join(overlays) if overlays else '(none)'}")
     if heli or jetpack:
         parts = []
         if heli:
-            parts.append(f"Heli ({config.HELI_SPEED_KMH} km/h, {config.HELI_RANGE_KM} km Reichweite)")
+            parts.append(f"Heli ({config.HELI_SPEED_KMH} km/h, {config.HELI_RANGE_KM} km range)")
         if jetpack:
-            parts.append(f"Jetpack ({config.JETPACK_SPEED_KMH} km/h, {config.JETPACK_RANGE_KM} km Reichweite)")
+            parts.append(f"Jetpack ({config.JETPACK_SPEED_KMH} km/h, {config.JETPACK_RANGE_KM} km range)")
         print(f"First stage of journey: {' + '.join(parts)}")
     else:
         print("First stage of journey: friction-surface only (no --heli or --jetpack)")
@@ -276,11 +279,12 @@ def main(
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
     heli=False, jetpack=False, verbose=False, paper=None, progress_callback=None,
 ):
-    # progress_callback: optionaler Haken fuers Backend (siehe backend_server.py) -
-    # bekommt dieselben Meilenstein-Meldungen wie -v auf der Konsole, damit ein
-    # Web-Client den Fortschritt eines laufenden Renders live mitverfolgen kann,
-    # ohne stdout des Worker-Prozesses mitlesen zu muessen. CLI-Verhalten bleibt
-    # unveraendert, da progress_callback dort nie gesetzt wird.
+    # progress_callback: optional hook for the backend (see
+    # backend_server.py) - receives the same milestone messages as -v on
+    # the console, so a web client can follow the progress of an
+    # ongoing render live, without having to read the worker process's
+    # stdout. CLI behavior stays unchanged, since progress_callback is
+    # never set there.
     def _report(msg):
         if verbose:
             print(msg)
@@ -288,11 +292,11 @@ def main(
             progress_callback(msg)
 
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
-    # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
-    # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung und der
-    # -v-Übersicht angewendet, damit Dateiname und Konsolenausgabe zum
-    # tatsächlich gezeichneten Bild passen, statt die implizierten
-    # Schalter zu verschweigen.
+    # --galton implies --rivers/--grid/--labels and --cmap galton (see
+    # plot_h3_map.py) - applied here already before the filename is
+    # built and the -v overview, so the filename and console output
+    # match the image actually rendered, instead of concealing the
+    # implied switches.
     rivers = rivers or galton
     grid = grid or galton
     labels = labels or galton
@@ -339,11 +343,11 @@ def main(
         _report("Coloring tiles within heli/jetpack range...")
         h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
-    # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
-    # travel_times_df/h3_df inhaltlich (andere Einstiegszeiten je Flughafen),
-    # ohne den Suffix würde ein --heli-Lauf sonst denselben Dateinamen wie
-    # der normale Lauf treffen und ihn stillschweigend überschreiben - siehe
-    # MEMO.md zur analogen --cmap galton/galton5-Kollision.
+    # air_suffix also in the CSV names, not just the PNG: heli=True
+    # changes travel_times_df/h3_df's content (different entry times per
+    # airport), without the suffix a --heli run would otherwise hit the
+    # same filename as the normal run and silently overwrite it - see
+    # MEMO.md on the analogous --cmap galton/galton5 collision.
     travel_times_csv = f"travel_times_from_{slug}{air_suffix}.csv"
     h3_csv = f"h3_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
@@ -362,10 +366,11 @@ def main(
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
         galton_sigma=galton_sigma, heli=heli, jetpack=jetpack, paper=paper,
     )
-    # plot_h3_map() druckt "Map saved as ..." bereits selbst (unbedingt, nicht
-    # an verbose/_report gekoppelt) - hier nur der Rueckgabewert fuers Backend
-    # (backend_server.py), das den Dateinamen kennen muss, um das Ergebnis
-    # einzulesen, ohne die Suffix-Logik oben zu duplizieren.
+    # plot_h3_map() already prints "Map saved as ..." itself
+    # (unconditionally, not tied to verbose/_report) - here just the
+    # return value for the backend (backend_server.py), which needs to
+    # know the filename to read the result back in, without duplicating
+    # the suffix logic above.
     return png
 
 
@@ -373,91 +378,92 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("lat", type=float, help="Breitengrad des Startpunkts")
-    parser.add_argument("lon", type=float, help="Längengrad des Startpunkts")
-    parser.add_argument("--label", default=None, help="Beschriftung für Titel/Legende (Standard: 'lat°, lon°')")
-    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("lat", type=float, help="Latitude of the origin point")
+    parser.add_argument("lon", type=float, help="Longitude of the origin point")
+    parser.add_argument("--label", default=None, help="Label for title/legend (default: 'lat°, lon°')")
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Resolution of the PNG")
     parser.add_argument(
-        "--paper", type=parse_paper, default=None, metavar="FORMAT|BREITExHOEHE",
-        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
-             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
-             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
-             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
-             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
+        "--paper", type=parse_paper, default=None, metavar="FORMAT|WIDTHxHEIGHT",
+        help="Center the map on a page of this size (landscape), with blank space in "
+             "BACKGROUND_COLOR top/bottom instead of an arbitrary, content-dependent "
+             "aspect ratio - without --paper it stays as before, tightly cropped around "
+             "the actual content (bbox_inches=\"tight\"). Either a name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) or custom centimeter dimensions as "
+             "WIDTHxHEIGHT (e.g. 50x60) - poster print shops often don't offer DIN sizes.",
     )
-    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
-    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
-    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3-Auflösung (0-15)")
+    parser.add_argument("--airports", action="store_true", help="Show airport points (off by default)")
+    parser.add_argument("--ports", action="store_true", help="Show port points (off by default)")
+    parser.add_argument("-r", "--resolution", type=int, default=config.H3_RESOLUTION, help="H3 resolution (0-15)")
     parser.add_argument(
         "--galton", action="store_true",
-        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+        help="Retro look: smoothed, discrete color bands instead of a continuous scale",
     )
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
-        help="Gesamtspanne der Farbskala in Stunden - ab hier der dunkelste Farbton statt "
-             "weiterer Streckung. Gilt fuer beide Rendering-Modi; unter --galton zusaetzlich "
-             "gleichmaessig in zehn Baender aufgeteilt (bzw. fuenf feste bei --cmap galton5).",
+        help="Total span of the color scale in hours - beyond this the darkest shade "
+             "instead of further stretching. Applies to both rendering modes; under "
+             "--galton additionally split evenly into ten bands (or five fixed ones "
+             "with --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
-        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
-             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
+        help=f"Gaussian smoothing radius in degrees in --galton mode (standard deviation, default {config.GALTON_SIGMA_DEG}°) - "
+             "larger = softer/blurrier, smaller = sharper/closer to the raw raster",
     )
     parser.add_argument(
         "--cmap", default=None,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
-             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
-             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
-             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: zehn statt fuenf Stufen). "
-             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
-             "(zusammen mit --galton: fuenf statt zehn Stufen).",
+        help="Color palette. Default: viridis_r (standard matplotlib, perceptually uniform) - "
+             "except with --galton, then default: galton. Other perceptually uniform "
+             "options: plasma_r, inferno_r, magma_r, cividis_r (or without '_r' for the "
+             "reversed color direction, or any other matplotlib colormap name). "
+             "'galton': the ten real original color values as a fixed, non-interpolated palette "
+             "(together with --galton: ten instead of five levels). "
+             "'galton5': the same palette reduced to five colors, one per color family "
+             "(together with --galton: five instead of ten levels).",
     )
     parser.add_argument(
         "--labels", action="store_true",
-        help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
+        help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
         "--robinson", action="store_true",
-        help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
+        help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
     parser.add_argument(
         "--grid", action="store_true",
-        help="Längen-/Breitengrad-Raster in 20°-Abständen einzeichnen",
+        help="Draw a longitude/latitude grid at 20° intervals",
     )
     parser.add_argument(
         "--title", action="store_true",
-        help="Überschrift einblenden (standardmäßig aus)",
+        help="Show title (off by default)",
     )
     parser.add_argument(
-        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
-        help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
-             "ohne Angabe: 80,-60 (Galtons eigener Zuschnitt, unabhängig von --galton)",
+        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORTH,SOUTH",
+        help="Latitude crop of the Mercator map, e.g. '80,-60' (no effect with --robinson); "
+             "if not given: 80,-60 (Galton's own crop, independent of --galton)",
     )
     parser.add_argument(
         "--rivers", action="store_true",
-        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+        help="Draw major rivers (Natural Earth, 110m), at the same line width as the coastlines",
     )
     parser.add_argument(
         "--heli", action="store_true",
-        help=f"Einstieg zum Flughafen per Hubschrauber-Luftlinie statt Friction-Graph "
-             f"({config.HELI_SPEED_KMH} km/h, Reichweite {config.HELI_RANGE_KM} km) - je Flughafen gewinnt die "
-             "schnellere der beiden Optionen",
+        help=f"Entry to the airport via helicopter straight-line distance instead of the "
+             f"friction graph ({config.HELI_SPEED_KMH} km/h, range {config.HELI_RANGE_KM} km) - per airport, "
+             "whichever of the two options is faster wins",
     )
     parser.add_argument(
         "--jetpack", action="store_true",
-        help=f"Wie --heli, aber mit Jetpack ({config.JETPACK_SPEED_KMH} km/h, Reichweite {config.JETPACK_RANGE_KM} km); "
-             "zusammen mit --heli verketten sich beide: erst Heli, dann Jetpack für den Rest der Strecke",
+        help=f"Like --heli, but with a jetpack ({config.JETPACK_SPEED_KMH} km/h, range {config.JETPACK_RANGE_KM} km); "
+             "together with --heli they chain: first heli, then jetpack for the rest of the distance",
     )
     parser.add_argument(
         "--james-bond", action="store_true",
-        help="Kurzform für --heli --jetpack zusammen",
+        help="Shorthand for --heli --jetpack together",
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true",
-        help="Konfigurationsübersicht beim Start sowie Zwischenstandsmeldungen im Verlauf ausgeben",
+        help="Print a configuration overview at start plus progress messages along the way",
     )
     args = parser.parse_args()
 

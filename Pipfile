@@ -25,12 +25,11 @@ uvicorn = "*"
 websockets = "*"
 
 [dev-packages]
-# Nur für fix_ports_coordinates.py (einmaliges Korrekturskript, siehe
-# dort) nötig, nicht für die normale Pipeline - reverse-geocoder zieht
-# cykhash mit, eine native Cython-Erweiterung ohne Windows-Wheel für
-# viele Python-Versionen, die dort einen funktionierenden MSVC-Build-
-# Toolchain braucht. Als optionale Dev-Abhängigkeit blockiert das nicht
-# mehr den normalen "pipenv install".
+# Only needed for fix_ports_coordinates.py (one-time correction script,
+# see there), not for the normal pipeline - reverse-geocoder pulls in
+# cykhash, a native Cython extension with no Windows wheel for many
+# Python versions, requiring a working MSVC build toolchain there. As an
+# optional dev dependency this no longer blocks the normal "pipenv install".
 reverse-geocoder = "*"
 pycountry = "*"
 

@@ -1,4 +1,4 @@
-"""Großkreisdistanz (Haversine) zwischen zwei Koordinaten."""
+"""Great-circle distance (Haversine) between two coordinates."""
 
 import math
 
@@ -16,7 +16,7 @@ def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float
 
 
 def haversine_km_vec(lat1, lon1, lat2, lon2):
-    """Wie haversine_miles, aber in Kilometern und vektorisiert (numpy-Arrays für lat2/lon2)."""
+    """Like haversine_miles, but in kilometers and vectorized (numpy arrays for lat2/lon2)."""
     lat1_r, lon1_r, lat2_r, lon2_r = map(np.radians, (lat1, lon1, lat2, lon2))
     dlat = lat2_r - lat1_r
     dlon = lon2_r - lon1_r

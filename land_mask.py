@@ -1,8 +1,8 @@
-"""Land/Wasser-Maske für H3-Kachelzentren.
+"""Land/water mask for H3 tile centers.
 
-Verhindert, dass Ozean-Kacheln eine Reisezeit bekommen, die einen
-Bodenweg über Wasser unterstellen würde - das Bodenzeit-Modell in
-nearest_airport.py setzt eine Straße/Schiene voraus, die es dort nicht gibt.
+Prevents ocean tiles from getting a travel time that would imply an
+overland route across water - the ground-time model in
+nearest_airport.py assumes a road/rail link that doesn't exist there.
 """
 
 from global_land_mask import globe

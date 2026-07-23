@@ -1,7 +1,7 @@
-"""Zeichnet die H3-Kacheln, eingefärbt nach Reisezeit ab London.
+"""Draws the H3 tiles, colored by travel time from London.
 
-Kacheln ohne Hub im Suchradius (siehe main_h3.py) bleiben unbemalt,
-statt eine erfundene Reisezeit zu zeigen.
+Tiles without a hub within the search radius (see main_h3.py) stay
+unpainted, instead of showing a made-up travel time.
 """
 
 import os
@@ -41,51 +41,49 @@ import config
 
 @lru_cache(maxsize=None)
 def _pole_cell_indices(resolution):
-    """Die zwei H3-Zellen dieser Auflösung, die den geografischen Nord-
-    bzw. Südpol enthalten - per direkter H3-Abfrage (`latlng_to_cell(±90,
-    ...)`), nicht per Schätzung aus Eckpunkt-Breiten/Längen. Ein
-    Breitengrad-Schwellwert (frühere Version) scheitert daran, dass die
-    Eckpunkt-Breite einer echten Pol-Kachel je nach Auflösung stark
-    schwankt - bei der gröbsten Auflösung (0) reicht sie nur bis ~69°
-    herunter, während gewöhnliche (nicht polare) Antimeridian-Kacheln bei
-    feineren Auflösungen durchaus bis ~83° hochreichen können. Kein fester
-    Schwellwert liegt dazwischen für alle Auflösungen zugleich richtig -
-    die tatsächliche Pol-Kachel direkt zu identifizieren umgeht das
-    Problem ganz. `lru_cache`, da pro Kartenrender nur eine Handvoll
-    verschiedener Auflösungen vorkommt, aber sehr viele Kacheln geprüft
-    werden.
+    """The two H3 cells of this resolution that contain the geographic
+    North/South pole - via direct H3 lookup (`latlng_to_cell(±90,
+    ...)`), not by estimating from boundary vertex latitudes/longitudes.
+    A latitude threshold (earlier version) fails because a true pole
+    cell's boundary latitude varies enormously by resolution - at the
+    coarsest resolution (0) it only reaches down to ~69°, while ordinary
+    (non-polar) antimeridian cells can reach up to ~83° at finer
+    resolutions. No fixed threshold sits correctly in between for all
+    resolutions at once - directly identifying the actual pole cell
+    sidesteps the problem entirely. `lru_cache`, since only a handful of
+    different resolutions occur per map render, but very many cells are
+    checked.
     """
     return {h3.latlng_to_cell(90, 0, resolution), h3.latlng_to_cell(-90, 0, resolution)}
 
-# Küstenlinien und Beschriftung in Anthrazit statt Grau/Schwarz - näher
-# am scharfen, gestochenen Druckbild von Galtons Original.
+# Coastlines and labels in anthracite instead of gray/black - closer
+# to the crisp, engraved print look of Galton's original.
 ANTHRACITE = "#2b2e33"
 COASTLINE_LINEWIDTH = 0.7
 
-# Abstand des Längen-/Breitengrad-Rasters für --grid, in Grad.
+# Spacing of the longitude/latitude grid for --grid, in degrees.
 GRID_STEP_DEG = 20
 
-# Abstand zwischen den beiden Linien des --galton-Doppelrahmens, in
-# Punkten statt Achsen-Bruchteilen - so ist der Abstand in beide
-# Richtungen exakt gleich groß, unabhängig vom (nicht-quadratischen)
-# Seitenverhältnis der Karte.
+# Gap between the two lines of the --galton double border, in points
+# rather than axes fractions - this way the gap is exactly the same
+# size in both directions, regardless of the map's (non-square) aspect
+# ratio.
 FRAME_GAP_PT = 3.0
 
-# Strichstärke des --galton-Rahmens (beide Linien) - kräftiger als die
-# übrige Linienführung (COASTLINE_LINEWIDTH), wie im Original, dessen
-# Rahmen deutlich dicker als die Küstenlinien wirkt.
+# Line width of the --galton frame (both lines) - bolder than the rest
+# of the linework (COASTLINE_LINEWIDTH), like the original, whose frame
+# looks noticeably thicker than the coastlines.
 FRAME_LINEWIDTH = 1.4
 
-# Papierfarbe, wie sie ein gealterter Druck von 1881 hätte - liegt
-# zwischen den zwei vom Nutzer vorgegebenen Werten rgb(220,212,183) und
-# rgb(215,212,191).
+# Paper color, as an aged 1881 print would have - sits between the two
+# values the user gave, rgb(220,212,183) and rgb(215,212,191).
 BACKGROUND_COLOR = "#dad4bb"
 
-# Typografie im Stil alter Kartendrucke: Playfair Display für die
-# Hauptüberschrift, Libre Baskerville (gebundelt, siehe config.py) für
-# Orts-/Kontinentnamen - Kontinente fett, Städte kursiv. Schriftnamen und
-# -größen stehen in config.py, damit man sie ohne Codeänderung anpassen
-# kann, siehe MEMO.md.
+# Typography in the style of old map prints: Playfair Display for the
+# main heading, Libre Baskerville (bundled, see config.py) for
+# place/continent names - continents bold, cities italic. Font names
+# and sizes live in config.py, so they can be tuned without a code
+# change, see MEMO.md.
 if os.path.exists(config.PLAYFAIR_BOLD_PATH):
     fm.fontManager.addfont(config.PLAYFAIR_BOLD_PATH)
     TITLE_FONT = fm.FontProperties(fname=config.PLAYFAIR_BOLD_PATH)
@@ -114,16 +112,17 @@ else:
         family=config.EXPLANATION_TITLE_FONT_FALLBACK_FAMILY, weight="bold",
     )
 
-# Logo als matplotlib-Path statt Rasterbild: bleibt dadurch, wie der Rest
-# der Grafik, verlustfrei vektoriell bis zum finalen fig.savefig(dpi=dpi) -
-# skaliert also sauber mit --dpi/--paper mit, ohne eine feste Auflösung
-# einzubetten. svgpath2mpl (reines Python) statt einer SVG-Rasterbibliothek
-# wie cairosvg, die eine System-Bibliothek (Cairo) braucht, die nicht
-# überall vorhanden ist - genau die Art Umgebungsabhängigkeit, die dieses
-# Projekt an anderer Stelle schon bewusst vermieden hat (echtes Baskerville
-# nur auf macOS, siehe Libre Baskerville stattdessen). Nur der "d"-Pfad der
-# SVG wird gebraucht, kein voller SVG-Renderer - das Logo ist eine einzelne
-# flache Fläche ohne Farbverläufe/Text.
+# Logo as a matplotlib Path instead of a raster image: this way it
+# stays, like the rest of the graphic, losslessly vector-based up to
+# the final fig.savefig(dpi=dpi) - so it scales cleanly with
+# --dpi/--paper without embedding a fixed resolution. svgpath2mpl (pure
+# Python) instead of an SVG rasterization library like cairosvg, which
+# needs a system library (Cairo) that isn't installed everywhere -
+# exactly the kind of environment-specific dependency this project has
+# already deliberately avoided elsewhere (real Baskerville only on
+# macOS, see Libre Baskerville instead). Only the SVG's "d" path is
+# needed, no full SVG renderer - the logo is a single flat shape with
+# no gradients/text.
 LOGO_PATH_RAW = None
 if os.path.exists(config.LOGO_SVG_PATH):
     svg_root = ET.parse(config.LOGO_SVG_PATH).getroot()
@@ -131,37 +130,37 @@ if os.path.exists(config.LOGO_SVG_PATH):
     if path_elem is not None:
         LOGO_PATH_RAW = parse_path(path_elem.get("d"))
 
-# Direkt von der Originalkarte abgelesene RGB-Werte (dunkler/heller Ton
-# je Farbe), nicht mehr nur per Augenmaß geschätzt wie der erste Versuch.
-# Reihenfolge folgt der Legende: Grün (<10 Tage) - Gelb (10-20) -
-# Rosa (20-30) - Blau (30-40) - Braun (>40 Tage), dunkel vor hell je
-# Farbe. Nur die Farbstimmung ist nachgebildet, nicht die 10-Tage-
-# Bandbreite selbst - die wäre für unsere Daten sinnlos, da schon die
-# "<10 Tage"-Kategorie bei uns die gesamte Welt abdeckt (unser Maximum
-# liegt bei 48h = 2 Tagen).
+# RGB values read directly off the original chart (dark/light shade
+# per color), no longer just estimated by eye like the first attempt.
+# Order follows the legend: green (<10 days) - yellow (10-20) -
+# pink (20-30) - blue (30-40) - brown (>40 days), dark before light per
+# color. Only the color mood is reproduced, not the 10-day bandwidth
+# itself - that would be meaningless for our data, since the "<10
+# days" category alone already covers our entire world (our maximum is
+# 48h = 2 days).
 GALTON_COLORS = [
-    "#697f75", "#9db5ab",  # Grün dunkel/hell
-    "#d1c498", "#dcd4b7",  # Gelb dunkel/hell
-    "#ba9ca7", "#dfc6c0",  # Pink dunkel/hell
-    "#8b98a9", "#aeb5be",  # Blau dunkel/hell
-    "#a48d81", "#d2bea4",  # Braun dunkel/hell
+    "#697f75", "#9db5ab",  # green dark/light
+    "#d1c498", "#dcd4b7",  # yellow dark/light
+    "#ba9ca7", "#dfc6c0",  # pink dark/light
+    "#8b98a9", "#aeb5be",  # blue dark/light
+    "#a48d81", "#d2bea4",  # brown dark/light
 ]
 
-# --cmap galton5: eine auf fünf Farben reduzierte Palette - eine je
-# Farbfamilie statt der zehn dunkel/hell-Paare von GALTON_COLORS. Keine
-# einfache "jede zweite Farbe"-Auswahl, sondern die tatsächlichen
-# Einzelschwatch-Farben aus Galtons Original-Legende (dunkles Grün, aber
-# helles Gelb/Rosa/Blau/Braun - siehe Original-Legendenbild).
+# --cmap galton5: a palette reduced to five colors - one per color
+# family instead of the ten dark/light pairs of GALTON_COLORS. Not a
+# simple "every other color" pick, but the actual single-swatch colors
+# from Galton's original legend (dark green, but light
+# yellow/pink/blue/brown - see the original legend image).
 GALTON5_COLORS = [
-    "#697f75",  # Grün dunkel
-    "#dcd4b7",  # Gelb hell
-    "#dfc6c0",  # Pink hell
-    "#aeb5be",  # Blau hell
-    "#d2bea4",  # Braun hell
+    "#697f75",  # green dark
+    "#dcd4b7",  # yellow light
+    "#dfc6c0",  # pink light
+    "#aeb5be",  # blue light
+    "#d2bea4",  # brown light
 ]
 
-# Grobe Kontinent-Beschriftungspositionen für --labels - ändern sich nie,
-# deshalb fest hinterlegt statt aus einem Datensatz abgeleitet.
+# Rough continent-label positions for --labels - never change, hence
+# hardcoded instead of derived from a dataset.
 CONTINENT_LABELS = [
     ("NORTH AMERICA", -100, 45),
     ("SOUTH AMERICA", -60, -15),
@@ -171,10 +170,10 @@ CONTINENT_LABELS = [
     ("AUSTRALIA", 135, -25),
 ]
 
-# Nur die wichtigsten Weltstädte (SCALERANK 0 in Natural Earth's
-# populated_places, ca. 27 Städte) - alle ~3200 Flughäfen zu beschriften
-# wäre nur Buchstabenbrei, und Airport-Namen ("Heathrow") sind ohnehin
-# keine Stadtnamen ("London").
+# Only the most prominent world cities (SCALERANK 0 in Natural Earth's
+# populated_places, ~27 cities) - labeling all ~3200 airports would just
+# be a jumble of letters, and airport names ("Heathrow") aren't city
+# names ("London") anyway.
 CITY_LABEL_MAX_SCALERANK = 0
 
 
@@ -206,19 +205,18 @@ def _draw_labels(ax):
             fontsize=config.CITY_FONT_SIZE, color=ANTHRACITE, ha="left", va="center",
             fontproperties=CITY_FONT,
         ))
-    # Verschiebt nur sich gegenseitig überlappende Städtenamen auseinander
-    # (dichte Regionen wie Rio/São Paulo) - küstenlinien-bewusstes
-    # Ausweichen wäre ein größerer, separater Schritt (siehe MEMO.md).
-    # Läuft in der jeweiligen Kartenprojektion (ax.transData über den
-    # gemeinsamen Text-Transform, siehe adjustText-Quelltext), nicht in
-    # Lon/Lat, daher automatisch für Mercator und Robinson gleichermaßen
-    # korrekt.
+    # Only pushes apart city names that overlap each other (dense
+    # regions like Rio/São Paulo) - coastline-aware avoidance would be a
+    # bigger, separate step (see MEMO.md). Runs in the respective map
+    # projection (ax.transData via the shared text transform, see
+    # adjustText source), not in lon/lat, hence automatically correct
+    # for both Mercator and Robinson.
     adjust_text(city_texts, ax=ax)
 
 
 def _x_intersect(p1, p2, x_bound):
-    """Schnittpunkt der Strecke p1->p2 mit der senkrechten Linie x=x_bound
-    (lineare Interpolation in y/Breite) - Hilfsfunktion für _clip_polygon_x."""
+    """Intersection of the segment p1->p2 with the vertical line x=x_bound
+    (linear interpolation in y/latitude) - helper function for _clip_polygon_x."""
     x1, y1 = p1
     x2, y2 = p2
     t = (x_bound - x1) / (x2 - x1)
@@ -226,10 +224,10 @@ def _x_intersect(p1, p2, x_bound):
 
 
 def _clip_polygon_x(vertices, x_bound, keep_le):
-    """Sutherland-Hodgman-Zuschnitt eines (einfachen, konvexen) Polygons an
-    der senkrechten Linie x=x_bound. keep_le=True behält den Teil mit
-    x <= x_bound, False den Teil mit x >= x_bound. Siehe _cell_polygon_lonlat
-    für den Anwendungsfall (Antimeridian-Kacheln in zwei Teile schneiden)."""
+    """Sutherland-Hodgman clip of a (simple, convex) polygon at the
+    vertical line x=x_bound. keep_le=True keeps the part with
+    x <= x_bound, False the part with x >= x_bound. See _cell_polygon_lonlat
+    for the use case (cutting antimeridian tiles into two pieces)."""
     output = []
     n = len(vertices)
     for i in range(n):
@@ -247,33 +245,31 @@ def _clip_polygon_x(vertices, x_bound, keep_le):
 
 
 def _cell_polygon_lonlat(h3_index):
-    """Gibt eine Liste von Polygonen zurück - normalerweise genau eins,
-    zwei bei Kacheln auf dem Antimeridian (siehe unten), keins bei den
-    beiden echten Pol-Kacheln (nicht darstellbar, siehe
-    _pole_cell_indices()).
+    """Returns a list of polygons - usually exactly one, two for tiles
+    on the antimeridian (see below), none for the two true pole cells
+    (not representable, see _pole_cell_indices()).
     """
-    boundary = h3.cell_to_boundary(h3_index)  # Tupel von (lat, lon)
+    boundary = h3.cell_to_boundary(h3_index)  # tuples of (lat, lon)
     lons = [lon for _, lon in boundary]
     lats = [lat for lat, _ in boundary]
     span = max(lons) - min(lons)
     if span > 180:
         if h3_index in _pole_cell_indices(h3.get_resolution(h3_index)):
             return []
-        # Kachel liegt auf dem Antimeridian: NICHT (wie in einem früheren,
-        # zurückgerollten Versuch, siehe MEMO.md Phase 14zZg) Eckpunkte per
-        # "+360" auf die andere Seite schieben - Cartopys Mercator-
-        # Projektion normalisiert Längengrade jenseits ±180° beim
-        # Projizieren kommentarlos zurück in den Standardbereich, die
-        # Verschiebung hätte dort schlicht keine Wirkung mehr und ein
-        # einzelner Eckpunkt würde auf der falschen Kartenseite landen.
-        # Stattdessen: erst alle negativen Längen um 360° verschieben, bis
-        # ein zusammenhängendes ("unwrapped") Polygon knapp über 180°
-        # hinaus entsteht, dieses dann an der Linie x=180° in zwei echte
-        # Teilpolygone zuschneiden (Sutherland-Hodgman) - der Ost-Teil
-        # bleibt unverändert <= 180° (schon gültig), der West-Teil wird
-        # nach dem Zuschnitt um 360° zurückverschoben und landet dadurch
-        # ebenfalls im gültigen Bereich (<= -180° ... < 180°), nie jenseits
-        # ±180°. Beide Teile bekommen denselben Wert der Ursprungskachel.
+        # Tile sits on the antimeridian: do NOT (as in an earlier,
+        # rolled-back attempt, see MEMO.md Phase 14zZg) shift vertices
+        # to the other side via "+360" - cartopy's Mercator projection
+        # silently normalizes longitudes past ±180° back into the
+        # standard range when projecting, so the shift would simply
+        # have no effect there and a single vertex would end up on the
+        # wrong side of the map. Instead: first shift all negative
+        # longitudes by 360° until a contiguous ("unwrapped") polygon
+        # slightly past 180° results, then cut that at the line x=180°
+        # into two real sub-polygons (Sutherland-Hodgman) - the east
+        # piece stays unchanged <= 180° (already valid), the west piece
+        # is shifted back by 360° after clipping and thereby also lands
+        # within the valid range (<= -180° ... < 180°), never beyond
+        # ±180°. Both pieces get the same value as the origin tile.
         unwrapped = [(lon + 360 if lon < 0 else lon, lat) for lon, lat in zip(lons, lats)]
         east = _clip_polygon_x(unwrapped, 180.0, keep_le=True)
         west = [(lon - 360, lat) for lon, lat in _clip_polygon_x(unwrapped, 180.0, keep_le=False)]
@@ -282,18 +278,19 @@ def _cell_polygon_lonlat(h3_index):
 
 
 def _project_polygons(verts_lonlat, projection):
-    """Projiziert alle Kachel-Vertices in einem Rutsch statt Polygon für Polygon.
+    """Projects all tile vertices in one shot instead of polygon by polygon.
 
-    `PolyCollection(..., transform=ccrs.PlateCarree())` lässt Cartopy jedes
-    Polygon einzeln über den generischen, Shapely-basierten Trace-Algorithmus
-    (für beliebige, ggf. Antimeridian-kreuzende Geometrien) reprojizieren -
-    bei hunderttausenden kleinen Sechsecken der dominante Kostenfaktor
-    (>95% der Renderzeit, siehe MEMO.md). H3-Kacheln sind aber klein und
-    (nach der Antimeridian-Korrektur in _cell_polygon_lonlat) nie
-    selbst-überschneidend, brauchen also nicht den generischen Trace-Pfad -
-    ein einziger vektorisierter `transform_points()`-Aufruf über alle
-    Eckpunkte auf einmal reicht und ist um Größenordnungen schneller, weil
-    er einmal statt 280.000-mal in die PROJ-Bibliothek wechselt.
+    `PolyCollection(..., transform=ccrs.PlateCarree())` lets cartopy
+    reproject each polygon individually via the generic, Shapely-based
+    trace algorithm (for arbitrary, possibly antimeridian-crossing
+    geometries) - the dominant cost factor with hundreds of thousands
+    of small hexagons (>95% of render time, see MEMO.md). But H3 tiles
+    are small and (after the antimeridian correction in
+    _cell_polygon_lonlat) never self-intersecting, so they don't need
+    the generic trace path - a single vectorized `transform_points()`
+    call over all vertices at once suffices and is orders of magnitude
+    faster, because it crosses into the PROJ library once instead of
+    280,000 times.
     """
     counts = [len(v) for v in verts_lonlat]
     flat_lonlat = np.array([pt for v in verts_lonlat for pt in v])
@@ -303,14 +300,14 @@ def _project_polygons(verts_lonlat, projection):
 
 
 def _nan_gaussian_filter(grid, sigma_px):
-    """Gauß-Filter, der NaN-Bereiche ignoriert statt sie einzumischen.
+    """Gaussian filter that ignores NaN regions instead of mixing them in.
 
-    Standard-Trick: fehlende Werte durch 0 ersetzen, sowohl die Werte
-    als auch eine 0/1-Gültigkeitsmaske glätten, dann durcheinander
-    teilen - so verwässern NaN-Zellen (z.B. See beim Land-Durchlauf)
-    das Ergebnis nicht, sie fallen einfach aus dem gewichteten Mittel.
-    mode=("nearest", "wrap"): an den Polen nicht über den Rand hinaus
-    spiegeln, aber am Datumsgrenze nahtlos um die Welt herum glätten.
+    Standard trick: replace missing values with 0, smooth both the
+    values and a 0/1 validity mask, then divide one by the other - this
+    way NaN cells (e.g. sea during the land pass) don't dilute the
+    result, they simply drop out of the weighted average.
+    mode=("nearest", "wrap"): don't mirror past the edge at the poles,
+    but smooth seamlessly around the world at the date line.
     """
     valid = ~np.isnan(grid)
     filled = np.where(valid, grid, 0.0)
@@ -323,14 +320,13 @@ def _nan_gaussian_filter(grid, sigma_px):
 
 
 def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=config.GALTON_SIGMA_DEG):
-    """Reguläres, weichgezeichnetes Lat/Lon-Raster für contourf statt Kacheln.
+    """Regular, blurred lat/lon raster for contourf instead of tiles.
 
-    Nachbarschafts-Mittelung auf dem H3-Gitter selbst glättet zu lokal,
-    um Galtons handgezeichnete, glatte Bänder nachzubilden (siehe
-    config.py). Stattdessen: Kachelwerte per Nearest-Neighbor auf ein
-    reguläres Raster übertragen, Land und Wasser GETRENNT mit einem
-    echten Gauß-Filter glätten (sonst verschmiert die Küstenlinie), dann
-    wieder zusammensetzen.
+    Neighbor averaging on the H3 grid itself smooths too locally to
+    reproduce Galton's hand-drawn, smooth bands (see config.py).
+    Instead: transfer tile values onto a regular raster via nearest
+    neighbor, smooth land and water SEPARATELY with a real Gaussian
+    filter (otherwise the coastline blurs away), then recombine.
     """
     lon = np.arange(-180, 180, grid_deg)
     lat = np.arange(-90, 90, grid_deg)
@@ -343,20 +339,20 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
     is_land_grid = globe.is_land(lat_grid, lon_grid)
     sigma_px = sigma_deg / grid_deg
 
-    # globe.is_land() klassifiziert einzelne Pixel stellenweise erkennbar
-    # ungenau statt entlang einer sauberen Küstenlinie zu wechseln - vor
-    # allem bei kleinen, vergletscherten Archipelen wie Spitzbergen sieht
-    # die rohe Maske selbst kleinräumig gesprenkelt aus (mit print()
-    # visuell geprüft: einzelne "Land"-Pixel mitten im offenen Meer und
-    # umgekehrt), nicht durch fehlende H3-Abdeckung dort verursacht. Da
-    # diese Maske nur bestimmt, in welchen der beiden GLÄTTUNGS-Kanäle
-    # (Land/See) der WERT einer Rasterzelle einfließt - nicht die
-    # tatsächlich gezeichnete Küstenlinie, die weiterhin unverändert aus
-    # Natural Earth kommt -, wird sie hier mit demselben Gauß-Radius wie
-    # die Werte selbst geglättet und bei 0.5 neu geschwellt: einzelne
-    # Fehlklassifizierungs-Sprenkel verschwinden, ohne die eigentliche
-    # Kartendarstellung zu beeinflussen. Das behebt die zuvor sichtbaren
-    # Ausfransungen in der Hintergrundfarbe innerhalb kleiner Inseln.
+    # globe.is_land() classifies individual pixels noticeably
+    # inaccurately in places instead of switching along a clean
+    # coastline - especially for small, glaciated archipelagos like
+    # Svalbard, the raw mask itself looks speckled at a small scale
+    # (visually confirmed with print(): isolated "land" pixels in the
+    # middle of open water and vice versa), not caused by missing H3
+    # coverage there. Since this mask only determines which of the two
+    # SMOOTHING channels (land/sea) a raster cell's VALUE flows into -
+    # not the coastline actually drawn, which still comes unchanged
+    # from Natural Earth -, it's smoothed here with the same Gaussian
+    # radius as the values themselves and re-thresholded at 0.5:
+    # isolated misclassification speckles disappear without affecting
+    # the actual map rendering. This fixes the previously visible
+    # fraying in the background color inside small islands.
     is_land_grid = _nan_gaussian_filter(
         np.where(is_land_grid, 1.0, 0.0), sigma_px / 10,
     ) >= 0.5
@@ -371,49 +367,51 @@ def _build_galton_grid(covered_df, grid_deg=config.GALTON_GRID_DEG, sigma_deg=co
 
 
 def parse_lat_limits(s):
-    """CLI-Parser für '--lat-limits=80,-60' (Norden,Süden) -> (80.0, -60.0)."""
+    """CLI parser for '--lat-limits=80,-60' (north,south) -> (80.0, -60.0)."""
     north_str, south_str = s.split(",")
     north, south = float(north_str), float(south_str)
     return max(north, south), min(north, south)
 
 
 def parse_paper(s):
-    """CLI-Parser für --paper: entweder ein Name aus config.PAPER_SIZES_IN
-    (z.B. 'a3') oder eigene Maße in Zentimetern als 'BREITExHÖHE' (z.B.
-    '50x60' oder '50.0x60.0') - Poster-Druckereien bieten oft keine
-    DIN-Formate an, sondern eigene/freie Größen.
+    """CLI parser for --paper: either a name from config.PAPER_SIZES_IN
+    (e.g. 'a3') or custom dimensions in centimeters as 'WIDTHxHEIGHT'
+    (e.g. '50x60' or '50.0x60.0') - poster print shops often don't
+    offer DIN sizes, but their own/free sizes.
 
-    Gibt den (klein geschriebenen) String unverändert zurück statt bereits
-    aufgelöster Zoll-Maße - die eigentliche Umrechnung passiert erst in
-    _apply_paper_size(), der String dient bis dahin unverändert auch als
-    Dateinamens-Suffix (wie schon bisher bei den DIN-/US-Namen).
+    Returns the (lowercased) string unchanged instead of already
+    resolved inch dimensions - the actual conversion only happens in
+    _apply_paper_size(), the string also serves unchanged until then as
+    the filename suffix (as already done for the DIN/US names).
     """
     key = s.strip().lower()
     if key in config.PAPER_SIZES_IN:
         return key
     width_str, height_str = key.split("x")
-    float(width_str), float(height_str)  # nur Validierung, ValueError bei Unsinn
+    float(width_str), float(height_str)  # validation only, ValueError on nonsense
     return key
 
 
 def _sketch(artist, dpi):
-    """Lässt einen Linien-/Patch-Artist leicht 'handgezeichnet' wackeln statt
-    geometrisch perfekt zu wirken - matplotlibs eingebauter Mechanismus
-    hinter plt.xkcd(), hier gezielt nur auf einzelne Artists angewendet
-    statt global. Wirkt auf jeden Artist mit set_sketch_params (Cartopys
-    FeatureArtist/Gridliner und matplotlib-Patches gleichermaßen).
+    """Makes a line/patch artist wobble slightly "hand-drawn" instead of
+    looking geometrically perfect - matplotlib's built-in mechanism
+    behind plt.xkcd(), applied here deliberately only to individual
+    artists rather than globally. Works on any artist with
+    set_sketch_params (cartopy's FeatureArtist/Gridliner and matplotlib
+    patches alike).
 
-    scale/length sind laut matplotlib-Doku Pixel, keine Punkte (Kommentar
-    bei RETRO_SKETCH_SCALE/_LENGTH in config.py ist insofern irreführend) -
-    und wirken erst beim tatsächlichen Rendern in fig.savefig(dpi=dpi), nicht
-    zum hier üblichen Zwischen-fig.dpi (rcParams-Default, unabhängig vom
-    --dpi-Schalter). Ein fester Pixelwert sähe bei höherem --dpi also
-    zunehmend feiner/unauffälliger aus (derselbe Pixelbetrag entspricht
-    einer kleineren physischen Länge) und bei niedrigerem --dpi gröber -
-    deshalb hier mit dpi/config.MAP_DPI (dem Kalibrierungswert der
-    Konstanten) skaliert, damit die Wellung unabhängig von --dpi optisch
-    gleich groß bleibt. randomness ist dagegen ein dimensionsloser
-    Skalierungsfaktor (keine Pixelgröße) und bleibt unskaliert."""
+    scale/length are pixels per matplotlib's docs, not points (the
+    comment on RETRO_SKETCH_SCALE/_LENGTH in config.py is misleading in
+    that regard) - and only take effect at actual render time in
+    fig.savefig(dpi=dpi), not at the intermediate fig.dpi used here
+    otherwise (rcParams default, independent of the --dpi switch). A
+    fixed pixel value would therefore look increasingly finer/less
+    noticeable at higher --dpi (the same pixel amount corresponds to a
+    smaller physical length) and coarser at lower --dpi - hence scaled
+    here with dpi/config.MAP_DPI (the constants' calibration value), so
+    the waviness stays visually the same size regardless of --dpi.
+    randomness, by contrast, is a dimensionless scaling factor (not a
+    pixel size) and stays unscaled."""
     scale_factor = dpi / config.MAP_DPI
     artist.set_sketch_params(
         scale=config.RETRO_SKETCH_SCALE * scale_factor, length=config.RETRO_SKETCH_LENGTH * scale_factor,
@@ -422,27 +420,27 @@ def _sketch(artist, dpi):
 
 
 def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
-    """Farberklärung im Stil von Galtons Original (1881): eine einzelne
-    knappe, horizontal zentrierte Zeile 'Explanation of colours.' gefolgt
-    von Farbfeld+Bereich je Band ('0-8h.', '8-16h.', ..., 'more than 48h.'
-    für das letzte, offene Band - extend='max' im contourf-Aufruf gibt
-    allem darüber ohnehin dieselbe Farbe), statt eines stufenlosen
-    Farbbalkens mit eigener Achse und Achsenbeschriftung - nimmt dadurch
-    deutlich weniger Höhe ein. Bei paired=True (--cmap galton) werden je
-    zwei aufeinanderfolgende Farben (dunkel/hell derselben Farbfamilie, siehe
-    GALTON_COLORS) als ein zusammenhängendes Doppelfeld mit einer
-    gemeinsamen Bereichsangabe gruppiert, genau wie im Original (fünf
-    benannte Farbfamilien, nicht zehn Einzeltöne).
+    """Color legend in the style of Galton's original (1881): a single
+    brief, horizontally centered line 'Explanation of colours.' followed
+    by a color swatch + range per band ('0-8h.', '8-16h.', ..., 'more
+    than 48h.' for the last, open band - extend='max' in the contourf
+    call gives everything beyond it the same color anyway), instead of
+    a continuous color bar with its own axis and axis labels - takes up
+    noticeably less height as a result. With paired=True (--cmap
+    galton), every two consecutive colors (dark/light of the same color
+    family, see GALTON_COLORS) are grouped as one contiguous double
+    field with a shared range label, exactly like the original (five
+    named color families, not ten individual shades).
 
-    Layout in Figure-Koordinaten statt ax.transAxes, da die Zeile UNTER der
-    Kartenachse sitzt, außerhalb ihrer eigenen Bounding Box - x-Positionen
-    werden zunächst bei x=0 sequentiell aus den tatsächlich gerenderten
-    Text-/Feldbreiten aufsummiert (fig.canvas.draw() + get_window_extent(),
-    derselbe Trick wie beim --galton-Doppelrahmen weiter oben, da
-    Textbreiten je nach Schriftart/-größe nicht im Voraus bekannt sind),
-    dann als Ganzes um die Gesamtbreite verschoben, um unter der Kartenachse
-    zentriert zu erscheinen - die Publikationszeile darunter wird separat
-    anhand ihrer eigenen (kürzeren) Breite zentriert.
+    Layout in figure coordinates rather than ax.transAxes, since the
+    line sits BELOW the map axes, outside its own bounding box -
+    x-positions are first accumulated sequentially from x=0 based on
+    the actually rendered text/swatch widths (fig.canvas.draw() +
+    get_window_extent(), the same trick as for the --galton double
+    border above, since text widths aren't known in advance depending
+    on font/size), then shifted as a whole by the total width to appear
+    centered under the map axes - the publisher line below it is
+    centered separately based on its own (shorter) width.
     """
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -493,16 +491,17 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
         x += gap / fig_w_px
 
         is_last = entry == n_entries - 1
-        # Auf ganze Stunden gerundet - nur für die Anzeige, die
-        # tatsächlichen Bandgrenzen (boundaries, contourf-Level) bleiben
-        # unangetastet, nur diese Beschriftung wird geglättet.
+        # Rounded to whole hours - display only, the actual band
+        # boundaries (boundaries, contourf levels) stay untouched, only
+        # this label is smoothed.
         lower_h = round(boundaries[i])
         upper_h = round(boundaries[i + step])
-        # Beim letzten, offenen Band bezieht sich "more than" auf das obere
-        # Ende der Skala (max_hours), nicht auf den Bandanfang - sonst würde
-        # z.B. --max-hours=40 bei fünf Bändern (8h je Band) "more than 32h."
-        # zeigen statt "more than 40h.", obwohl die Skala selbst bis 40h
-        # geht und erst darüber (extend="max") derselbe Farbton greift.
+        # For the last, open band, "more than" refers to the scale's
+        # upper end (max_hours), not the band's start - otherwise e.g.
+        # --max-hours=40 with five bands (8h each) would show "more
+        # than 32h." instead of "more than 40h.", even though the scale
+        # itself extends to 40h and only beyond that (extend="max") does
+        # the same color apply.
         label = f"more than {upper_h} hours." if is_last else f"{lower_h}–{upper_h}h."
         place_text(label)
 
@@ -526,58 +525,56 @@ def _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired, dpi):
 
 
 def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
-    """Erklärungstext im Stil von Galtons Original (1881, siehe MEMO.md) -
-    fest unten links in der Kartenecke verankert (Phase 14zY), nicht zu
-    verwechseln mit der separaten Farberklärung unterhalb der Karte
-    (_draw_galton_color_legend). Die Ursprungs-Legende (der Stern) wird
-    stattdessen HIER, am Ende dieser Funktion, über den Kasten gestapelt
-    (`legend.set_bbox_to_anchor()`) - umgekehrt zur früheren Anordnung, wo
-    der Kasten über der an ihrer festen Ecke verbleibenden Legende
-    stand. Grund: der Kasten soll immer an derselben, vorhersagbaren
-    Stelle stehen, während die Legende (deren Höhe je nach Airport-/Port-
-    Anzeige variiert) sich flexibel daran ausrichtet - nicht umgekehrt.
-    War zwischenzeitlich (Phase 14zQ) im Indischen Ozean verankert, weil
-    die damals noch breitere Box an dieser Stelle pazifische Inseln
-    (Samoa) verdeckte - seit die Attribution auf zwei Zeilen umbricht
-    (Phase 14zR) ist die Box schmal genug, um wieder links auf der Karte
-    zu passen, ohne dorthin zu ragen.
+    """Explanatory text in the style of Galton's original (1881, see
+    MEMO.md) - anchored fixed at the bottom-left map corner (Phase
+    14zY), not to be confused with the separate color legend below the
+    map (_draw_galton_color_legend). The origin legend (the star) is
+    instead stacked HERE, at the end of this function, above the box
+    (`legend.set_bbox_to_anchor()`) - reversed from the earlier
+    arrangement, where the box sat above the legend which stayed at its
+    fixed corner. Reason: the box should always sit at the same,
+    predictable spot, while the legend (whose height varies depending
+    on airport/port display) flexibly aligns to it - not the other way
+    around. Was briefly (Phase 14zQ) anchored in the Indian Ocean,
+    because the then-wider box at this position covered Pacific islands
+    (Samoa) - since the attribution wraps onto two lines (Phase 14zR)
+    the box is narrow enough to fit on the left of the map again
+    without extending there.
 
-    Anders als Galtons pauschales "showing the shortest number of days
+    Unlike Galton's blanket "showing the shortest number of days
     journey from London by the quickest through routes and using such
-    further conveyances as are available without unreasonable cost"
-    beschreibt der Text genau das, was dieses Modell tatsächlich
-    berechnet: eine kombinierte Flug-/Boden-/See-Reisezeit ab dem
-    gewählten Startpunkt (nicht zwangsläufig London), in Stunden statt
-    Tagen (unser Maximum liegt bei rund 48h statt Galtons mehreren
-    Wochen), als striktes Dijkstra-Minimum statt einer Ermessensfrage
-    "ohne unangemessene Kosten". Die einzige tatsächlich im Modell
-    vorhandene Kulanz-Annahme ist TRANSFER_HOURS je Umstieg - das tritt
-    an die Stelle von Galtons vagem "local preparations have been made
-    and other circumstances are favourable".
+    further conveyances as are available without unreasonable cost",
+    the text describes exactly what this model actually computes: a
+    combined flight/ground/sea travel time from the chosen origin point
+    (not necessarily London), in hours instead of days (our maximum is
+    around 48h instead of Galton's several weeks), as a strict Dijkstra
+    minimum instead of a judgment call "without unreasonable cost". The
+    only leniency assumption actually present in the model is
+    TRANSFER_HOURS per transfer - this stands in for Galton's vague
+    "local preparations have been made and other circumstances are
+    favourable".
 
-    Alle Zeilen sind auf eine gemeinsame Mittelachse zentriert, bis auf
-    den Fließtext-Absatz: matplotlib kennt keinen echten Blocksatz (der
-    bräuchte Wort-für-Wort-Platzierung mit dynamisch berechnetem
-    Wortabstand) - der Absatz bleibt daher pro Zeile linksbündig, aber
-    als Ganzes (anhand seiner breitesten Zeile) auf dieselbe Mittelachse
-    zentriert, statt komplett linksbündig wie zuvor. Die Mittelachse
-    selbst liegt so, dass der HINTERGRUND der Box (nicht nur der Text -
-    siehe pad_px-Verschiebung unten) als Ganzes linksbündig mit der
-    Kartenecke abschließt, an der die Legende ursprünglich (vor dem
-    Verschieben, siehe unten) stand - sonst würde die Box über deren
-    linken Rand hinaus in die Gradzahlen am Kartenrand hineinragen
-    (Textblock) bzw. sogar bis an den Kartenrahmen selbst reichen
-    (Hintergrund, dessen eigenes Padding sonst darüber hinausragen
-    würde).
+    All lines are centered on a shared vertical axis, except for the
+    body paragraph: matplotlib has no true justified text (that would
+    need word-by-word placement with dynamically computed word
+    spacing) - the paragraph therefore stays left-aligned per line, but
+    as a whole (based on its widest line) centered on the same vertical
+    axis, instead of fully left-aligned as before. The vertical axis
+    itself is positioned so that the BACKGROUND of the box (not just
+    the text - see the pad_px shift below) as a whole aligns flush left
+    with the map corner where the legend originally sat (before being
+    moved, see below) - otherwise the box would extend past that left
+    edge into the degree numbers at the map border (text block), or
+    even reach the map frame itself (background, whose own padding
+    would otherwise extend beyond that).
 
-    Positionierung wie bei der Farberklärung: Text wird zunächst
-    unsichtbar an Platzhalter-Positionen erzeugt, um die tatsächlich
-    gerenderten Breiten/Höhen zu kennen (fig.canvas.draw() +
-    get_window_extent(), da diese von Schriftart/-größe abhängen), dann
-    an die endgültige Position verschoben. Die Zeilen werden von unten
-    nach oben in umgekehrter Lesereihenfolge gestapelt (Attribution
-    zuerst, Titel zuletzt), weil jede neue Zeile über der vorherigen
-    erscheint.
+    Positioning as for the color legend: text is first created
+    invisibly at placeholder positions, to know the actually rendered
+    widths/heights (fig.canvas.draw() + get_window_extent(), since
+    these depend on font/size), then moved to the final position. The
+    lines are stacked bottom to top in reverse reading order
+    (attribution first, title last), since each new line appears above
+    the previous one.
     """
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -599,11 +596,11 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         )
     body_lines = textwrap.wrap(body, width=config.EXPLANATION_BODY_WRAP_CHARS)
 
-    # Jede Zeile (Body-Absatz UND die einzeiligen Elemente) wird zunächst
-    # an Platzhalter-Position (0, 0) erzeugt, nur um ihre gerenderte
-    # Breite zu kennen - die insgesamt breiteste bestimmt die Mittelachse
-    # so, dass die Box als Ganzes linksbündig mit der Legende abschließt
-    # (siehe Docstring), statt deren Mitte zu treffen.
+    # Every line (body paragraph AND the single-line elements) is first
+    # created at placeholder position (0, 0), just to know its rendered
+    # width - the overall widest one determines the vertical axis so
+    # that the box as a whole aligns flush left with the legend (see
+    # docstring), instead of hitting its center.
     def measure(text_str, fontproperties, fontsize):
         t = fig.text(
             0, 0, text_str, fontproperties=fontproperties, fontsize=fontsize,
@@ -627,21 +624,21 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     )
 
     max_width_px = max(max_body_width_px, title_width_px, subtitle_width_px, attr1_width_px, attr2_width_px)
-    # Der Textblock selbst startet um pad_px NACH legend_bbox.x0 - der
-    # Hintergrund (bg_rect weiter unten) wird um denselben pad_px wieder
-    # nach außen erweitert, sodass am Ende dessen sichtbarer linker Rand
-    # exakt bei legend_bbox.x0 landet, statt pad_px darüber hinaus in
-    # Richtung Kartenrand zu ragen.
+    # The text block itself starts pad_px AFTER legend_bbox.x0 - the
+    # background (bg_rect below) is expanded outward again by the same
+    # pad_px, so its visible left edge ends up exactly at
+    # legend_bbox.x0, instead of extending pad_px beyond that toward
+    # the map edge.
     pad_px = config.EXPLANATION_BG_PAD_PT * fig.dpi / 72.0
     center_x_px = legend_bbox.x0 + pad_px + max_width_px / 2
     para_x = (center_x_px - max_body_width_px / 2) / fig_w_px
 
     x_center = center_x_px / fig_w_px
-    # Startet an der festen Kartenecke (legend_bbox.y0, die Legende stand
-    # dort ursprünglich per loc="lower left") statt oberhalb der Legende -
-    # der Kasten übernimmt jetzt deren Eckposition, siehe Docstring. Wie
-    # beim linken Rand: +pad_px, damit der Hintergrund nach seiner eigenen
-    # Erweiterung um pad_px wieder exakt auf legend_bbox.y0 landet.
+    # Starts at the fixed map corner (legend_bbox.y0, where the legend
+    # originally sat via loc="lower left") instead of above the legend
+    # - the box now takes over its corner position, see docstring. Like
+    # for the left edge: +pad_px, so the background lands exactly on
+    # legend_bbox.y0 again after its own pad_px expansion.
     y = (legend_bbox.y0 + pad_px) / fig_h_px
     line_gap_px = 2.0 * fig.dpi / 72.0
     para_gap_px = 4.0 * fig.dpi / 72.0
@@ -654,10 +651,11 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         fig.canvas.draw()
         y += (artist.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
 
-    # Fett statt kursiv (CONTINENT_FONT statt CITY_FONT) - liest sich eher
-    # wie eine Signaturzeile. Auf zwei Zeilen umgebrochen statt einer
-    # langen - macht die Box insgesamt schmaler, da diese Zeile sonst die
-    # breiteste im ganzen Block wäre (breiter als jede Absatzzeile).
+    # Bold instead of italic (CONTINENT_FONT instead of CITY_FONT) -
+    # reads more like a signature line. Wrapped onto two lines instead
+    # of one long one - makes the box narrower overall, since this line
+    # would otherwise be the widest in the whole block (wider than any
+    # paragraph line).
     place_centered(attr2_artist)
     place_centered(attr1_artist)
 
@@ -668,15 +666,15 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
         extra_gap_px = para_gap_px if is_top_line else 0.0
         y += (t.get_window_extent(renderer).height + line_gap_px + extra_gap_px) / fig_h_px
 
-    # "FOR TRAVELLERS," mit Serifen (CONTINENT_FONT) statt der serifenlosen
-    # Titel-Groteskschrift - wie im Original, wo nur die Hauptüberschrift
-    # serifenlos ist.
+    # "FOR TRAVELLERS," with serifs (CONTINENT_FONT) instead of the
+    # sans-serif title grotesque - like the original, where only the
+    # main heading is sans-serif.
     place_centered(subtitle_artist, extra_gap_px=para_gap_px)
     place_centered(title_artist)
 
-    # Hellerer Hintergrund für besseren Kontrast vor der (teils dunklen)
-    # Karte - eine Fläche hinter allen Textelementen, anhand deren
-    # Gesamt-Bounding-Box bemessen.
+    # Lighter background for better contrast against the (partly dark)
+    # map - a patch behind all text elements, sized from their combined
+    # bounding box.
     fig.canvas.draw()
     bg_bbox = None
     for artist in all_artists:
@@ -693,24 +691,23 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     )
     ax.add_patch(bg_rect)
 
-    # Ursprungs-Legende jetzt über den Kasten schieben, statt an ihrer
-    # ursprünglichen Eckposition zu belassen - loc="lower left" bleibt
-    # dabei aktiv, nur der Ankerpunkt wandert auf die Kastenoberkante,
-    # sodass die Legende weiterhin mit ihrer eigenen Unterkante links dort
-    # andockt (set_bbox_to_anchor akzeptiert auch nur einen Punkt statt
-    # einer vollen Bbox, interpretiert per loc).
+    # Now shift the origin legend above the box, instead of leaving it
+    # at its original corner position - loc="lower left" stays active,
+    # only the anchor point moves to the box's top edge, so the legend
+    # still docks there with its own bottom-left corner (set_bbox_to_anchor
+    # also accepts just a point instead of a full bbox, interpreted via loc).
     gap_axes = config.GALTON_LEGEND_GAP_PT * fig.dpi / 72.0 / ax.get_window_extent(renderer).height
     legend.set_bbox_to_anchor((bg_axes.x0, bg_axes.y1 + gap_axes), transform=ax.transAxes)
     fig.canvas.draw()
 
 
 def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
-    """Gealtertes Papier-Rauschen als Postprocessing übers fertige PNG -
-    grobkörnige, hochskalierte Flecken (Stockflecken-artige Papiermarmorierung)
-    plus feines Pixelrauschen (Kornstruktur), additiv gemischt und aufs Bild
-    addiert. Deutlich einfacher als Rauschen ins Rendering selbst
-    einzubauen, und unabhängig von Projektion/Auflösung/DPI - wirkt auf das
-    bereits fertig zusammengesetzte Bild (Karte + Legende + Titel)."""
+    """Aged-paper noise as post-processing over the finished PNG -
+    coarse-grained, upscaled blotches (foxing-like paper marbling) plus
+    fine pixel noise (grain texture), additively mixed and added onto
+    the image. Much simpler than building noise into the rendering
+    itself, and independent of projection/resolution/DPI - acts on the
+    already fully composed image (map + legend + title)."""
     img = Image.open(png_path).convert("RGB")
     w, h = img.size
     rng = np.random.default_rng(seed)
@@ -726,29 +723,30 @@ def _apply_retro_noise(png_path, strength=config.RETRO_NOISE_STRENGTH, seed=0):
 
 
 def _apply_paper_size(png_path, paper, dpi):
-    """Setzt die fertig gerenderte (per bbox_inches="tight" eng
-    zugeschnittene) Karte mittig auf eine Seite im gewählten Papierformat
-    (--paper), statt sie zu verzerren oder zuzuschneiden - Leerraum oben
-    und unten in BACKGROUND_COLOR, da unsere Karten deutlich breiter als
-    hoch sind, Normseiten (DIN/US) aber ein viel schmaleres
-    Seitenverhältnis haben. Reine Rasternachbearbeitung übers fertige PNG,
-    wie schon _apply_retro_noise - vermeidet, die bestehende, bereits fein
-    austarierte figsize/bbox_inches="tight"-Logik anzufassen, die sich
-    automatisch an alle Inhalte (Titel, Legende, Erklärungskasten,
-    Rahmen) anpasst, egal welche Flags gesetzt sind.
+    """Places the finished rendered (tightly cropped via
+    bbox_inches="tight") map centered on a page in the chosen paper
+    size (--paper), instead of distorting or cropping it - blank space
+    top and bottom in BACKGROUND_COLOR, since our maps are noticeably
+    wider than tall, while standard pages (DIN/US) have a much
+    narrower aspect ratio. Pure raster post-processing over the
+    finished PNG, like _apply_retro_noise already does - avoids
+    touching the existing, already finely tuned
+    figsize/bbox_inches="tight" logic, which automatically adapts to
+    all content (title, legend, explanation box, frame), regardless of
+    which flags are set.
 
-    Skaliert das zugeschnittene Bild dafür auf die volle Papierbreite
-    (Querformat, da die Karte selbst breiter als hoch ist) - ein leichtes
-    Hoch-/Herunterskalieren gegenüber der organisch gewachsenen
-    Originalbreite ist unvermeidlich, sobald eine exakte Papiergröße
-    erzwungen wird, aber bei den hier üblichen Auflösungen visuell nicht
-    wahrnehmbar. Wird vor _apply_retro_noise aufgerufen (siehe
-    plot_h3_map()), damit die Papiermaserung auch den neu hinzugekommenen
-    Leerraum mit einschließt, statt dort unnatürlich glatt zu bleiben.
+    Scales the cropped image to the full paper width for this
+    (landscape, since the map itself is wider than tall) - a slight
+    up-/down-scaling relative to the organically grown original width
+    is unavoidable once an exact paper size is enforced, but not
+    visually noticeable at the resolutions typically used here. Called
+    before _apply_retro_noise (see plot_h3_map()), so the paper grain
+    also covers the newly added blank space, instead of staying
+    unnaturally smooth there.
 
-    paper (per parse_paper() validiert) ist entweder ein Name aus
-    config.PAPER_SIZES_IN oder eigene Zentimeter-Maße als 'BREITExHÖHE' -
-    Poster-Druckereien bieten oft keine DIN-Formate an.
+    paper (validated via parse_paper()) is either a name from
+    config.PAPER_SIZES_IN or custom centimeter dimensions as
+    'WIDTHxHEIGHT' - poster print shops often don't offer DIN sizes.
     """
     if paper in config.PAPER_SIZES_IN:
         width_in, height_in = config.PAPER_SIZES_IN[paper]
@@ -769,40 +767,42 @@ def _apply_paper_size(png_path, paper, dpi):
 
 
 def _draw_logo(fig, ax):
-    """Setzt das c't-Logo (LOGO_PATH_RAW, aus assets/ct-logo.svg geparst)
-    unten rechts auf JEDE Karte - unabhängig von --galton, anders als die
-    Signaturzeile (_draw_credits), die den dortigen Kartenrahmen voraussetzt.
+    """Places the c't logo (LOGO_PATH_RAW, parsed from assets/ct-logo.svg)
+    at the bottom-right of EVERY map - regardless of --galton, unlike
+    the signature line (_draw_credits), which requires the map frame
+    that only exists there.
 
-    Größe orientiert sich an der Schrift der "Published by..."-Zeile
-    (config.GALTON_LEGEND_FONT_SIZE * 2/3), auch wenn diese Zeile selbst
-    nur unter --galton existiert - der Nutzerwunsch war "ungefähr die Höhe
-    der Buchstaben" dieser Zeile, nicht deren tatsächliche Position.
+    Size is based on the font of the "Published by..." line
+    (config.GALTON_LEGEND_FONT_SIZE * 2/3), even though that line
+    itself only exists under --galton - the user's request was
+    "roughly the height of the letters" of that line, not its actual
+    position.
 
-    Position: rechte untere Ecke des gesamten bisherigen Inhalts
-    (fig.get_tightbbox(), derselbe Bbox, den bbox_inches="tight" beim
-    Speichern ohnehin zum Zuschneiden verwendet) - funktioniert dadurch
-    einheitlich mit und ohne --galton/--title/--labels/etc., ohne von den
-    unterschiedlichen Layout-Elementen dieser Modi abhängig zu sein. Muss
-    daher als letztes vor fig.savefig() aufgerufen werden, sonst wäre die
-    gemessene Bbox noch unvollständig.
+    Position: bottom-right corner of all content so far
+    (fig.get_tightbbox(), the same bbox that bbox_inches="tight" uses
+    for cropping when saving anyway) - this way it works consistently
+    with and without --galton/--title/--labels/etc., without depending
+    on the different layout elements of those modes. Must therefore be
+    called last before fig.savefig(), otherwise the measured bbox would
+    still be incomplete.
 
-    Positionierung in Figur-Bruchteilen (fig.transFigure) statt über
-    fig.dpi_scale_trans: Pfad-Eckpunkte werden VORAB (per .transformed())
-    in Pixel und dann in Bruchteile umgerechnet, statt den Patch selbst mit
-    einer aus fig.dpi_scale_trans zusammengesetzten Transform zu versehen -
-    letzteres lieferte zwar eine korrekte get_window_extent()-Vorschau,
-    das fertige, mit bbox_inches="tight" zugeschnittene PNG zeigte den
-    Logo-Patch danach aber gar nicht oder an völlig falscher Stelle (siehe
-    MEMO.md). fig.transFigure mit vorab in Pixel/Bruchteile umgerechneten
-    Koordinaten ist dasselbe bewährte Verfahren wie bei der Farberklärung
-    und den Signaturzeilen weiter oben.
+    Positioning in figure fractions (fig.transFigure) instead of via
+    fig.dpi_scale_trans: path vertices are converted to pixels and then
+    to fractions IN ADVANCE (via .transformed()), instead of giving the
+    patch itself a transform composed from fig.dpi_scale_trans - the
+    latter did yield a correct get_window_extent() preview, but the
+    finished PNG cropped with bbox_inches="tight" then showed the logo
+    patch either not at all or in a completely wrong place (see
+    MEMO.md). fig.transFigure with coordinates pre-converted to
+    pixels/fractions is the same proven approach as for the color
+    legend and the signature lines above.
     """
     if LOGO_PATH_RAW is None:
         return
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
-    content_bbox = fig.get_tightbbox(renderer)  # in Zoll
+    content_bbox = fig.get_tightbbox(renderer)  # in inches
     content_x1_px = content_bbox.x1 * fig.dpi
     content_y0_px = content_bbox.y0 * fig.dpi
 
@@ -811,9 +811,9 @@ def _draw_logo(fig, ax):
     scale = target_height_px / logo_bbox.height
 
     margin_px = config.LOGO_GAP_PT * fig.dpi / 72.0
-    # SVG-y wächst nach unten, matplotlib-y nach oben - deshalb
-    # scale(scale, -scale) statt nur scale(scale), um das Logo zu spiegeln
-    # statt es auf dem Kopf stehend zu platzieren.
+    # SVG y grows downward, matplotlib y grows upward - hence
+    # scale(scale, -scale) instead of just scale(scale), to mirror the
+    # logo instead of placing it upside down.
     affine = Affine2D().scale(scale, -scale)
     scaled_bbox = LOGO_PATH_RAW.transformed(affine).get_extents()
     target_x1_px = content_x1_px - margin_px
@@ -839,30 +839,30 @@ def plot_h3_map(
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False, paper=None,
 ):
-    # --galton impliziert --rivers/--grid/--labels - der Retro-Look zeigt
-    # Flüsse, das Gradnetz und die Kontinent-/Stadtbeschriftung ohnehin wie
-    # im Original, ein separates Anfordern wäre nur eine unnötige
-    # zusätzliche Angabe.
+    # --galton implies --rivers/--grid/--labels - the retro look shows
+    # rivers, the graticule, and the continent/city labels anyway like
+    # the original, requiring them separately would just be an
+    # unnecessary extra flag.
     rivers = rivers or galton
     grid = grid or galton
     labels = labels or galton
-    # --galton impliziert außerdem --cmap galton (statt config.COLORMAP),
-    # sofern --cmap nicht explizit gesetzt wurde - der Retro-Look soll
-    # Galtons echte Originalfarben zeigen, nicht viridis_r.
+    # --galton also implies --cmap galton (instead of config.COLORMAP),
+    # unless --cmap was explicitly set - the retro look should show
+    # Galton's real original colors, not viridis_r.
     cmap_name = cmap_name or ("galton" if galton else config.COLORMAP)
 
-    # low_memory=False: hub_id ist teils NaN (Landkacheln aus dem
-    # Friction-Surface-Pfad haben keins, siehe friction_map_from_point.py)
-    # und teils String (Häfen) - pandas' Chunk-weise Typ-Erkennung warnt
-    # sonst über diese gemischte Spalte, die hier ohnehin nicht genutzt wird.
+    # low_memory=False: hub_id is partly NaN (land tiles from the
+    # friction-surface path have none, see friction_map_from_point.py)
+    # and partly string (ports) - pandas' chunk-wise type detection
+    # otherwise warns about this mixed column, which isn't used here anyway.
     df = pd.read_csv(h3_csv_path, low_memory=False)
     covered = df[df["reisezeit_stunden"].notna()].copy()
 
     airports_df = pd.read_csv(travel_times_csv_path)
     ports_df = pd.read_csv(ports_csv_path)
-    # origin_points: für Startpunkte, die keine Flughäfen sind (siehe
-    # friction_map_from_point.py) - direkt übergebene (lat, lon)-Paare
-    # statt einer Suche in airports_df per IATA-Code.
+    # origin_points: for origin points that aren't airports (see
+    # friction_map_from_point.py) - directly passed (lat, lon) pairs
+    # instead of a lookup in airports_df by IATA code.
     if origin_points is not None:
         origin_lats = [lat for lat, lon in origin_points]
         origin_lons = [lon for lat, lon in origin_points]
@@ -877,20 +877,20 @@ def plot_h3_map(
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
         ax.set_global()
     else:
-        # Wie Galtons Original (1881) - Mercator kann die Pole nicht
-        # darstellen (Distanz zum Pol wird unendlich), deshalb auf einen
-        # Breitenbereich begrenzen statt ax.set_global(). Erklärt auch
-        # den Original-Effekt, dass Grönland/Spitzbergen überproportional
-        # groß wirken - eine bekannte Mercator-Verzerrung, kein Fehler.
-        # Standardmäßig Galtons eigener Zuschnitt (80°N/60°S, asymmetrisch -
-        # die Karte reichte nach Norden weiter als nach Süden), unabhängig
-        # von --galton - nicht nur eine Stileigenheit des Retro-Looks,
-        # sondern auch praktisch: schneidet das ohnehin stark verzerrte,
-        # wenig aussagekräftige Antarktis großteils ab.
+        # Like Galton's original (1881) - Mercator can't represent the
+        # poles (distance to the pole becomes infinite), so limit to a
+        # latitude range instead of ax.set_global(). Also explains the
+        # original effect where Greenland/Svalbard look
+        # disproportionately large - a known Mercator distortion, not a
+        # bug. Defaults to Galton's own crop (80°N/60°S, asymmetric -
+        # the map extended further north than south), independent of
+        # --galton - not just a stylistic quirk of the retro look, but
+        # also practical: cuts off most of the already heavily
+        # distorted, not very informative Antarctica.
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.Mercator())
         lat_max, lat_min = lat_limits if lat_limits is not None else (80, -60)
-        # -180/180 exakt lässt Cartopys Mercator-Randberechnung auf NaN
-        # laufen, daher ein winziges Inset.
+        # -180/180 exactly makes cartopy's Mercator edge computation
+        # run into NaN, hence a tiny inset.
         ax.set_extent([-179.9, 179.9, lat_min, lat_max], crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#f0f0e8", zorder=0)
     ax.add_feature(cfeature.OCEAN, facecolor="#d9e8f5", zorder=0)
@@ -899,29 +899,29 @@ def plot_h3_map(
         _sketch(coast, dpi)
 
     if rivers:
-        # Natural-Earth-Layer für die großen, weltweit bedeutsamen Flüsse
-        # (110m-Auflösung, wie bei den übrigen cfeature-Layern) - in
-        # derselben Strichstärke wie die Landmassenumrisse, wie bei
-        # Galtons Original, das auch nur die prominenten Flüsse zeigt.
+        # Natural Earth layer for the major, globally significant rivers
+        # (110m resolution, like the other cfeature layers) - at the
+        # same line width as the coastlines, like Galton's original,
+        # which also only shows the prominent rivers.
         river_feature = ax.add_feature(cfeature.RIVERS, edgecolor=ANTHRACITE, linewidth=COASTLINE_LINEWIDTH, zorder=2)
         if galton:
             _sketch(river_feature, dpi)
 
     if grid or galton:
-        # Im --galton-Modus sollen wie im Original 1881 die Gradzahlen
-        # außen an den Rändern stehen, unabhängig davon, ob die inneren
-        # Linien (--grid) sichtbar sind - daher Linien nur bei --grid
-        # eingeblendet (alpha=0 statt Weglassen, damit die Ticks/Labels
-        # trotzdem an den richtigen Stellen erscheinen), Labels nur bei
-        # --galton. Cartopys Gridliner-Labels funktionieren nur bei
-        # rechteckigen Projektionen (Mercator), nicht bei Robinson.
+        # In --galton mode, like the 1881 original, the degree numbers
+        # should sit on the outer edges, regardless of whether the
+        # inner lines (--grid) are visible - hence lines shown only for
+        # --grid (alpha=0 instead of omitting, so the ticks/labels still
+        # appear in the right places), labels only for --galton.
+        # Cartopy's gridliner labels only work with rectangular
+        # projections (Mercator), not with Robinson.
         draw_labels = galton and not robinson
-        # ylocs: range(-90, 91, ...) würde NICHT am Äquator beginnen, da
-        # 90 kein Vielfaches von GRID_STEP_DEG ist - die Schritte liefen
-        # dann versetzt (z.B. bei 20°: -90,-70,...,-10,10,...,90, also nie
-        # 0). Stattdessen vom größten Vielfachen von GRID_STEP_DEG <= 90
-        # aus symmetrisch um den Äquator zählen, sodass 0° immer ein
-        # eigener Gitterpunkt ist, wie im Original.
+        # ylocs: range(-90, 91, ...) would NOT start at the equator,
+        # since 90 isn't a multiple of GRID_STEP_DEG - the steps would
+        # then be offset (e.g. at 20°: -90,-70,...,-10,10,...,90, so
+        # never 0). Instead, count symmetrically around the equator
+        # starting from the largest multiple of GRID_STEP_DEG <= 90, so
+        # that 0° is always its own grid point, like the original.
         lat_max = (90 // GRID_STEP_DEG) * GRID_STEP_DEG
         gl = ax.gridlines(
             xlocs=range(-180, 181, GRID_STEP_DEG), ylocs=range(-lat_max, lat_max + 1, GRID_STEP_DEG),
@@ -929,43 +929,43 @@ def plot_h3_map(
             alpha=0.8 if grid else 0, zorder=2, draw_labels=draw_labels,
         )
         if draw_labels:
-            # Wie im Original: Gradzahlen an allen vier Seiten, nicht nur
-            # oben/seitlich - aber nur die nackte Zahl, ohne °/N/E/S/W.
+            # Like the original: degree numbers on all four sides, not
+            # just top/side - but only the bare number, without °/N/E/S/W.
             gl.top_labels = True
             gl.bottom_labels = True
             gl.left_labels = True
             gl.right_labels = True
             gl.xlabel_style = {"color": ANTHRACITE, "fontsize": 8, "fontproperties": CITY_FONT}
             gl.ylabel_style = {"color": ANTHRACITE, "fontsize": 8, "fontproperties": CITY_FONT}
-            # Wie im Original: keine Vorzeichen, West/Süd sind an der
-            # Position (Rand) erkennbar, nicht am Minus vor der Zahl.
+            # Like the original: no signs, west/south are recognizable
+            # by position (edge), not by a minus before the number.
             plain_formatter = FuncFormatter(lambda v, pos: f"{abs(v):g}")
             gl.xformatter = plain_formatter
             gl.yformatter = plain_formatter
 
     if galton:
-        # Drei Linien insgesamt, wie im Original: ein dünner Doppelrahmen
-        # direkt an der Karte (Spine + ein knapp innen liegendes Rectangle,
-        # beide COASTLINE_LINEWIDTH), plus eine deutlich kräftigere äußere
-        # Linie (FRAME_LINEWIDTH), die zusätzlich die Gradzahlen am Rand
-        # umschließt statt sie unbegrenzt draußen stehen zu lassen.
+        # Three lines in total, like the original: a thin double border
+        # right at the map (spine + a Rectangle sitting just inside it,
+        # both COASTLINE_LINEWIDTH), plus a noticeably bolder outer line
+        # (FRAME_LINEWIDTH) that also encloses the degree numbers at
+        # the edge instead of leaving them floating outside unbounded.
         ax.spines["geo"].set_edgecolor(ANTHRACITE)
         ax.spines["geo"].set_linewidth(COASTLINE_LINEWIDTH)
         _sketch(ax.spines["geo"], dpi)
         fig.canvas.draw()
-        # set_sketch_params() auf dem Gridliner-Objekt selbst wirkt nicht -
-        # die tatsächlich gezeichneten Linien sind eigene LineCollection-
-        # Artists (xline_artists/yline_artists), die erst beim ersten
-        # canvas.draw() entstehen (siehe oben) und daher erst hier
-        # erreichbar sind. gl existiert immer an dieser Stelle, da galton
-        # (Bedingung dieses Blocks) die Bedingung des gridlines()-Blocks
-        # weiter oben (grid or galton) impliziert.
+        # set_sketch_params() on the gridliner object itself has no
+        # effect - the lines actually drawn are separate LineCollection
+        # artists (xline_artists/yline_artists), which only come into
+        # existence on the first canvas.draw() (see above) and are
+        # therefore only reachable here. gl always exists at this
+        # point, since galton (this block's condition) implies the
+        # condition of the gridlines() block above (grid or galton).
         for line_artist in list(gl.xline_artists) + list(gl.yline_artists):
             _sketch(line_artist, dpi)
         renderer = fig.canvas.get_renderer()
 
-        # Innerer Rahmen: knapp innerhalb der Spine, ergibt den dünnen
-        # Doppelstrich direkt an der Karte.
+        # Inner frame: just inside the spine, produces the thin double
+        # rule right at the map.
         bbox_px = ax.get_window_extent(renderer)
         gap_px = FRAME_GAP_PT * fig.dpi / 72.0
         inner_px = Bbox.from_extents(
@@ -979,11 +979,11 @@ def plot_h3_map(
         _sketch(inner_rect, dpi)
         ax.add_patch(inner_rect)
 
-        # Äußerer Rahmen: umschließt nicht nur die Kartenachse selbst,
-        # sondern auch die Gradzahlen an ihrem Rand - deren tatsächliche
-        # Ausdehnung ist erst nach dem Rendern bekannt (Schriftgröße,
-        # Zeichenanzahl), daher per Bounding-Box-Vereinigung aller
-        # Label-Artists statt eines geschätzten festen Abstands ermittelt.
+        # Outer frame: encloses not just the map axes itself, but also
+        # the degree numbers at its edge - their actual extent is only
+        # known after rendering (font size, character count), hence
+        # determined via bounding-box union of all label artists
+        # instead of an estimated fixed margin.
         for label_artist in gl.label_artists:
             bbox_px = Bbox.union([bbox_px, label_artist.get_window_extent(renderer)])
         outer_px = Bbox.from_extents(
@@ -998,12 +998,12 @@ def plot_h3_map(
         _sketch(outer_rect, dpi)
         ax.add_patch(outer_rect)
 
-        # Signaturzeile wie im Original, das sich dort mit Kartograph
-        # ("H. Sharbau, F.G.S. del.", unten links) und Lithograph
-        # ("E. Weller. lith.", unten rechts) verewigt - direkt unter dem
-        # äußeren Rahmen, in Achsen-Bruchteilen relativ zur Achsenhöhe
-        # (nicht zur Figure-Höhe) umgerechnet, da outer_axes bereits in
-        # ax.transAxes-Koordinaten vorliegt.
+        # Signature line like the original, which immortalizes itself
+        # there with the cartographer ("H. Sharbau, F.G.S. del.",
+        # bottom-left) and lithographer ("E. Weller. lith.",
+        # bottom-right) - directly below the outer frame, converted in
+        # axes fractions relative to the axes height (not the figure
+        # height), since outer_axes is already in ax.transAxes coordinates.
         ax_height_px = ax.get_window_extent(renderer).height
         gap_axes = (config.CREDITS_GAP_PT * fig.dpi / 72.0) / ax_height_px
         credits_y = outer_axes.y0 - gap_axes
@@ -1018,14 +1018,14 @@ def plot_h3_map(
             va="top", ha="right", zorder=6, clip_on=False,
         )
 
-    # Wie bei Galtons Original: ab max_hours (--max-hours) wird der
-    # dunkelste Farbton vergeben, statt die Skala linear bis zum
-    # tatsächlichen Maximum (mehrere Tage Seezeit mitten im Ozean) zu
-    # strecken.
+    # Like Galton's original: beyond max_hours (--max-hours) the
+    # darkest shade is assigned, instead of stretching the scale
+    # linearly to the actual maximum (several days of sea time in the
+    # middle of the ocean).
     if cmap_name == "galton5":
-        # ListedColormap statt Interpolation: feste Farben, keine
-        # Zwischentöne - eine direkte Palette statt Stützstellen für eine
-        # Interpolation.
+        # ListedColormap instead of interpolation: fixed colors, no
+        # in-between tones - a direct palette instead of control points
+        # for an interpolation.
         cmap = ListedColormap(GALTON5_COLORS)
     elif cmap_name == "galton":
         cmap = ListedColormap(GALTON_COLORS)
@@ -1033,14 +1033,14 @@ def plot_h3_map(
         cmap = matplotlib.colormaps[cmap_name].copy()
 
     if galton:
-        # contourf statt Kachel-Mosaik: siehe _build_galton_grid für die
-        # Begründung (H3-Nachbarschaftsmittel glättet zu lokal, um
-        # Galtons handgezeichnete Bänder nachzubilden).
+        # contourf instead of tile mosaic: see _build_galton_grid for
+        # the rationale (H3 neighbor averaging smooths too locally to
+        # reproduce Galton's hand-drawn bands).
         lon_grid, lat_grid, galton_values = _build_galton_grid(covered, sigma_deg=galton_sigma)
-        # Bandanzahl folgt der Palettengröße: fünf gleich breite Stufen bei
-        # --cmap galton5, sonst zehn (--cmap galton oder jede andere
-        # Colormap im --galton-Modus) - eine feste Stufe je Palettenfarbe,
-        # kein eigener CLI-Schalter für die Bandanzahl.
+        # Number of bands follows the palette size: five equal-width
+        # levels for --cmap galton5, otherwise ten (--cmap galton or
+        # any other colormap in --galton mode) - one fixed level per
+        # palette color, no separate CLI switch for the band count.
         n_bands = len(GALTON5_COLORS) if cmap_name == "galton5" else len(GALTON_COLORS)
         boundaries = np.linspace(0, max_hours, n_bands + 1)
         mappable = ax.contourf(
@@ -1051,9 +1051,9 @@ def plot_h3_map(
     else:
         polygon_lists = [_cell_polygon_lonlat(h) for h in covered["h3_index"]]
         raw_values = covered["reisezeit_stunden"].to_numpy()
-        # Meist ein Polygon je Kachel, zwei bei Antimeridian-Kacheln (siehe
-        # _cell_polygon_lonlat) - deren Wert entsprechend mitverdoppelt,
-        # keins bei Pol-Kacheln (n_dropped).
+        # Usually one polygon per tile, two for antimeridian tiles (see
+        # _cell_polygon_lonlat) - their value duplicated accordingly,
+        # none for pole tiles (n_dropped).
         verts_lonlat = [p for polys in polygon_lists for p in polys]
         values = np.array([v for polys, v in zip(polygon_lists, raw_values) for _ in polys])
         n_dropped = sum(1 for polys in polygon_lists if not polys)
@@ -1069,12 +1069,12 @@ def plot_h3_map(
     if show_airports:
         ax.scatter(
             airports_df["lon"], airports_df["lat"], c="#ff9d00", marker="o", s=4,
-            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Flughafen",
+            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Airport",
         )
     if show_ports:
         ax.scatter(
             ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
-            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Hafen",
+            linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Port",
         )
     ax.scatter(
         origin_lons, origin_lats, c="red", marker="*", s=200,
@@ -1082,8 +1082,8 @@ def plot_h3_map(
     )
 
     if galton:
-        # Wie im Original: diskrete Farbfelder mit Bereichsangabe statt
-        # eines stufenlosen Farbbalkens, siehe _draw_galton_color_legend().
+        # Like the original: discrete color swatches with range labels
+        # instead of a continuous color bar, see _draw_galton_color_legend().
         n_bands = len(boundaries) - 1
         if cmap_name == "galton5":
             swatch_colors = GALTON5_COLORS
@@ -1094,29 +1094,28 @@ def plot_h3_map(
         _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton", dpi=dpi)
     else:
         cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
-        cbar.set_label(f"Reisezeit ab {origin_label} in Stunden")
+        cbar.set_label(f"Travel time from {origin_label} in hours")
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
         if galton:
-            detail = f"{n_bands} feste Stufen, geglättet (Gauß-Radius {galton_sigma}°)"
+            detail = f"{n_bands} fixed levels, smoothed (Gaussian radius {galton_sigma}°)"
         else:
-            detail = f"{len(covered)}/{len(df)} Kacheln abgedeckt, {n_dropped} Pol-Kacheln nicht darstellbar"
+            detail = f"{len(covered)}/{len(df)} tiles covered, {n_dropped} pole tiles not representable"
         ax.set_title(
-            f"Erreichbarkeit ab {origin_label} — H3-Raster Res. {resolution}, Land+See ({detail})",
+            f"Reachability from {origin_label} — H3 grid res. {resolution}, land+sea ({detail})",
             fontproperties=TITLE_FONT, fontsize=config.TITLE_FONT_SIZE, color=ANTHRACITE,
         )
     legend = ax.legend(loc="lower left", markerscale=2)
     if galton:
         for text in legend.get_texts():
             text.set_fontproperties(TITLE_FONT)
-    # Nur der Stern soll in der Legende kleiner erscheinen als auf der
-    # Karte (dort bleibt er unverändert auffällig groß) - daher erst
-    # nach dem automatischen Anlegen der Legende gezielt dieses eine
-    # Handle verkleinern, statt am scatter()-Aufruf selbst zu drehen.
-    # scatter()-Größen sind Flächen, keine Durchmesser - durch 4 statt
-    # durch 2 teilen, damit der Stern optisch (im Durchmesser) halb so
-    # groß wirkt.
+    # Only the star should appear smaller in the legend than on the map
+    # (there it stays deliberately eye-catchingly large) - hence
+    # shrinking just this one handle after the legend is auto-created,
+    # instead of adjusting the scatter() call itself. scatter() sizes
+    # are areas, not diameters - divide by 4 rather than 2, so the star
+    # looks visually (in diameter) half as big.
     for handle, text in zip(legend.legend_handles, legend.get_texts()):
         if text.get_text() == origin_label:
             handle.set_sizes(handle.get_sizes() / 4)
@@ -1141,69 +1140,70 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Auflösung des PNGs")
+    parser.add_argument("--dpi", type=int, default=config.MAP_DPI, help="Resolution of the PNG")
     parser.add_argument(
         "--paper", type=parse_paper, default=None,
-        metavar="FORMAT|BREITExHOEHE",
-        help="Karte mittig auf eine Seite in diesem Format setzen (Querformat), mit Leerraum in "
-             "BACKGROUND_COLOR oben/unten statt eines beliebigen, vom Inhalt abhaengigen "
-             "Seitenverhaeltnisses - ohne --paper bleibt es wie bisher beim engen Zuschnitt um "
-             "den tatsaechlichen Inhalt (bbox_inches=\"tight\"). Entweder ein Name "
-             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) oder eigene Zentimeter-Masse als "
-             "BREITExHOEHE (z.B. 50x60) - Poster-Druckereien bieten oft keine DIN-Formate an.",
+        metavar="FORMAT|WIDTHxHEIGHT",
+        help="Center the map on a page of this size (landscape), with blank space in "
+             "BACKGROUND_COLOR top/bottom instead of an arbitrary, content-dependent "
+             "aspect ratio - without --paper it stays as before, tightly cropped around "
+             "the actual content (bbox_inches=\"tight\"). Either a name "
+             f"({', '.join(sorted(config.PAPER_SIZES_IN))}) or custom centimeter dimensions as "
+             "WIDTHxHEIGHT (e.g. 50x60) - poster print shops often don't offer DIN sizes.",
     )
-    parser.add_argument("--airports", action="store_true", help="Flughafen-Punkte einblenden (standardmäßig aus)")
-    parser.add_argument("--ports", action="store_true", help="Hafen-Punkte einblenden (standardmäßig aus)")
+    parser.add_argument("--airports", action="store_true", help="Show airport points (off by default)")
+    parser.add_argument("--ports", action="store_true", help="Show port points (off by default)")
     parser.add_argument(
         "--galton", action="store_true",
-        help="Retro-Look: geglättete, diskrete Farbbänder statt stufenloser Skala",
+        help="Retro look: smoothed, discrete color bands instead of a continuous scale",
     )
     parser.add_argument(
         "--max-hours", type=float, default=config.GALTON_MAX_HOURS,
-        help="Gesamtspanne der Farbskala in Stunden - ab hier der dunkelste Farbton statt "
-             "weiterer Streckung. Gilt fuer beide Rendering-Modi; unter --galton zusaetzlich "
-             "gleichmaessig in zehn Baender aufgeteilt (bzw. fuenf feste bei --cmap galton5).",
+        help="Total span of the color scale in hours - beyond this the darkest shade "
+             "instead of further stretching. Applies to both rendering modes; under "
+             "--galton additionally split evenly into ten bands (or five fixed ones "
+             "with --cmap galton5).",
     )
     parser.add_argument(
         "--galton-sigma", type=float, default=config.GALTON_SIGMA_DEG,
-        help=f"Gauß-Glättungsradius in Grad im --galton-Modus (Standardabweichung, Standard {config.GALTON_SIGMA_DEG}°) - "
-             "größer = weicher/verwaschener, kleiner = schärfer/näher am Rohraster",
+        help=f"Gaussian smoothing radius in degrees in --galton mode (standard deviation, default {config.GALTON_SIGMA_DEG}°) - "
+             "larger = softer/blurrier, smaller = sharper/closer to the raw raster",
     )
     parser.add_argument(
         "--cmap", default=None,
-        help="Farbpalette. Standard: viridis_r (Standard-Matplotlib, perzeptuell gleichmaessig) - "
-             "ausser mit --galton, dann Standard: galton. Weitere perzeptuell gleichmaessige "
-             "Optionen: plasma_r, inferno_r, magma_r, cividis_r (oder ohne '_r' fuer umgekehrte "
-             "Farbrichtung, oder jeder andere matplotlib-Colormap-Name). "
-             "'galton': die zehn echten Original-Farbwerte als feste, nicht interpolierte Palette "
-             "(zusammen mit --galton: zehn statt fuenf Stufen). "
-             "'galton5': dieselbe Palette auf fuenf Farben reduziert, eine je Farbfamilie "
-             "(zusammen mit --galton: fuenf statt zehn Stufen).",
+        help="Color palette. Default: viridis_r (standard matplotlib, perceptually uniform) - "
+             "except with --galton, then default: galton. Other perceptually uniform "
+             "options: plasma_r, inferno_r, magma_r, cividis_r (or without '_r' for the "
+             "reversed color direction, or any other matplotlib colormap name). "
+             "'galton': the ten real original color values as a fixed, non-interpolated palette "
+             "(together with --galton: ten instead of five levels). "
+             "'galton5': the same palette reduced to five colors, one per color family "
+             "(together with --galton: five instead of ten levels).",
     )
     parser.add_argument(
         "--labels", action="store_true",
-        help="Kontinente und wichtigste Weltstädte beschriften, wie bei Galtons Original",
+        help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
         "--robinson", action="store_true",
-        help="Robinson-Projektion statt der (seit Galtons Original) Standard-Mercator-Projektion",
+        help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
     parser.add_argument(
         "--grid", action="store_true",
-        help=f"Längen-/Breitengrad-Raster in {GRID_STEP_DEG}°-Abständen einzeichnen",
+        help=f"Draw a longitude/latitude grid at {GRID_STEP_DEG}° intervals",
     )
     parser.add_argument(
         "--title", action="store_true",
-        help="Überschrift einblenden (standardmäßig aus)",
+        help="Show title (off by default)",
     )
     parser.add_argument(
-        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORD,SÜD",
-        help="Breitengrad-Zuschnitt der Mercator-Karte, z.B. '80,-60' (wirkungslos bei --robinson); "
-             "ohne Angabe: 80,-60 (Galtons eigener Zuschnitt, unabhängig von --galton)",
+        "--lat-limits", type=parse_lat_limits, default=None, metavar="NORTH,SOUTH",
+        help="Latitude crop of the Mercator map, e.g. '80,-60' (no effect with --robinson); "
+             "if not given: 80,-60 (Galton's own crop, independent of --galton)",
     )
     parser.add_argument(
         "--rivers", action="store_true",
-        help="Große Flüsse einzeichnen (Natural Earth, 110m), in derselben Strichstärke wie die Küstenlinien",
+        help="Draw major rivers (Natural Earth, 110m), at the same line width as the coastlines",
     )
     args = parser.parse_args()
 
