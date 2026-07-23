@@ -29,6 +29,14 @@ hub to the cell itself (by road or by sea).
 
 ![Isochrones from Paris](doc/example.png)
 
+Made with:
+
+```bash
+pipenv run python3 friction_map_from_point.py \
+  --label Hannover --dpi 100 -r 4 --galton \
+  52.3796308 9.6789009
+```
+
 ## Data files
 
 | File | Source | Format | Used for |
