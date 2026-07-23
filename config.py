@@ -4,6 +4,7 @@ Alles, was du später anpassen willst (Startflughäfen, Umstiegszeit,
 Faustformel-Konstanten), steht hier gesammelt.
 """
 
+import os
 from pathlib import Path
 
 # --- Pfade ---
@@ -241,3 +242,11 @@ GALTON_LEGEND_FONT_SIZE = 10
 GALTON_LEGEND_SWATCH_WIDTH_PT = 22
 GALTON_LEGEND_SWATCH_HEIGHT_PT = 11
 GALTON_LEGEND_GAP_PT = 6
+
+# --- Web-Backend (siehe backend_server.py) ---
+# Obergrenze gleichzeitig laufender Render-Jobs (ProcessPoolExecutor) -
+# jeder Job ist CPU- und speicherintensiv (Dijkstra + Cartopy + Matplotlib),
+# daher bewusst konservativ statt an der Kernanzahl orientiert. Per
+# Umgebungsvariable ISOSCHRONE_MAX_JOBS überschreibbar, ohne Codeänderung
+# (z.B. für einen leistungsfähigeren Host).
+MAX_CONCURRENT_RENDER_JOBS = int(os.environ.get("ISOSCHRONE_MAX_JOBS", 2))

@@ -238,14 +238,14 @@ def _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon):
 
 def _print_config_overview(
     lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
-    labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack,
+    labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack, paper
 ):
     """Übersicht der für diesen Lauf wirksamen Konfiguration, nur unter -v -
     fasst zusammen, was sonst über ein Dutzend einzelner CLI-Flags verstreut
     wäre, bevor die eigentliche (teils mehrere Sekunden dauernde) Berechnung
     losläuft."""
     print(f"Start: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
-    print(f"H3 resolution: {resolution}, DPI: {dpi}")
+    print(f"H3 resolution: {resolution}, Paper: {paper}, DPI: {dpi}")
     print(f"Projection: {'Robinson' if robinson else 'Mercator'}"
           + ("" if robinson or lat_limits is None else f", lat-limits {lat_limits[0]:g}/{lat_limits[1]:g}"))
     if galton:
@@ -274,8 +274,19 @@ def main(
     resolution=config.H3_RESOLUTION, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
-    heli=False, jetpack=False, verbose=False, paper=None,
+    heli=False, jetpack=False, verbose=False, paper=None, progress_callback=None,
 ):
+    # progress_callback: optionaler Haken fuers Backend (siehe backend_server.py) -
+    # bekommt dieselben Meilenstein-Meldungen wie -v auf der Konsole, damit ein
+    # Web-Client den Fortschritt eines laufenden Renders live mitverfolgen kann,
+    # ohne stdout des Worker-Prozesses mitlesen zu muessen. CLI-Verhalten bleibt
+    # unveraendert, da progress_callback dort nie gesetzt wird.
+    def _report(msg):
+        if verbose:
+            print(msg)
+        if progress_callback:
+            progress_callback(msg)
+
     origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
     # --galton impliziert --rivers/--grid/--labels und --cmap galton (siehe
     # plot_h3_map.py) - hier schon vor der Dateinamens-Bildung und der
@@ -289,7 +300,7 @@ def main(
     if verbose:
         _print_config_overview(
             lat, lon, origin_label, dpi, show_airports, show_ports, resolution, galton, max_hours, cmap_name,
-            labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack,
+            labels, robinson, grid, title, lat_limits, rivers, galton_sigma, heli, jetpack, paper
         )
     slug = slug_for_point(lat, lon)
     res_suffix = "" if resolution == config.H3_RESOLUTION else f"_res{resolution}"
@@ -303,37 +314,29 @@ def main(
     air_suffix = "_bond" if heli and jetpack else ("_heli" if heli else "_jetpack" if jetpack else "")
     paper_suffix = f"_{paper}" if paper else ""
 
-    if verbose:
-        print("Loading airport data ...")
+    _report("Loading airport data ...")
     airports_df = load_airports(config.AIRPORTS_CSV)
-    if verbose:
-        print("Loading friction-graph ...")
+    _report("Loading friction-graph ...")
     graph, node_lat, node_lon = friction.load_graph()
-    if verbose:
-        print("Calculating combined ground/air travel-times to each airport ...")
+    _report("Calculating combined ground/air travel-times to each airport ...")
     travel_times_df, combo_minutes = build_travel_times_from_point(
         lat, lon, graph, node_lat, node_lon, airports_df, heli=heli, jetpack=jetpack,
     )
-    if verbose:
-        print(f"{len(travel_times_df)} airports reachable.")
+    _report(f"{len(travel_times_df)} airports reachable.")
 
-    if verbose:
-        print("Distributing ground time across all land tiles ...")
+    _report("Distributing ground time across all land tiles ...")
     land_result = build_friction_land(
         travel_times_df, graph, node_lat, node_lon,
         minutes_path=f"friction_data/land_travel_minutes_from_{slug}{res_suffix}{air_suffix}.npy",
         resolution=resolution,
     )
-    if verbose:
-        print("Building port tiles/ports ...")
+    _report("Building port tiles/ports ...")
     sea_result, ports_df = build_sea(land_result, resolution)
     h3_df = pd.concat([land_result, sea_result], ignore_index=True)
-    if verbose:
-        print("Applying fly-then-walk ground time to land tiles ...")
+    _report("Applying fly-then-walk ground time to land tiles ...")
     h3_df = _apply_combo_ground_to_h3(h3_df, combo_minutes, node_lat, node_lon)
     if heli or jetpack:
-        if verbose:
-            print("Coloring tiles within heli/jetpack range...")
+        _report("Coloring tiles within heli/jetpack range...")
         h3_df = _apply_air_reach_to_h3(h3_df, lat, lon, heli, jetpack)
 
     # air_suffix auch in den CSV-Namen, nicht nur im PNG: heli=True ändert
@@ -346,14 +349,12 @@ def main(
     ports_csv = f"ports_travel_times_from_{slug}_friction_surface{res_suffix}{air_suffix}.csv"
     png = f"h3_travel_times_map_from_{slug}_friction_surface{res_suffix}{galton_suffix}{labels_suffix}{proj_suffix}{grid_suffix}{title_suffix}{lat_suffix}{rivers_suffix}{air_suffix}{paper_suffix}.png"
 
-    if verbose:
-        print(f"Writing {travel_times_csv}, {h3_csv}, {ports_csv} ...")
+    _report(f"Writing {travel_times_csv}, {h3_csv}, {ports_csv} ...")
     travel_times_df.to_csv(travel_times_csv, index=False)
     h3_df.to_csv(h3_csv, index=False)
     ports_df.to_csv(ports_csv, index=False)
 
-    if verbose:
-        print(f"Drawing map ...")
+    _report("Drawing map ...")
     plot_h3_map(
         h3_csv, travel_times_csv, ports_csv, png, [],
         origin_label=origin_label, dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
@@ -361,6 +362,11 @@ def main(
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
         galton_sigma=galton_sigma, heli=heli, jetpack=jetpack, paper=paper,
     )
+    # plot_h3_map() druckt "Map saved as ..." bereits selbst (unbedingt, nicht
+    # an verbose/_report gekoppelt) - hier nur der Rueckgabewert fuers Backend
+    # (backend_server.py), das den Dateinamen kennen muss, um das Ergebnis
+    # einzulesen, ohne die Suffix-Logik oben zu duplizieren.
+    return png
 
 
 if __name__ == "__main__":

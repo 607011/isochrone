@@ -169,7 +169,7 @@ def run_dijkstra(graph, node_lat, node_lon, airports_df, output_path=CACHE_TRAVE
     # .1f statt .0f: Dijkstra selbst läuft auf dem gecachten Graphen meist
     # unter einer Sekunde - mit .0f wäre das immer "0s" gewesen, ganz
     # unabhängig vom eigentlichen Rundungsfehler oben.
-    print(f"Dijkstra fertig in {time.time()-t0:.1f}s")
+    print(f"Dijkstra finished in {time.time()-t0:.1f}s.")
     minutes = dist[:n]
     np.save(output_path, minutes.astype(np.float32))
     return minutes

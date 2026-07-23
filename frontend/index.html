@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isoschrone – Reisezeitkarte</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Isoschrone – Reisezeitkarte</h1>
+<p class="hint">Erzeugt eine Reisezeit-Karte ab einem beliebigen Punkt (Breiten-/Längengrad).</p>
+
+<form id="render-form">
+  <div class="field-row">
+    <label for="lat">Breitengrad (lat)</label>
+    <input type="number" id="lat" name="lat" step="any" min="-90" max="90" value="48.85" required>
+  </div>
+  <div class="field-row">
+    <label for="lon">Längengrad (lon)</label>
+    <input type="number" id="lon" name="lon" step="any" min="-180" max="180" value="2.35" required>
+  </div>
+  <div class="field-row">
+    <label for="label">Beschriftung (optional)</label>
+    <input type="text" id="label" name="label" placeholder="z.B. Paris">
+  </div>
+  <div class="field-row">
+    <label for="cmap">Colormap (optional)</label>
+    <input type="text" id="cmap" name="cmap" placeholder="z.B. viridis">
+  </div>
+  <div class="field-row">
+    <label for="max_hours">Max. Stunden (--max-hours)</label>
+    <input type="number" id="max_hours" name="max_hours" step="any" min="0">
+  </div>
+  <div class="field-row">
+    <label for="dpi">DPI</label>
+    <input type="number" id="dpi" name="dpi" min="36" max="300" value="150">
+  </div>
+  <div class="field-row">
+    <label for="paper">Papierformat (optional)</label>
+    <input type="text" id="paper" name="paper" placeholder="z.B. a4 oder 30x20">
+  </div>
+  <div class="field-row checkbox-row">
+    <label><input type="checkbox" id="galton" name="galton"> Galton-Modus</label>
+    <label><input type="checkbox" id="title" name="title"> Titel anzeigen</label>
+  </div>
+  <button type="submit" id="submit-btn">Karte rendern</button>
+</form>
+
+<div id="progress-container" hidden>
+  <div id="progress-bar-outer">
+    <div id="progress-bar-inner"></div>
+  </div>
+  <p id="progress-message"></p>
+</div>
+
+<div id="result-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

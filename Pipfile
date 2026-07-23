@@ -20,6 +20,9 @@ scikit-image = "*"
 pillow = "*"
 adjusttext = "*"
 svgpath2mpl = "*"
+fastapi = "*"
+uvicorn = "*"
+websockets = "*"
 
 [dev-packages]
 # Nur für fix_ports_coordinates.py (einmaliges Korrekturskript, siehe
