@@ -18,6 +18,8 @@ a single region).
 """
 
 import os
+import sys
+from pathlib import Path
 
 if "SSL_CERT_FILE" not in os.environ:
     import certifi
@@ -36,6 +38,11 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 from distance import haversine_miles

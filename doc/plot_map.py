@@ -14,12 +14,20 @@ if "SSL_CERT_FILE" not in os.environ:
     import certifi
     os.environ["SSL_CERT_FILE"] = certifi.where()
 
+import sys
+from pathlib import Path
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import pandas as pd
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 

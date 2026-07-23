@@ -19,9 +19,17 @@ optional dev dependency, in case ports.csv ever changes and the
 correction has to be rerun - no longer for every `pipenv install`.
 """
 
+import sys
+from pathlib import Path
+
 import pandas as pd
 import pycountry
 import reverse_geocoder as rg
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 

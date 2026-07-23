@@ -8,7 +8,15 @@ Order matters:
 3. Water tiles: nearest port (from step 2) + sea time.
 """
 
+import sys
+from pathlib import Path
+
 import pandas as pd
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 from h3_grid import build_grid

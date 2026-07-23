@@ -1,6 +1,13 @@
 """Reachability map: fastest travel time from London to every airport worldwide."""
 
 import csv
+import sys
+from pathlib import Path
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 from data_loading import load_airports, load_routes

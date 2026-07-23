@@ -9,9 +9,17 @@ resolution other than the default, main_h3.py -r <resolution> must
 have been run first, so the water tiles match the chosen resolution.
 """
 
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
+
+# Moved to doc/ (standalone example script, not part of the web
+# backend's dependency chain) - the modules below still live in the
+# project root, so it needs to be on sys.path regardless of cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
 from h3_grid import build_grid
