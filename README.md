@@ -29,17 +29,23 @@ hub to the cell itself (by road or by sea).
 
 ![Isochrones from Paris](doc/example.png)
 
-To reproduce this exact map after a fresh clone:
+To reproduce this exact map after a fresh clone, you first need to install some things:
 
 ```bash
+# set up virtual environment
 pipenv install
 
+# load friction data and cache it
 mkdir -p friction_data
 curl -L -o friction_data/friction_surface.zip \
   "https://data.malariaatlas.org/geoserver/ows?service=CSW&version=2.0.1&request=DirectDownload&ResourceId=Explorer:2020_motorized_friction_surface"
 unzip -o friction_data/friction_surface.zip -d friction_data
-pipenv run python friction_surface_global.py  # ~1-2 min, builds & caches the global land-friction graph (~744 MB unzipped raster)
+pipenv run python friction_surface_global.py
+```
 
+After that you can generate maps with calls like the following:
+
+```bash
 pipenv run python3 friction_map_from_point.py \
   --label Hannover --dpi 100 -r 4 --galton \
   52.3796308 9.6789009
