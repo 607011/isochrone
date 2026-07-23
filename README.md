@@ -63,7 +63,11 @@ fetching and caching the Natural Earth basemap data (coastlines, land,
 ocean, rivers, city labels) it needs to draw the map. That's expected
 and harmless; later runs reuse the local cache and stay quiet.
 
-For everything else — full script/data reference, `--galton`/`--paper`/
-`--heli` and other flags, the anisotropic friction-surface pipeline and
-its extra downloads, known simplifications — see
-[doc/reference.md](doc/reference.md).
+Want to skip the ground/sea leg entirely for the first stretch? `--heli`
+and `--jetpack` reach each candidate airport via a fast, range-limited
+straight-line hop (220 km/h up to 500 km, and 100 km/h up to 20 km,
+respectively) instead of the friction graph, and chain together when
+both are given. `--james-bond` is shorthand for `--heli --jetpack`
+together.
+
+For more options see `pipenv run python3 friction_map_from_point.py --help`.
