@@ -58,6 +58,11 @@ pipenv run python3 friction_map_from_point.py \
   52.3796308 9.6789009
 ```
 
+The first run prints a few `DownloadWarning`s from Cartopy - it's
+fetching and caching the Natural Earth basemap data (coastlines, land,
+ocean, rivers, city labels) it needs to draw the map. That's expected
+and harmless; later runs reuse the local cache and stay quiet.
+
 For everything else — full script/data reference, `--galton`/`--paper`/
 `--heli` and other flags, the anisotropic friction-surface pipeline and
 its extra downloads, known simplifications — see
