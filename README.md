@@ -25,6 +25,16 @@ cell — land or water — is assigned the travel time of whichever
 airport or port serves it fastest, including the "last mile" from that
 hub to the cell itself (by road or by sea).
 
+A flat driving speed in every direction is a crude last-mile model,
+though — real ground transport follows roads. For a more realistic
+estimate, this project can instead route over a real-world travel-
+friction raster from the [Malaria Atlas
+Project](https://malariaatlas.org/project-resources/accessibility-to-healthcare/)
+(Weiss et al.): built from roads, railways, rivers, terrain and land
+cover to model travel time to the nearest healthcare facility
+worldwide, and repurposed here as a general, road-following
+(anisotropic) ground-speed model instead of a flat-speed circle.
+
 ## Example
 
 ![Isochrones from Paris](doc/example.png)
