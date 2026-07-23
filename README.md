@@ -70,4 +70,14 @@ respectively) instead of the friction graph, and chain together when
 both are given. `--james-bond` is shorthand for `--heli --jetpack`
 together.
 
-For more options see `pipenv run python3 friction_map_from_point.py --help`.
+For more options see `pipenv run python3 friction_map_from_point.py --help`,
+or [doc/reference.md](doc/reference.md) for the full script/data reference,
+known simplifications, and the anisotropic friction-surface pipeline's
+extra downloads.
+
+## Web backend
+
+Prefer a browser over the CLI? `backend_server.py` wraps
+`friction_map_from_point.py` as a small FastAPI app with a live progress
+bar - see [doc/backend.md](doc/backend.md) for how it works and how to
+run it.

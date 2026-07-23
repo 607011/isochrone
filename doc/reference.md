@@ -3,7 +3,9 @@
 Detailed reference material for the [Isochrone Map](../README.md) project:
 data file formats, what each script does, full run instructions, known
 simplifications, and possible next steps. See the main
-[README](../README.md) for the quick start.
+[README](../README.md) for the quick start, or
+[backend.md](backend.md) for the FastAPI/WebSocket web backend and its
+frontend.
 
 ## Data files
 
