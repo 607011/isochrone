@@ -170,14 +170,11 @@ CONTINENT_LABELS = [
     ("AUSTRALIA", 135, -25),
 ]
 
-# Only the most prominent world cities (SCALERANK 0 in Natural Earth's
-# populated_places, ~27 cities) - labeling all ~3200 airports would just
-# be a jumble of letters, and airport names ("Heathrow") aren't city
-# names ("London") anyway.
-CITY_LABEL_MAX_SCALERANK = 0
-
-
-def _load_city_labels(max_scalerank=CITY_LABEL_MAX_SCALERANK):
+# Real city names from Natural Earth (SCALERANK, see config.py) rather
+# than labeling airports directly - airport names ("Heathrow") aren't
+# city names ("London") anyway, and there's no ranking among ~3200 of
+# them that would keep the map from turning into a jumble of letters.
+def _load_city_labels(max_scalerank=config.CITY_LABEL_MAX_SCALERANK):
     path = shpreader.natural_earth(resolution="110m", category="cultural", name="populated_places")
     records = shpreader.Reader(path).records()
     return [
@@ -187,7 +184,7 @@ def _load_city_labels(max_scalerank=CITY_LABEL_MAX_SCALERANK):
     ]
 
 
-def _draw_labels(ax):
+def _draw_labels(ax, city_scalerank=config.CITY_LABEL_MAX_SCALERANK):
     for name, lon, lat in CONTINENT_LABELS:
         ax.text(
             lon, lat, name, transform=ccrs.PlateCarree(), zorder=6,
@@ -195,7 +192,7 @@ def _draw_labels(ax):
             fontproperties=CONTINENT_FONT,
         )
     city_texts = []
-    for name, lon, lat in _load_city_labels():
+    for name, lon, lat in _load_city_labels(city_scalerank):
         ax.plot(
             lon, lat, marker="o", markersize=config.CITY_MARKER_SIZE, color=ANTHRACITE,
             transform=ccrs.PlateCarree(), zorder=6,
@@ -581,8 +578,9 @@ def _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack):
     fig_w_px, fig_h_px = fig.bbox.width, fig.bbox.height
     legend_bbox = legend.get_window_extent(renderer)
 
+    body_from = f"from {origin_label} " if origin_label else ""
     body = (
-        f"showing the shortest number of hours’ journey from {origin_label} "
+        f"showing the shortest number of hours’ journey {body_from}"
         "by the quickest available routes, combining scheduled flight "
         "connections with realistic road- and terrain-following travel "
         "time to and from the airport, and shipping time across open "
@@ -838,6 +836,7 @@ def plot_h3_map(
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, origin_points=None, rivers=False,
     galton_sigma=config.GALTON_SIGMA_DEG, heli=False, jetpack=False, paper=None,
+    city_scalerank=config.CITY_LABEL_MAX_SCALERANK,
 ):
     # --galton implies --rivers/--grid/--labels - the retro look shows
     # rivers, the graticule, and the continent/city labels anyway like
@@ -1076,9 +1075,19 @@ def plot_h3_map(
             ports_df["lon"], ports_df["lat"], c="#ff00c8", marker="o", s=4,
             linewidths=0, alpha=0.8, transform=ccrs.PlateCarree(), zorder=3, label="Port",
         )
+    # No origin_label (--label omitted) means no label at all, not a
+    # coordinate fallback (see friction_map_from_point.py) - "_nolegend_"
+    # is matplotlib's own convention for "don't give this artist a
+    # legend entry" (an empty string "" is ALSO treated as "no entry",
+    # so that doesn't work here). Under --galton the star still needs
+    # *a* legend entry regardless, even a blank-looking one, since
+    # _draw_galton_explanation below anchors itself to the legend's own
+    # bounding box - a single space keeps that entry (and thus the
+    # anchor) without rendering any visible text.
+    origin_legend_label = origin_label or (" " if galton else "_nolegend_")
     ax.scatter(
         origin_lons, origin_lats, c="red", marker="*", s=200,
-        transform=ccrs.PlateCarree(), zorder=9, label=origin_label,
+        transform=ccrs.PlateCarree(), zorder=9, label=origin_legend_label,
     )
 
     if galton:
@@ -1094,7 +1103,7 @@ def plot_h3_map(
         _draw_galton_color_legend(fig, ax, boundaries, swatch_colors, paired=cmap_name == "galton", dpi=dpi)
     else:
         cbar = fig.colorbar(mappable, ax=ax, orientation="horizontal", pad=0.05, shrink=0.6, extend="max")
-        cbar.set_label(f"Travel time from {origin_label} in hours")
+        cbar.set_label(f"Travel time from {origin_label} in hours" if origin_label else "Travel time in hours")
 
     if title:
         resolution = h3.get_resolution(covered["h3_index"].iloc[0]) if len(covered) else "?"
@@ -1102,29 +1111,35 @@ def plot_h3_map(
             detail = f"{n_bands} fixed levels, smoothed (Gaussian radius {galton_sigma}°)"
         else:
             detail = f"{len(covered)}/{len(df)} tiles covered, {n_dropped} pole tiles not representable"
+        title_from = f"from {origin_label} " if origin_label else ""
         ax.set_title(
-            f"Reachability from {origin_label} — H3 grid res. {resolution}, land+sea ({detail})",
+            f"Reachability {title_from}— H3 grid res. {resolution}, land+sea ({detail})",
             fontproperties=TITLE_FONT, fontsize=config.TITLE_FONT_SIZE, color=ANTHRACITE,
         )
-    legend = ax.legend(loc="lower left", markerscale=2)
-    if galton:
-        for text in legend.get_texts():
-            text.set_fontproperties(TITLE_FONT)
-    # Only the star should appear smaller in the legend than on the map
-    # (there it stays deliberately eye-catchingly large) - hence
-    # shrinking just this one handle after the legend is auto-created,
-    # instead of adjusting the scatter() call itself. scatter() sizes
-    # are areas, not diameters - divide by 4 rather than 2, so the star
-    # looks visually (in diameter) half as big.
-    for handle, text in zip(legend.legend_handles, legend.get_texts()):
-        if text.get_text() == origin_label:
-            handle.set_sizes(handle.get_sizes() / 4)
+    # Skip an empty legend (matplotlib would otherwise warn "no artists
+    # with labels found") - only happens with no --label, --airports, or
+    # --ports, and not --galton (which always needs one, see above).
+    legend = None
+    if show_airports or show_ports or origin_label or galton:
+        legend = ax.legend(loc="lower left", markerscale=2)
+        if galton:
+            for text in legend.get_texts():
+                text.set_fontproperties(TITLE_FONT)
+        # Only the star should appear smaller in the legend than on the map
+        # (there it stays deliberately eye-catchingly large) - hence
+        # shrinking just this one handle after the legend is auto-created,
+        # instead of adjusting the scatter() call itself. scatter() sizes
+        # are areas, not diameters - divide by 4 rather than 2, so the star
+        # looks visually (in diameter) half as big.
+        for handle, text in zip(legend.legend_handles, legend.get_texts()):
+            if text.get_text() == origin_legend_label:
+                handle.set_sizes(handle.get_sizes() / 4)
 
     if galton:
         _draw_galton_explanation(fig, ax, origin_label, legend, heli, jetpack)
 
     if labels:
-        _draw_labels(ax)
+        _draw_labels(ax, city_scalerank)
 
     _draw_logo(fig, ax)
 
@@ -1185,6 +1200,12 @@ if __name__ == "__main__":
         help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
+        "--city-scalerank", type=int, default=config.CITY_LABEL_MAX_SCALERANK, metavar="N",
+        help="With --labels: label cities up to this Natural Earth SCALERANK "
+             f"(0=most prominent only, higher=more cities; default {config.CITY_LABEL_MAX_SCALERANK}, "
+             "~27 cities; 1: ~68; 2: ~99; 3: ~198, at 110m resolution)",
+    )
+    parser.add_argument(
         "--robinson", action="store_true",
         help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
@@ -1213,5 +1234,5 @@ if __name__ == "__main__":
         dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, galton=args.galton,
         max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
-        galton_sigma=args.galton_sigma, paper=args.paper,
+        galton_sigma=args.galton_sigma, paper=args.paper, city_scalerank=args.city_scalerank,
     )

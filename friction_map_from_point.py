@@ -247,7 +247,8 @@ def _print_config_overview(
     -v - summarizes what would otherwise be scattered across a dozen
     individual CLI flags, before the actual (sometimes multi-second)
     computation starts."""
-    print(f"Start: {origin_label} ({lat:.4f}°, {lon:.4f}°)")
+    where = f"{origin_label} " if origin_label else ""
+    print(f"Start: {where}({lat:.4f}°, {lon:.4f}°)")
     print(f"H3 resolution: {resolution}, Paper: {paper}, DPI: {dpi}")
     print(f"Projection: {'Robinson' if robinson else 'Mercator'}"
           + ("" if robinson or lat_limits is None else f", lat-limits {lat_limits[0]:g}/{lat_limits[1]:g}"))
@@ -278,6 +279,7 @@ def main(
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
     heli=False, jetpack=False, verbose=False, paper=None, progress_callback=None,
+    city_scalerank=config.CITY_LABEL_MAX_SCALERANK,
 ):
     # progress_callback: optional hook for the backend (see
     # backend_server.py) - receives the same milestone messages as -v on
@@ -291,7 +293,12 @@ def main(
         if progress_callback:
             progress_callback(msg)
 
-    origin_label = label or f"{lat:.2f}°, {lon:.2f}°"
+    # No coordinate fallback here (unlike earlier) - omitting --label now
+    # means no label at all on the map (origin star excluded from the
+    # legend, "from <label>" clauses dropped from the colorbar/title/
+    # explanation text), not a silent "48.85°, 2.35°" stand-in. See
+    # plot_h3_map.py for how it handles origin_label being None.
+    origin_label = label
     # --galton implies --rivers/--grid/--labels and --cmap galton (see
     # plot_h3_map.py) - applied here already before the filename is
     # built and the -v overview, so the filename and console output
@@ -365,6 +372,7 @@ def main(
         max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, origin_points=[(lat, lon)], rivers=rivers,
         galton_sigma=galton_sigma, heli=heli, jetpack=jetpack, paper=paper,
+        city_scalerank=city_scalerank,
     )
     # plot_h3_map() already prints "Map saved as ..." itself
     # (unconditionally, not tied to verbose/_report) - here just the
@@ -426,6 +434,12 @@ if __name__ == "__main__":
         help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
+        "--city-scalerank", type=int, default=config.CITY_LABEL_MAX_SCALERANK, metavar="N",
+        help="With --labels: label cities up to this Natural Earth SCALERANK "
+             f"(0=most prominent only, higher=more cities; default {config.CITY_LABEL_MAX_SCALERANK}, "
+             "~27 cities; 1: ~68; 2: ~99; 3: ~198, at 110m resolution)",
+    )
+    parser.add_argument(
         "--robinson", action="store_true",
         help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
@@ -473,5 +487,5 @@ if __name__ == "__main__":
         labels=args.labels, robinson=args.robinson, grid=args.grid, title=args.title,
         lat_limits=args.lat_limits, rivers=args.rivers, galton_sigma=args.galton_sigma,
         heli=args.heli or args.james_bond, jetpack=args.jetpack or args.james_bond, verbose=args.verbose,
-        paper=args.paper,
+        paper=args.paper, city_scalerank=args.city_scalerank,
     )

@@ -89,7 +89,7 @@ def main(
     resolution=config.H3_RESOLUTION, galton=False,
     max_hours=config.GALTON_MAX_HOURS, cmap_name=None, labels=False, robinson=False,
     grid=False, title=False, lat_limits=None, rivers=False, galton_sigma=config.GALTON_SIGMA_DEG,
-    paper=None,
+    paper=None, city_scalerank=config.CITY_LABEL_MAX_SCALERANK,
 ):
     # --galton implies --rivers/--grid/--labels and --cmap galton (see
     # plot_h3_map.py) - applied here already before the filename is
@@ -131,6 +131,7 @@ def main(
         origin_label=origin_row["name"], dpi=dpi, show_airports=show_airports, show_ports=show_ports, galton=galton,
         max_hours=max_hours, cmap_name=cmap_name, labels=labels, robinson=robinson, grid=grid,
         title=title, lat_limits=lat_limits, rivers=rivers, galton_sigma=galton_sigma, paper=paper,
+        city_scalerank=city_scalerank,
     )
 
 
@@ -184,6 +185,12 @@ if __name__ == "__main__":
         help="Label continents and the most prominent world cities, like Galton's original",
     )
     parser.add_argument(
+        "--city-scalerank", type=int, default=config.CITY_LABEL_MAX_SCALERANK, metavar="N",
+        help="With --labels: label cities up to this Natural Earth SCALERANK "
+             f"(0=most prominent only, higher=more cities; default {config.CITY_LABEL_MAX_SCALERANK}, "
+             "~27 cities; 1: ~68; 2: ~99; 3: ~198, at 110m resolution)",
+    )
+    parser.add_argument(
         "--robinson", action="store_true",
         help="Robinson projection instead of the standard Mercator projection (since Galton's original)",
     )
@@ -210,5 +217,5 @@ if __name__ == "__main__":
         args.iata, dpi=args.dpi, show_airports=args.airports, show_ports=args.ports, resolution=args.resolution, galton=args.galton,
         max_hours=args.max_hours, cmap_name=args.cmap, labels=args.labels, robinson=args.robinson,
         grid=args.grid, title=args.title, lat_limits=args.lat_limits, rivers=args.rivers,
-        galton_sigma=args.galton_sigma, paper=args.paper,
+        galton_sigma=args.galton_sigma, paper=args.paper, city_scalerank=args.city_scalerank,
     )

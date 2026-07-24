@@ -9,6 +9,14 @@ app, so a map can be rendered remotely from a browser instead of the CLI.
 - **FastAPI**, serving both the `/ws/render` WebSocket route and the static
   `frontend/` files from one process/port - avoids CORS entirely, no
   separate frontend dev server needed.
+- **Static files always revalidate**: `_NoCacheStaticFiles` (a thin
+  `StaticFiles` subclass) adds `Cache-Control: no-cache` to every response.
+  Plain `StaticFiles` sends no cache header at all, so browsers fall back to
+  heuristic caching from `Last-Modified` - after editing `frontend/app.js`,
+  a browser can keep serving the old cached copy for a while with no
+  visible error, silently missing whatever the edit added (confirmed to
+  happen in practice). `no-cache` still allows a cheap `304` via
+  ETag/Last-Modified, it just can't skip asking first.
 - **Concurrency limit**: a module-level
   `concurrent.futures.ProcessPoolExecutor(max_workers=config.MAX_CONCURRENT_RENDER_JOBS)`.
   matplotlib/Cartopy aren't thread-safe, so each render already needs its
@@ -47,7 +55,7 @@ app, so a map can be rendered remotely from a browser instead of the CLI.
 | File | Role |
 |---|---|
 | `backend_server.py` | The FastAPI app: job submission, progress relay, cancellation, static-file mount. |
-| `frontend/index.html` | Form for a curated subset of `friction_map_from_point.py`'s flags (lat/lon, label, `-r`/`--resolution`, colormap, `--max-hours`, `--galton-sigma`, DPI, `--paper`, `--galton`, `--title`, `--rivers`, `--ports`, `--airports`, `--james-bond`). |
+| `frontend/index.html` | Form for a curated subset of `friction_map_from_point.py`'s flags (lat/lon, `--label`, `-r`/`--resolution`, colormap, `--max-hours`, `--galton-sigma`, DPI, `--paper`, `--galton`, `--title`, `--labels`, `--city-scalerank`, `--rivers`, `--ports`, `--airports`, `--james-bond`). |
 | `frontend/app.js` | Opens the WebSocket, sends the form as JSON once, renders progress bar + final image from the server's messages. |
 | `frontend/style.css` | Minimal styling, light/dark aware (`color-scheme: light dark`). |
 
@@ -61,8 +69,8 @@ would extend to them if needed.
 
 - **Client → Server** (once, right after connecting): a flat JSON object -
   `lat`, `lon`, `label`, `resolution`, `galton`, `cmap`, `max_hours`,
-  `galton_sigma`, `dpi`, `paper`, `title`, `rivers`, `ports`, `airports`,
-  `james_bond`. Missing/empty fields fall back to
+  `galton_sigma`, `dpi`, `paper`, `title`, `labels`, `city_scalerank`,
+  `rivers`, `ports`, `airports`, `james_bond`. Missing/empty fields fall back to
   `friction_map_from_point.main()`'s own defaults. `james_bond` maps to
   `heli=True, jetpack=True` together - `--heli`/`--jetpack` aren't
   individually selectable in the form.
@@ -93,8 +101,7 @@ Code's browser pane.
 
 - Only a curated subset of `friction_map_from_point.py`'s flags is exposed
   in the form - no `--heli`/`--jetpack` individually (only combined via
-  `--james-bond`), `--robinson`, `--grid`, `--lat-limits`, or `--labels`
-  yet.
+  `--james-bond`), `--robinson`, `--grid`, or `--lat-limits` yet.
 - No authentication or per-client rate limiting beyond the global
   concurrency cap - anyone who can reach the port can submit jobs.
 - Rendered files (PNG/CSV) accumulate in the project root exactly as a CLI

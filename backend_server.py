@@ -30,6 +30,21 @@ from fastapi.staticfiles import StaticFiles
 import config
 from plot_h3_map import parse_paper
 
+
+class _NoCacheStaticFiles(StaticFiles):
+    """StaticFiles sets no Cache-Control header by default, so browsers
+    fall back to heuristic caching from Last-Modified - a stale cached
+    app.js after an edit silently keeps whatever old behavior it had
+    (e.g. missing a form field added since), with no visible error.
+    Confirmed to happen in practice during development. "no-cache" still
+    lets the browser reuse a cached copy once revalidated (a cheap
+    304 via ETag/Last-Modified), it just can't skip asking first."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
 # One manager process and one worker pool for the server's whole
 # lifetime, not restarted per request - Manager() starts its own
 # server process for the queue proxies, doing that again per request
@@ -140,6 +155,13 @@ def _build_job_params(payload):
     if not (0 <= galton_sigma <= 20):
         raise ValueError("galton_sigma must be between 0 and 20.")
 
+    city_scalerank = int(payload.get("city_scalerank") or config.CITY_LABEL_MAX_SCALERANK)
+    if not (0 <= city_scalerank <= 9):
+        # 9 already covers every SCALERANK tier Natural Earth's 110m
+        # populated_places actually has - higher values would just be a
+        # no-op, not a real request for "even more" cities.
+        raise ValueError("city_scalerank must be between 0 and 9.")
+
     # --james-bond is shorthand for --heli --jetpack together, same as
     # the CLI (see friction_map_from_point.py's argparse block) - heli/
     # jetpack aren't exposed individually here, only this combined flag.
@@ -159,6 +181,8 @@ def _build_job_params(payload):
         "rivers": bool(payload.get("rivers")),
         "show_ports": bool(payload.get("ports")),
         "show_airports": bool(payload.get("airports")),
+        "labels": bool(payload.get("labels")),
+        "city_scalerank": city_scalerank,
         "galton_sigma": galton_sigma,
         "heli": james_bond,
         "jetpack": james_bond,
@@ -283,4 +307,4 @@ async def render_socket(websocket: WebSocket):
 # precedence - Starlette checks routes in registration order, the
 # StaticFiles mount at "/" serves as the catch-all for anything without
 # its own route.
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+app.mount("/", _NoCacheStaticFiles(directory="frontend", html=True), name="frontend")

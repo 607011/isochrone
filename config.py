@@ -211,6 +211,14 @@ CONTINENT_FONT_SIZE = 14
 CITY_FONT_SIZE = 7.5
 CITY_MARKER_SIZE = 2
 
+# Natural Earth's populated_places SCALERANK (0 = most prominent world
+# cities, higher = progressively less prominent) - only ranks <= this
+# are labeled under --labels. Default 0 (~27 cities, at 110m resolution)
+# keeps the map uncluttered; overridable via --city-scalerank since
+# there's no single right answer across every DPI/paper size (e.g. 1:
+# ~68 cities, 2: ~99, 3: ~198, per the cached 110m dataset).
+CITY_LABEL_MAX_SCALERANK = 0
+
 # --- Explanatory text in --galton mode (see plot_h3_map.py:_draw_galton_explanation) ---
 # Like Galton's original: a brief explanatory text on the map itself
 # (not part of the color legend below), with a lighter background for

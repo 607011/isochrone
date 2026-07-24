@@ -19,6 +19,8 @@ function buildPayload() {
     dpi: data.get("dpi"),
     paper: data.get("paper"),
     title: form.title.checked,
+    labels: form.labels.checked,
+    city_scalerank: data.get("city_scalerank"),
     rivers: form.rivers.checked,
     ports: form.ports.checked,
     airports: form.airports.checked,

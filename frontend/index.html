@@ -70,9 +70,19 @@
     <label for="paper">Paper size (optional)</label>
     <input type="text" id="paper" name="paper" placeholder="e.g. a4 or 30x20">
   </div>
+  <div class="field-row">
+    <label for="city_scalerank">City labels detail (with "Continent/city labels" below)</label>
+    <select id="city_scalerank" name="city_scalerank">
+      <option value="0">Fewest (~27 major cities)</option>
+      <option value="1">More (~68 cities)</option>
+      <option value="2">Even more (~99 cities)</option>
+      <option value="3">Most (~198 cities)</option>
+    </select>
+  </div>
   <div class="field-row checkbox-row">
     <label><input type="checkbox" id="galton" name="galton"> Galton mode</label>
     <label><input type="checkbox" id="title" name="title"> Show title</label>
+    <label><input type="checkbox" id="labels" name="labels"> Continent/city labels</label>
     <label><input type="checkbox" id="rivers" name="rivers"> Rivers</label>
     <label><input type="checkbox" id="ports" name="ports"> Ports</label>
     <label><input type="checkbox" id="airports" name="airports"> Airports</label>
